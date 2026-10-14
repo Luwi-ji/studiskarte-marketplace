@@ -10,6 +10,8 @@
     "db:check": "node --env-file=.env.local scripts/db-check.mjs"
   },
   "dependencies": {
+    "@neon/config": "^1.9.1",
+    "@neon/env": "^1.6.2",
     "@vercel/functions": "^3.10.1",
     "next": "16.4.0",
     "pg": "^8.23.1",
