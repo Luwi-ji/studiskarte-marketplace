@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "skills": {
+    "andon": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "andon/SKILL.md",
+      "computedHash": "03d77366b983999fe7487a86a54e524ecb2861b4cd6030283f19c4f3dcaea353"
+    },
+    "genchi-genbutsu": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "genchi-genbutsu/SKILL.md",
+      "computedHash": "2597f6460b21b48f032e3588c7164a783dba22e14420e4782b041658d5dadc80"
+    },
+    "hansei": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "hansei/SKILL.md",
+      "computedHash": "652c0c83032d020a96d106c3ffa95c3a36563e04a1b3671ff96e3f2f7f4cc495"
+    },
+    "jidoka": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "jidoka/SKILL.md",
+      "computedHash": "f8a932f3ae630644dc586cac3fd41a7b47197b174c12849d287518c219a9b0ba"
+    },
+    "kaizen": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "kaizen/SKILL.md",
+      "computedHash": "73b91b5df2206188f5cd2d188f247b4d5f8e38bebbc56971890c59e254931ecc"
+    },
+    "kanso": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "kanso/SKILL.md",
+      "computedHash": "6d44c696819c524f0a6ca23184e6326c2ddbcfe703203cce661c95413f238b0f"
+    },
+    "kata": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "kata/SKILL.md",
+      "computedHash": "8f28c9d89e746d69e2c543202ce18bd59f3d41bc7322a44a0246fbe4fb92f102"
+    },
+    "kodawari": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "kodawari/SKILL.md",
+      "computedHash": "5133ec00f546422a38af77fdfe1f3044b5f3178dce01c94e543b3718c965502a"
+    },
+    "monozukuri-blueprint": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "monozukuri-blueprint/SKILL.md",
+      "computedHash": "4ddb154918afc08c170d2ffaf85a98c020f61fff77a007b3cdfa15882e606176"
+    },
+    "monozukuri-core": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "monozukuri-core/SKILL.md",
+      "computedHash": "052e92921016b2ec8ebba55bfe83c78c2d6dc1587d42bfdb88bc03aef5e19827"
+    },
+    "monozukuri-router": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "monozukuri-router/SKILL.md",
+      "computedHash": "c09629de14bd3b8997e7a729a3b3b2aa4c78a41f343807b103a3b5ef6328213b"
+    },
+    "nemawashi": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "nemawashi/SKILL.md",
+      "computedHash": "09ab6f53c88a54dbf6cfc7766d5519d281e0a58baabf1240b0033c3bde0da5a5"
+    },
+    "neon": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon/SKILL.md",
+      "computedHash": "d684e62509ddab4e39743186875fa8344e115dcf10db07d8b251cdd4af02bede"
+    },
+    "neon-ai-gateway": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-ai-gateway/SKILL.md",
+      "computedHash": "795d5c3f1cb146cad802ca4ea74bd70b882c0de0239bdd98098c2e072c4c4dc7"
+    },
+    "neon-auth": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-auth/SKILL.md",
+      "computedHash": "b525e5fc011325ffed8768fffc54ffd4434a0346b1cac86506e71c0902868563"
+    },
+    "neon-functions": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-functions/SKILL.md",
+      "computedHash": "24322fa7d08c411f5216e8d4c0120d82f0122679d9a4f0898308bbe1a1941ddb"
+    },
+    "neon-object-storage": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-object-storage/SKILL.md",
+      "computedHash": "b641a3e19ad7c7e9756466bc93d042bd4f9893348c10c65d3228c453603b0262"
+    },
+    "neon-postgres": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-postgres/SKILL.md",
+      "computedHash": "1f1f003560e6f824fe82648b756a934e90d96d4cb3ad714a3b61ba02d136a4bf"
+    },
+    "neon-postgres-branches": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-postgres-branches/SKILL.md",
+      "computedHash": "808eadbffb000a963949081f3ec6684d3a8943db99c2f706c2dff27d1a2aadca"
+    },
+    "neon-postgres-egress-optimizer": {
+      "source": "neondatabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/neon-postgres-egress-optimizer/SKILL.md",
+      "computedHash": "d08a9a558f8236e1403a5ef2221ef4c0d075166a246a83d730493a7fe377ae46"
+    },
+    "poka-yoke": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "poka-yoke/SKILL.md",
+      "computedHash": "632bb21fbe4d720d58833addbab3d6fbdf28af25fb268aaac540d7c1abae9a1c"
+    },
+    "shukka": {
+      "source": "kuya-egg/Monozukuri",
+      "sourceType": "github",
+      "skillPath": "shukka/SKILL.md",
+      "computedHash": "7b63b61cf79d0ad5a09152009b36cd64863521d4ea3dc2d92fd4a951e713560f"
+    }
+  }
+}
