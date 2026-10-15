@@ -10,7 +10,7 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Stage 2 (tech stack): approved, then updated for the static offline page and the added scheduled jobs. The updates only record the owner's decisions.
 - Stage 3 (logic-to-stack map): approved for the previous content, and updated for the same decisions. The updates need no new stack pieces.
 - Stage 4 (phase plan): approved, 16 phases plus 3 deferred. See `.monozukuri/blueprint/04-phase-plan.md`.
-- Phase 1 (walking skeleton): deployed at https://studiskarte-marketplace.vercel.app (Vercel, Neon `production`, R2 `studiskarte-prod`); CI green. Verified in production: a code reached the `tup.edu.ph` (Google mail) inbox and signed in; the owner posted two photos, stored with no EXIF, XMP or GPS data. **Not yet done:** a code at a second school (Microsoft mail ideally) and sign-in inside an installed iPhone and Android app. Phase 1 stays open until those pass.
+- Phase 1 (walking skeleton): deployed at https://studiskarte-marketplace.vercel.app (Vercel, Neon `production`, R2 `studiskarte-prod`); CI green. Verified in production: a code reached the `tup.edu.ph` (Google mail) inbox and signed in; the owner posted two photos, stored with no EXIF, XMP or GPS data. The owner waived the Microsoft-mail inbox check (ADR 0004). **Not yet done:** posting and sign-in inside an installed iPhone and Android app. Phase 1 stays open until those pass.
 
 ## Decisions since the feature list
 - No payments. "Make offer" is a price proposal. "Buy now" is "Reserve at asking price". Handover and payment happen in person. Both students confirm the handover. Nobody else confirms for them.
