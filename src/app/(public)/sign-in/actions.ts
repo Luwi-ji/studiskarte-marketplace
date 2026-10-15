@@ -3,8 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isAPIError } from "better-auth/api";
-import { auth, SIGN_IN_ERROR } from "@/lib/identity/auth";
-import { MailQuotaError } from "@/lib/mail";
+import { auth, requestSignInCode, SIGN_IN_ERROR } from "@/lib/identity/auth";
 import { parseSchoolEmail } from "@/lib/identity/school-email";
 
 export type SignInState =
@@ -17,26 +16,22 @@ const TRY_LATER = "Too many attempts. Try again later.";
 // response never reveals which condition applied.
 const BAD_CODE = "That code did not work. Check it or ask for a new one.";
 
+const COULD_NOT_SEND = "We could not send the code. Try again later.";
+
 export async function requestCode(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const school = parseSchoolEmail(String(formData.get("email") ?? ""));
   if (!school) return { step: "email", error: SCHOOL_HINT };
 
   try {
-    await auth.api.sendVerificationOTP({
-      body: { email: school.email, type: "sign-in" },
-      headers: await headers(),
-    });
+    const result = await requestSignInCode(school.email, await headers());
+    if (result.ok) return { step: "code", email: school.email };
+    if (result.reason === "not_school_email") return { step: "email", error: SCHOOL_HINT };
+    if (result.reason === "send_failed") return { step: "email", error: COULD_NOT_SEND };
+    return { step: "email", error: TRY_LATER };
   } catch (error) {
-    if (error instanceof MailQuotaError) return { step: "email", error: TRY_LATER };
-    if (isAPIError(error)) {
-      const code = (error.body as { code?: string } | undefined)?.code;
-      if (code === SIGN_IN_ERROR.notSchoolEmail) return { step: "email", error: SCHOOL_HINT };
-      if (code === SIGN_IN_ERROR.tooManyRequests) return { step: "email", error: TRY_LATER };
-    }
-    console.error("sending a sign-in code failed", error);
-    return { step: "email", error: "We could not send the code. Try again later." };
+    console.error("requesting a sign-in code failed", error);
+    return { step: "email", error: COULD_NOT_SEND };
   }
-  return { step: "code", email: school.email };
 }
 
 export async function verifyCode(_prev: SignInState, formData: FormData): Promise<SignInState> {

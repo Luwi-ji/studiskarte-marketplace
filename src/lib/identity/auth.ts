@@ -1,11 +1,12 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError, createAuthMiddleware, getIP } from "better-auth/api";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { APIError, createAuthMiddleware, getIP, isAPIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
 import * as schema from "@/db/schema";
 import { getDb } from "@/lib/db";
-import { sendMail } from "@/lib/mail";
+import { MailQuotaError, sendMail } from "@/lib/mail";
 import { consume } from "@/lib/rate-limit";
 import { parseSchoolEmail } from "@/lib/identity/school-email";
 
@@ -36,6 +37,11 @@ function notSchoolEmailError() {
     message: "Use your school email address ending in .edu.ph.",
   });
 }
+
+// Better Auth catches any error thrown by sendVerificationOTP, logs it, and
+// still answers "success" (runInBackgroundOrAwait). The callback records the
+// failure here, scoped to the current request, so the caller can tell.
+const codeDelivery = new AsyncLocalStorage<{ error?: unknown }>();
 
 const authOptions = {
   baseURL: process.env.BETTER_AUTH_URL,
@@ -121,11 +127,18 @@ const authOptions = {
         if (!school) {
           throw notSchoolEmailError();
         }
-        await sendMail({
-          to: school.email,
-          subject: "Your Studiskarte code",
-          text: `Your Studiskarte Marketplace code is ${otp}.\nIt expires in ${OTP_EXPIRES_SECONDS / 60} minutes. If you did not ask for it, ignore this message.`,
-        });
+        try {
+          await sendMail({
+            to: school.email,
+            subject: "Your Studiskarte code",
+            text: `Your Studiskarte Marketplace code is ${otp}.\nIt expires in ${OTP_EXPIRES_SECONDS / 60} minutes. If you did not ask for it, ignore this message.`,
+          });
+        } catch (error) {
+          // Better Auth catches this and still answers "success"; see requestSignInCode.
+          const outcome = codeDelivery.getStore();
+          if (outcome) outcome.error = error;
+          throw error;
+        }
       },
     }),
     // Must be last: lets server actions set the session cookie.
@@ -134,3 +147,31 @@ const authOptions = {
 } satisfies Parameters<typeof betterAuth>[0];
 
 export const auth = betterAuth(authOptions);
+
+export type CodeRequestResult =
+  | { ok: true }
+  | { ok: false; reason: "not_school_email" | "too_many_requests" | "mail_quota" | "send_failed" };
+
+/**
+ * Asks for a sign-in code and reports whether the mail really left. The UI
+ * must never say "we sent a code" when it did not.
+ */
+export async function requestSignInCode(email: string, headers: Headers): Promise<CodeRequestResult> {
+  const outcome: { error?: unknown } = {};
+  try {
+    await codeDelivery.run(outcome, () =>
+      auth.api.sendVerificationOTP({ body: { email, type: "sign-in" }, headers }),
+    );
+  } catch (error) {
+    const code = isAPIError(error) ? (error.body as { code?: string } | undefined)?.code : undefined;
+    if (code === SIGN_IN_ERROR.notSchoolEmail) return { ok: false, reason: "not_school_email" };
+    if (code === SIGN_IN_ERROR.tooManyRequests) return { ok: false, reason: "too_many_requests" };
+    throw error;
+  }
+  if (outcome.error instanceof MailQuotaError) return { ok: false, reason: "mail_quota" };
+  if (outcome.error) {
+    console.error("sending a sign-in code failed", outcome.error);
+    return { ok: false, reason: "send_failed" };
+  }
+  return { ok: true };
+}

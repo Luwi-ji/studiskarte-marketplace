@@ -25,6 +25,7 @@ export function SignInForm() {
       <form action={verifyAction} className="flex flex-col gap-4">
         <p className="text-zinc-600 dark:text-zinc-400">
           We sent a 6-digit code to <strong>{requested.email}</strong>. It works for 5 minutes.
+          Use the newest email: asking for a new code cancels the old one.
         </p>
         <input type="hidden" name="email" value={requested.email} />
         <label className="flex flex-col gap-2">
@@ -41,8 +42,18 @@ export function SignInForm() {
           />
         </label>
         {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
-        <button type="submit" disabled={verifying} className={button}>
+        <button type="submit" disabled={verifying || requesting} className={button}>
           {verifying ? "Checking…" : "Sign in"}
+        </button>
+        {/* Submits the same form (with the hidden email) to the request action. */}
+        <button
+          type="submit"
+          formAction={requestAction}
+          formNoValidate
+          disabled={verifying || requesting}
+          className="text-sm text-zinc-600 underline disabled:opacity-60 dark:text-zinc-400"
+        >
+          {requesting ? "Sending…" : "Send a new code"}
         </button>
       </form>
     );

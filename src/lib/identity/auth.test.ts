@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sent: { to: string; subject: string; text: string }[] = [];
 vi.mock("@/lib/mail", () => ({
+  MailQuotaError: class MailQuotaError extends Error {},
   sendMail: vi.fn(async (message: { to: string; subject: string; text: string }) => {
     sent.push(message);
   }),
@@ -11,7 +12,8 @@ vi.mock("@/lib/mail", () => ({
 
 import { rateLimitEvent, student, verification } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
-import { auth } from "@/lib/identity/auth";
+import { auth, requestSignInCode } from "@/lib/identity/auth";
+import { MailQuotaError, sendMail } from "@/lib/mail";
 
 const db = getDb();
 const run = randomUUID().slice(0, 8);
@@ -83,6 +85,25 @@ describe("sending codes", () => {
     const error = await rejection(requestCode(email));
     expect(error.body?.code).toBe("TOO_MANY_REQUESTS");
     expect(sent.filter((m) => m.to === email)).toHaveLength(3);
+  });
+
+  it("reports a failed send instead of claiming the code went out", async () => {
+    // Better Auth swallows errors from the send callback and answers success.
+    vi.mocked(sendMail).mockRejectedValueOnce(new Error("535 Username and Password not accepted"));
+    const result = await requestSignInCode(address("smtpfail"), new Headers());
+    expect(result).toEqual({ ok: false, reason: "send_failed" });
+  });
+
+  it("reports the daily mail quota separately", async () => {
+    vi.mocked(sendMail).mockRejectedValueOnce(new MailQuotaError());
+    const result = await requestSignInCode(address("quota"), new Headers());
+    expect(result).toEqual({ ok: false, reason: "mail_quota" });
+  });
+
+  it("reports success only when the mail was sent", async () => {
+    const email = address("delivered");
+    expect(await requestSignInCode(email, new Headers())).toEqual({ ok: true });
+    expect(sent.some((m) => m.to === email)).toBe(true);
   });
 });
 
