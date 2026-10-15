@@ -11,7 +11,8 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Stage 3 (logic-to-stack map): approved for the previous content, and updated for the same decisions. The updates need no new stack pieces.
 - Stage 4 (phase plan): approved, 16 phases plus 3 deferred. See `.monozukuri/blueprint/04-phase-plan.md`.
 - Phase 1 (walking skeleton): **done 2026-10-16.** Live at https://studiskarte-marketplace.vercel.app (Vercel, Neon `production`, R2 `studiskarte-prod`), CI green. Verified in production: code to a `tup.edu.ph` (Google mail) inbox; sign-in inside the installed iPhone app reaches the feed; sign-in in Samsung Internet on Android; iPhone photo posts stored with no EXIF, XMP or GPS data. Microsoft-mail check waived by the owner (ADR 0004). Follow-up: confirm Samsung Internet offers "Install" on a real Galaxy phone (all of Samsung's documented criteria are met).
-- Phase 2 (identity completion): built and deployed 2026-10-16 (commit 2b78c19, CI green). Production migrated after a rehearsal on a copy of production. Exit checks verified locally: handles unique ignoring case, school shown by domain until named, no page or payload contains the email (Better Auth HTTP routes removed). Waiting for the owner to finish sign-up on the live site and name `tup.edu.ph`.
+- Phase 2 (identity completion): built and deployed 2026-10-16 (commit 2b78c19, CI green). Production migrated after a rehearsal on a copy of production. Exit checks verified locally: handles unique ignoring case, school shown by domain until named, no page or payload contains the email (Better Auth HTTP routes removed). `tup.edu.ph` named "Technological University of the Philippines". Waiting for the owner to finish sign-up on the live site.
+- Phase 3 (full listing): built and deployed 2026-10-16 (commit 286531e, CI green). Categories confirmed (12 main, 53 sub); limits 20 open posts, 10 photos; prices in whole pesos; places as free text. The 9 Phase 1 test posts and their photos were deleted from production (owner approved). Exit checks verified: every rule refused by the database even when the app is bypassed, a failed photo upload creates nothing, the open-post limit holds under concurrent creates (proven by removing the lock and watching the test fail). Waiting for the owner to post on the live site.
 
 ## Decisions since the feature list
 - No payments. "Make offer" is a price proposal. "Buy now" is "Reserve at asking price". Handover and payment happen in person. Both students confirm the handover. Nobody else confirms for them.
@@ -31,6 +32,9 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - One credential per environment: dev and production R2 keys were once the same token.
 - Cache Components keeps visited pages alive: forms that create things must clear themselves after success.
 - Check what a production failure looks like in the logs before changing code (`vercel logs runtime`).
+- A SQL CHECK that evaluates to NULL passes. Wrap nullable columns (`coalesce`) in CHECKs that must fail on missing values.
+- A concurrency test proves nothing until it fails without the guard. Remove the lock once and watch it fail.
+- Tests that share a database must not share counters: Better Auth reports 127.0.0.1 in tests, so per-IP limits leak between runs.
 
 ## Owner inputs still needed
 - The terms of service, privacy policy, and community guidelines text (including prohibited items and cheating, and a note that services have no payment protection).
