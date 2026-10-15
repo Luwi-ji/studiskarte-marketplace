@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fromManilaLocal, parseNewPost, parsePostEdit, toManilaLocal, type NewPostInput } from "./schema";
+import { addDays, manilaToday, parseDate, parseNewPost, parsePostEdit, parseTime, type NewPostInput } from "./schema";
 
-const now = new Date("2026-10-16T04:00:00Z"); // 12:00 in Manila
+const now = new Date("2026-10-16T04:00:00Z"); // 12:00 on 16 October in Manila
 const categories: Record<string, { requiresCondition: boolean }> = {
   "electronics.calculators": { requiresCondition: true },
   "services.tutoring": { requiresCondition: false },
@@ -22,7 +22,7 @@ function valid(overrides: Partial<NewPostInput> = {}): NewPostInput {
     exchangeDelivery: false,
     meetupLocation: "TUP main gate",
     deliveryArea: "",
-    availability: [{ startsAt: "2026-10-17T13:00", endsAt: "2026-10-17T17:00" }],
+    availability: [{ kind: "weekly", weekday: 1, startTime: "13:00", endTime: "17:00" }],
     photoIds: [photo],
     ...overrides,
   };
@@ -46,9 +46,7 @@ describe("parseNewPost", () => {
         priceAmount: 1200,
         meetupLocation: "TUP main gate",
         deliveryArea: null,
-        availability: [
-          { startsAt: new Date("2026-10-17T05:00:00Z"), endsAt: new Date("2026-10-17T09:00:00Z") },
-        ],
+        availability: [{ kind: "weekly", weekday: 1, startTime: "13:00", endTime: "17:00" }],
       }),
     });
   });
@@ -68,9 +66,6 @@ describe("parseNewPost", () => {
     ["delivery without an area", { exchangeDelivery: true, deliveryArea: "" }, "deliveryArea"],
     ["condition missing where needed", { condition: null }, "condition"],
     ["unknown category", { categoryId: "electronics" }, "categoryId"],
-    ["no availability", { availability: [] }, "availability"],
-    ["end before start", { availability: [{ startsAt: "2026-10-17T17:00", endsAt: "2026-10-17T13:00" }] }, "availability.0"],
-    ["a time already passed", { availability: [{ startsAt: "2026-10-15T09:00", endsAt: "2026-10-15T10:00" }] }, "availability.0"],
     ["no kind", { kind: undefined }, "kind"],
   ])("rejects %s", (_label, overrides, field) => {
     expect(errorsOf(valid(overrides as Partial<NewPostInput>))).toHaveProperty([field]);
@@ -87,7 +82,14 @@ describe("parseNewPost", () => {
 
   it("reports every problem in one pass, not one step at a time", () => {
     const errors = errorsOf(
-      valid({ title: "", description: "", photoIds: [], categoryId: "", meetupLocation: "", availability: [{ startsAt: "", endsAt: "" }] }),
+      valid({
+        title: "",
+        description: "",
+        photoIds: [],
+        categoryId: "",
+        meetupLocation: "",
+        availability: [{ kind: "weekly", weekday: 1, startTime: "", endTime: "" }],
+      }),
     );
     expect(Object.keys(errors).filter((key) => errors[key])).toEqual(
       expect.arrayContaining(["title", "description", "photoIds", "categoryId", "meetupLocation", "availability.0"]),
@@ -105,6 +107,62 @@ describe("parseNewPost", () => {
   });
 });
 
+describe("availability", () => {
+  const availabilityOf = (availability: NewPostInput["availability"]) => {
+    const result = parseNewPost(valid({ availability }), lookup, now);
+    return result.ok ? result.data.availability : result.errors;
+  };
+
+  it("accepts several weekdays with their own times", () => {
+    expect(
+      availabilityOf([
+        { kind: "weekly", weekday: 1, startTime: "08:00", endTime: "10:00" },
+        { kind: "weekly", weekday: 3, startTime: "15:30", endTime: "18:00" },
+      ]),
+    ).toHaveLength(2);
+  });
+
+  it("accepts dates from today up to 60 days ahead", () => {
+    expect(
+      availabilityOf([
+        { kind: "date", date: "2026-10-16", startTime: "13:00", endTime: "14:00" },
+        { kind: "date", date: "2026-12-15", startTime: "09:00", endTime: "10:00" },
+      ]),
+    ).toEqual([
+      { kind: "date", date: "2026-10-16", startTime: "13:00", endTime: "14:00" },
+      { kind: "date", date: "2026-12-15", startTime: "09:00", endTime: "10:00" },
+    ]);
+  });
+
+  it("accepts times with seconds, as iPhone Safari sends them", () => {
+    expect(availabilityOf([{ kind: "weekly", weekday: 2, startTime: "13:00:00", endTime: "17:30:00.000" }])).toEqual([
+      { kind: "weekly", weekday: 2, startTime: "13:00", endTime: "17:30" },
+    ]);
+  });
+
+  it.each([
+    ["nothing chosen", [], "availability"],
+    ["15 entries", Array.from({ length: 15 }, (_, i) => ({ kind: "date" as const, date: addDays("2026-10-17", i), startTime: "09:00", endTime: "10:00" })), "availability"],
+    ["a missing end time", [{ kind: "weekly" as const, weekday: 1, startTime: "09:00", endTime: "" }], "availability.0"],
+    ["an end before the start", [{ kind: "weekly" as const, weekday: 1, startTime: "17:00", endTime: "09:00" }], "availability.0"],
+    ["an end equal to the start", [{ kind: "weekly" as const, weekday: 1, startTime: "09:00", endTime: "09:00" }], "availability.0"],
+    ["a weekday out of range", [{ kind: "weekly" as const, weekday: 7, startTime: "09:00", endTime: "10:00" }], "availability.0"],
+    ["a past date", [{ kind: "date" as const, date: "2026-10-15", startTime: "09:00", endTime: "10:00" }], "availability.0"],
+    ["a date more than 60 days ahead", [{ kind: "date" as const, date: "2026-12-16", startTime: "09:00", endTime: "10:00" }], "availability.0"],
+    ["an impossible date", [{ kind: "date" as const, date: "2026-02-30", startTime: "09:00", endTime: "10:00" }], "availability.0"],
+    [
+      "the same weekday twice",
+      [
+        { kind: "weekly" as const, weekday: 1, startTime: "09:00", endTime: "10:00" },
+        { kind: "weekly" as const, weekday: 1, startTime: "13:00", endTime: "14:00" },
+      ],
+      "availability.1",
+    ],
+  ])("rejects %s", (_label, availability, field) => {
+    expect(availabilityOf(availability)).toHaveProperty([field]);
+  });
+});
+
 describe("parsePostEdit", () => {
   it("ignores an attempt to change the kind", () => {
     const result = parsePostEdit(valid({ kind: "wishlist" }), lookup, now);
@@ -112,14 +170,28 @@ describe("parsePostEdit", () => {
   });
 });
 
-describe("Manila time", () => {
-  it("round-trips a datetime-local value", () => {
-    const date = fromManilaLocal("2026-12-31T23:30");
-    expect(date?.toISOString()).toBe("2026-12-31T15:30:00.000Z");
-    expect(toManilaLocal(date!)).toBe("2026-12-31T23:30");
+describe("time and date helpers", () => {
+  it.each([
+    ["09:30", "09:30"],
+    ["09:30:00", "09:30"],
+    ["23:59:59.999", "23:59"],
+    ["24:00", null],
+    ["9:30", null],
+    ["", null],
+  ])("parseTime(%j) is %j", (input, expected) => {
+    expect(parseTime(input)).toBe(expected);
   });
 
-  it.each(["", "2026-12-31", "2026-13-01T10:00", "tomorrow"])("rejects %j", (value) => {
-    expect(fromManilaLocal(value)).toBeNull();
+  it.each([
+    ["2028-02-29", "2028-02-29"],
+    ["2026-02-29", null],
+    ["2026-13-01", null],
+    ["16/10/2026", null],
+  ])("parseDate(%j) is %j", (input, expected) => {
+    expect(parseDate(input)).toBe(expected);
+  });
+
+  it("uses the Philippine date, which is a day ahead of UTC in the evening", () => {
+    expect(manilaToday(new Date("2026-10-16T17:30:00Z"))).toBe("2026-10-17");
   });
 });

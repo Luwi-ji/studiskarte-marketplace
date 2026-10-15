@@ -12,13 +12,14 @@ import {
   PHOTOS_MAX,
   PLACE_MAX,
   TITLE_MAX,
-  WINDOWS_MAX,
+  AVAILABILITY_MAX,
   type FieldErrors,
   type PostFields,
   type PostKind,
   type PriceKind,
 } from "@/lib/posts/schema";
 import { createPostAction, updatePostAction } from "./actions";
+import { AvailabilityPicker } from "./availability-picker";
 
 export type FormPhoto = { id: string; thumbUrl: string };
 export type PostFormValues = Omit<PostFields, "photoIds"> & { photos: FormPhoto[] };
@@ -34,7 +35,7 @@ const EMPTY: PostFormValues = {
   exchangeDelivery: false,
   meetupLocation: "",
   deliveryArea: "",
-  availability: [{ startsAt: "", endsAt: "" }],
+  availability: [],
   photos: [],
 };
 
@@ -136,14 +137,6 @@ export function PostForm(props: Props) {
     if (target < 0 || target >= photos.length) return;
     [photos[index], photos[target]] = [photos[target], photos[index]];
     set("photos", photos);
-  }
-
-  function setWindow(index: number, key: "startsAt" | "endsAt", value: string) {
-    set(
-      "availability",
-      values.availability.map((window, i) => (i === index ? { ...window, [key]: value } : window)),
-    );
-    clearErrors(`availability.${index}`);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -347,12 +340,17 @@ export function PostForm(props: Props) {
         ) : null}
         <label className="flex items-center gap-2">
           <input type="checkbox" name="exchangeDelivery" checked={values.exchangeDelivery} onChange={(e) => set("exchangeDelivery", e.target.checked)} />
-          {services ? "Delivery (finished work is handed over)" : "Delivery (the seller brings it)"}
+          {services
+            ? "Delivery (finished work is handed over or sent)"
+            : wishlist
+              ? "Delivery (brought to you, or sent by Grab, Lalamove, etc.)"
+              : "Delivery (you bring it, or send it by Grab, Lalamove, etc.)"}
         </label>
         {values.exchangeDelivery ? (
           <label className="flex flex-col gap-1 pl-6">
             <span className="text-sm">Delivery area</span>
-            <input name="deliveryArea" value={values.deliveryArea} onChange={(e) => set("deliveryArea", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. within campus, or Ermita" className={field} />
+            <input name="deliveryArea" value={values.deliveryArea} onChange={(e) => set("deliveryArea", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. within campus, or anywhere in Metro Manila" className={field} />
+            <span className={hint}>Any delivery fee is agreed between you. The app never handles payment.</span>
             <FieldError message={errors.deliveryArea} />
           </label>
         ) : null}
@@ -361,34 +359,14 @@ export function PostForm(props: Props) {
 
       <fieldset className="flex flex-col gap-3">
         <legend className={label}>When you are available</legend>
-        {values.availability.map((window, index) => (
-          <div key={index} className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-500">Time {index + 1}</span>
-              {values.availability.length > 1 ? (
-                <button type="button" onClick={() => set("availability", values.availability.filter((_, i) => i !== index))} className="text-sm text-zinc-500 underline">
-                  Remove
-                </button>
-              ) : null}
-            </div>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">From</span>
-              <input type="datetime-local" aria-label={`Start ${index + 1}`} value={window.startsAt} onChange={(e) => setWindow(index, "startsAt", e.target.value)} className={field} />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">Until</span>
-              <input type="datetime-local" aria-label={`End ${index + 1}`} value={window.endsAt} onChange={(e) => setWindow(index, "endsAt", e.target.value)} className={field} />
-            </label>
-            <FieldError message={errors[`availability.${index}`]} />
-          </div>
-        ))}
-        {values.availability.length < WINDOWS_MAX ? (
-          <button type="button" onClick={() => set("availability", [...values.availability, { startsAt: "", endsAt: "" }])} className="self-start text-sm underline">
-            + Add another time
-          </button>
-        ) : null}
-        <span className={hint}>Philippine time.</span>
-        <FieldError message={errors.availability} />
+        <AvailabilityPicker
+          value={values.availability}
+          errors={errors}
+          onChange={(update) => {
+            setValues((current) => ({ ...current, availability: update(current.availability) }));
+            clearErrors("availability", ...Array.from({ length: AVAILABILITY_MAX }, (_, i) => `availability.${i}`));
+          }}
+        />
       </fieldset>
 
       <FieldError message={errors.form ?? errors.kind} />

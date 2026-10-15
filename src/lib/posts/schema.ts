@@ -24,24 +24,47 @@ export const DESCRIPTION_MAX = 2000;
 export const PLACE_MAX = 120;
 export const PRICE_MAX = 1_000_000;
 export const PHOTOS_MAX = 10;
-export const WINDOWS_MAX = 10;
+export const AVAILABILITY_MAX = 14;
+export const AVAILABILITY_DAYS_AHEAD = 60;
 export const OPEN_POSTS_MAX = 20;
 
-// The Philippines has one time zone and no daylight saving time.
-const MANILA_OFFSET = "+08:00";
-const LOCAL_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+export const WEEKDAY_LABEL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
-/** A `datetime-local` value (Manila time) as a Date, or null if malformed. */
-export function fromManilaLocal(value: string): Date | null {
-  if (!LOCAL_DATETIME.test(value)) return null;
-  const date = new Date(`${value}:00${MANILA_OFFSET}`);
-  return Number.isNaN(date.getTime()) ? null : date;
+/** One availability entry: a weekday (every week) or a date, with a time range. Times are "HH:MM" in Philippine time. */
+export type Availability =
+  | { kind: "weekly"; weekday: number; startTime: string; endTime: string }
+  | { kind: "date"; date: string; startTime: string; endTime: string };
+
+// Phones send "14:00" or "14:00:00" (iPhone Safari can add seconds).
+const TIME = /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/;
+
+/** "14:00", "14:00:00" or "14:00:00.000" as "14:00", or null if not a time of day. */
+export function parseTime(value: string): string | null {
+  const match = TIME.exec(value.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return `${match[1]}:${match[2]}`;
 }
 
-/** A Date as a `datetime-local` value in Manila time. */
-export function toManilaLocal(date: Date): string {
-  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  return shifted.toISOString().slice(0, 16);
+/** A "YYYY-MM-DD" that is a real calendar date, or null. */
+export function parseDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
+}
+
+/** Today's date in the Philippines (UTC+8, no daylight saving) as "YYYY-MM-DD". */
+export function manilaToday(now: Date): string {
+  return new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** "YYYY-MM-DD" plus a number of days. */
+export function addDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 /**
@@ -60,7 +83,12 @@ export const postFieldsSchema = z.object({
   exchangeDelivery: z.boolean(),
   meetupLocation: z.string(),
   deliveryArea: z.string(),
-  availability: z.array(z.object({ startsAt: z.string(), endsAt: z.string() })),
+  availability: z.array(
+    z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("weekly"), weekday: z.number(), startTime: z.string(), endTime: z.string() }),
+      z.object({ kind: z.literal("date"), date: z.string(), startTime: z.string(), endTime: z.string() }),
+    ]),
+  ),
   photoIds: z.array(z.string()),
 });
 export type PostFields = z.input<typeof postFieldsSchema>;
@@ -80,7 +108,7 @@ export type PostData = {
   exchangeDelivery: boolean;
   meetupLocation: string | null;
   deliveryArea: string | null;
-  availability: { startsAt: Date; endsAt: Date }[];
+  availability: Availability[];
   photoIds: string[];
 };
 
@@ -134,16 +162,49 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     errors.deliveryArea = "Say where you deliver (for example, within campus).";
   }
 
-  if (raw.availability.length === 0) errors.availability = "Add at least one time you are available.";
-  else if (raw.availability.length > WINDOWS_MAX) errors.availability = `Add at most ${WINDOWS_MAX} times.`;
-  const availability: { startsAt: Date; endsAt: Date }[] = [];
-  raw.availability.forEach((window, index) => {
-    const startsAt = fromManilaLocal(window.startsAt);
-    const endsAt = fromManilaLocal(window.endsAt);
-    if (!startsAt || !endsAt) errors[`availability.${index}`] = "Enter a start and an end.";
-    else if (endsAt <= startsAt) errors[`availability.${index}`] = "The end must be after the start.";
-    else if (endsAt <= now) errors[`availability.${index}`] = "This time has already passed.";
-    else availability.push({ startsAt, endsAt });
+  if (raw.availability.length === 0) errors.availability = "Choose at least one day or date you are available.";
+  else if (raw.availability.length > AVAILABILITY_MAX) errors.availability = `Choose at most ${AVAILABILITY_MAX} days or dates.`;
+  const today = manilaToday(now);
+  const lastDay = addDays(today, AVAILABILITY_DAYS_AHEAD);
+  const seen = new Set<string>();
+  const availability: Availability[] = [];
+  raw.availability.forEach((entry, index) => {
+    const key = `availability.${index}`;
+    const startTime = parseTime(entry.startTime);
+    const endTime = parseTime(entry.endTime);
+    let day: string;
+    if (entry.kind === "weekly") {
+      if (!Number.isInteger(entry.weekday) || entry.weekday < 0 || entry.weekday > 6) {
+        errors[key] = "Choose a day of the week.";
+        return;
+      }
+      day = `weekday:${entry.weekday}`;
+    } else {
+      const date = parseDate(entry.date);
+      if (!date) {
+        errors[key] = "Choose a date.";
+        return;
+      }
+      if (date < today) {
+        errors[key] = "This date has passed.";
+        return;
+      }
+      if (date > lastDay) {
+        errors[key] = `Choose a date within ${AVAILABILITY_DAYS_AHEAD} days.`;
+        return;
+      }
+      day = `date:${date}`;
+    }
+    if (seen.has(day)) errors[key] = "This day is listed twice.";
+    else if (!startTime || !endTime) errors[key] = "Choose a start and an end time.";
+    else if (endTime <= startTime) errors[key] = "The end time must be after the start time.";
+    seen.add(day);
+    if (errors[key] || !startTime || !endTime) return;
+    availability.push(
+      entry.kind === "weekly"
+        ? { kind: "weekly", weekday: entry.weekday, startTime, endTime }
+        : { kind: "date", date: day.slice(5), startTime, endTime },
+    );
   });
 
   if (Object.values(errors).some(Boolean)) return { ok: false as const, errors };

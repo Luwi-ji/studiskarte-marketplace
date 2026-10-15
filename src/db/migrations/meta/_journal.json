@@ -50,6 +50,13 @@
       "when": 1792089191977,
       "tag": "0006_categories_and_post_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792094447282,
+      "tag": "0007_availability_days_and_dates",
+      "breakpoints": true
     }
   ]
 }

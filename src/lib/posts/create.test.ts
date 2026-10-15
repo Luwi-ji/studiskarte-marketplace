@@ -66,7 +66,7 @@ async function input(overrides: Partial<NewPostInput> = {}): Promise<NewPostInpu
     exchangeDelivery: false,
     meetupLocation: "Main gate",
     deliveryArea: "",
-    availability: [{ startsAt: "2099-01-01T09:00", endsAt: "2099-01-01T12:00" }],
+    availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "12:00" }],
     photoIds: [await photoOf(owner)],
     ...overrides,
   };
@@ -153,7 +153,7 @@ describe("open-post limit", () => {
           .values(Array.from({ length: n }, (_, i) => ({ ownerId: student, kind: "showcase", title: `Seed ${i}`, description: "Seeded.", categoryId: "other.other", priceKind: "free", exchangeMeetup: true, exchangeDelivery: false, meetupLocation: "Gate" })))
           .returning({ id: post.id });
         await tx.insert(postPhoto).values(posts.map((p, i) => ({ postId: p.id, imageId: images[i].id, position: 0 })));
-        await tx.insert(availabilityWindow).values(posts.map((p) => ({ postId: p.id, startsAt: new Date("2099-01-01T01:00:00Z"), endsAt: new Date("2099-01-01T02:00:00Z") })));
+        await tx.insert(availabilityWindow).values(posts.map((p) => ({ postId: p.id, kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" })));
       });
       const make = async (n: number) => {
         const [row] = await db
@@ -241,7 +241,7 @@ describe("database rules (exit check: bad input is refused even if the app is by
       const [row] = await tx.insert(post).values(values).returning({ id: post.id });
       if (photo) await tx.insert(postPhoto).values({ postId: row.id, imageId: photo, position: 0 });
       if (withWindow) {
-        await tx.insert(availabilityWindow).values({ postId: row.id, startsAt: new Date("2099-01-01T01:00:00Z"), endsAt: new Date("2099-01-01T02:00:00Z") });
+        await tx.insert(availabilityWindow).values({ postId: row.id, kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" });
       }
     });
   }
@@ -272,6 +272,29 @@ describe("database rules (exit check: bad input is refused even if the app is by
     ["a blank description", { description: " " }, "post_description_length"],
   ])("refuses %s", async (_label, change, constraint) => {
     await expect(insertDirect({ ...base(), ...change })).rejects.toMatchObject({ cause: { constraint } });
+  });
+
+  it.each([
+    ["a weekly entry with no weekday", { kind: "weekly", weekday: null, onDate: null }],
+    ["a weekly entry with a date too", { kind: "weekly", weekday: 1, onDate: "2099-01-01" }],
+    ["a date entry with no date", { kind: "date", weekday: null, onDate: null }],
+    ["a weekday of 7", { kind: "weekly", weekday: 7, onDate: null }],
+    ["an unknown kind", { kind: "monthly", weekday: 1, onDate: null }],
+  ])("refuses an availability entry with %s", async (_label, change) => {
+    const id = await created();
+    await expect(
+      db.insert(availabilityWindow).values({ postId: id, startTime: "09:00", endTime: "10:00", ...change }),
+    ).rejects.toMatchObject({ cause: { constraint: "availability_window_kind" } });
+  });
+
+  it("refuses an availability entry that ends before it starts, or lists a day twice", async () => {
+    const id = await created();
+    await expect(
+      db.insert(availabilityWindow).values({ postId: id, kind: "weekly", weekday: 2, startTime: "10:00", endTime: "09:00" }),
+    ).rejects.toMatchObject({ cause: { constraint: "availability_window_order" } });
+    await expect(
+      db.insert(availabilityWindow).values({ postId: id, kind: "weekly", weekday: 1, startTime: "13:00", endTime: "14:00" }),
+    ).rejects.toMatchObject({ cause: { constraint: "availability_window_weekday" } });
   });
 
   it.each([

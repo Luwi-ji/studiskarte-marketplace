@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { listCategories } from "@/lib/posts/categories";
-import { CONDITIONS, PRICE_KINDS, toManilaLocal } from "@/lib/posts/schema";
+import { CONDITIONS, PRICE_KINDS } from "@/lib/posts/schema";
 import { getEditablePost } from "@/lib/posts/update";
 import { PostForm } from "../../post-form";
 
@@ -33,7 +33,7 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
   if (!id.success) notFound();
   const editable = await getEditablePost(me.id, id.data);
   if (!editable) notFound();
-  const { post, photos, windows } = editable;
+  const { post, photos, availability } = editable;
   const store = getObjectStore();
 
   return (
@@ -54,10 +54,7 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
         exchangeDelivery: post.exchangeDelivery,
         meetupLocation: post.meetupLocation ?? "",
         deliveryArea: post.deliveryArea ?? "",
-        availability: windows.map((window) => ({
-          startsAt: toManilaLocal(window.startsAt),
-          endsAt: toManilaLocal(window.endsAt),
-        })),
+        availability,
         photos: await Promise.all(
           photos.map(async (photo) => ({ id: photo.id, thumbUrl: await store.signedUrl(photo.thumbKey, PREVIEW_LINK_SECONDS) })),
         ),

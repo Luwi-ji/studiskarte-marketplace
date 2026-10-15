@@ -19,7 +19,13 @@ export async function checkPhotos(tx: DbTransaction, ownerId: string, photoIds: 
 
 export async function writeDetails(tx: DbTransaction, postId: string, data: PostData) {
   await tx.insert(postPhoto).values(data.photoIds.map((imageId, position) => ({ postId, imageId, position })));
-  await tx.insert(availabilityWindow).values(data.availability.map((window) => ({ postId, ...window })));
+  await tx.insert(availabilityWindow).values(
+    data.availability.map((entry) =>
+      entry.kind === "weekly"
+        ? { postId, kind: "weekly", weekday: entry.weekday, startTime: entry.startTime, endTime: entry.endTime }
+        : { postId, kind: "date", onDate: entry.date, startTime: entry.startTime, endTime: entry.endTime },
+    ),
+  );
 }
 
 export function postColumns(data: PostData) {

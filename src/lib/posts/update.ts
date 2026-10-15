@@ -12,7 +12,7 @@ import {
   writeDetails,
   type SaveResult,
 } from "@/lib/posts/create";
-import { parsePostEdit } from "@/lib/posts/schema";
+import { parsePostEdit, type Availability } from "@/lib/posts/schema";
 
 const NOT_EDITABLE: SaveResult = { ok: false, errors: { form: "Only your own open posts can be edited." } };
 
@@ -80,7 +80,7 @@ export async function updatePost(args: {
 export type EditablePost = {
   post: typeof post.$inferSelect;
   photos: { id: string; thumbKey: string }[];
-  windows: { startsAt: Date; endsAt: Date }[];
+  availability: Availability[];
 };
 
 /** The data an owner needs to edit a post, or null if it is not theirs or not open. */
@@ -98,9 +98,22 @@ export async function getEditablePost(ownerId: string, postId: string): Promise<
     .where(eq(postPhoto.postId, postId))
     .orderBy(postPhoto.position);
   const windows = await db
-    .select({ startsAt: availabilityWindow.startsAt, endsAt: availabilityWindow.endsAt })
+    .select({
+      weekday: availabilityWindow.weekday,
+      onDate: availabilityWindow.onDate,
+      startTime: availabilityWindow.startTime,
+      endTime: availabilityWindow.endTime,
+    })
     .from(availabilityWindow)
     .where(eq(availabilityWindow.postId, postId))
-    .orderBy(availabilityWindow.startsAt);
-  return { post: row, photos, windows };
+    .orderBy(availabilityWindow.weekday, availabilityWindow.onDate);
+  // Postgres returns times as "HH:MM:SS"; the form works in "HH:MM".
+  const availability = windows.map((w): Availability => {
+    const times = { startTime: w.startTime.slice(0, 5), endTime: w.endTime.slice(0, 5) };
+    if (w.onDate !== null) return { kind: "date", date: w.onDate, ...times };
+    // The availability_window_kind CHECK guarantees a weekday when there is no date.
+    if (w.weekday === null) throw new Error(`availability row without day or date on post ${postId}`);
+    return { kind: "weekly", weekday: w.weekday, ...times };
+  });
+  return { post: row, photos, availability };
 }

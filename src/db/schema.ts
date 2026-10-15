@@ -4,11 +4,14 @@ import {
   bigserial,
   boolean,
   check,
+  date,
   index,
   integer,
   pgTable,
   primaryKey,
+  smallint,
   text,
+  time,
   timestamp,
   unique,
   uniqueIndex,
@@ -238,8 +241,9 @@ export const post = pgTable(
   ],
 );
 
-// When the owner is available to hand over. A live post has at least one
-// (enforced by a trigger in migration 0005).
+// When the owner is available to hand over: either a day of the week (every
+// week while the post is listed) or a specific date, each with a time range
+// in Philippine time. A live post has at least one (trigger in migration 0006).
 export const availabilityWindow = pgTable(
   "availability_window",
   {
@@ -247,11 +251,24 @@ export const availabilityWindow = pgTable(
     postId: uuid("post_id")
       .notNull()
       .references(() => post.id, { onDelete: "cascade" }),
-    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
-    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    kind: text("kind").notNull(),
+    // 0 = Sunday … 6 = Saturday, set when kind = 'weekly'.
+    weekday: smallint("weekday"),
+    // Set when kind = 'date'.
+    onDate: date("on_date", { mode: "string" }),
+    startTime: time("start_time").notNull(),
+    endTime: time("end_time").notNull(),
   },
   (t) => [
-    check("availability_window_order", sql`${t.endsAt} > ${t.startsAt}`),
+    check(
+      "availability_window_kind",
+      sql`(${t.kind} = 'weekly' and coalesce(${t.weekday}, -1) between 0 and 6 and ${t.onDate} is null)
+        or (${t.kind} = 'date' and ${t.onDate} is not null and ${t.weekday} is null)`,
+    ),
+    check("availability_window_order", sql`${t.endTime} > ${t.startTime}`),
+    // One time range per day or date (NULLs do not collide).
+    unique("availability_window_weekday").on(t.postId, t.weekday),
+    unique("availability_window_date").on(t.postId, t.onDate),
     index("availability_window_post_idx").on(t.postId),
   ],
 );
