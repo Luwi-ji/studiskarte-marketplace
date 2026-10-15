@@ -40,14 +40,21 @@ async function rejection(promise: Promise<unknown>) {
   throw new Error("expected the call to be rejected");
 }
 
-beforeEach(() => {
+// Without a client address, Better Auth reports 127.0.0.1 in test and
+// development, so every run shares one per-network-address counter. Reset it
+// so earlier runs in the same hour cannot trip the limit here.
+const LOCALHOST = "127.0.0.1";
+
+beforeEach(async () => {
   sent.length = 0;
+  await db.delete(rateLimitEvent).where(eq(rateLimitEvent.key, LOCALHOST));
 });
 
 afterAll(async () => {
   await db.delete(student).where(like(student.email, `%-${run}@testschool.edu.ph`));
   await db.delete(verification).where(like(verification.identifier, `%-${run}@testschool.edu.ph`));
   await db.delete(rateLimitEvent).where(like(rateLimitEvent.key, `%-${run}@testschool.edu.ph`));
+  await db.delete(rateLimitEvent).where(eq(rateLimitEvent.key, LOCALHOST));
   await getPool().end();
   globalThis.__studiskartePool = undefined;
 });

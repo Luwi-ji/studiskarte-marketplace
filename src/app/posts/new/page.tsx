@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { requireActiveStudent } from "@/lib/access";
-import { NewPostForm } from "./new-post-form";
+import { listCategories } from "@/lib/posts/categories";
+import { PostForm } from "../post-form";
 
 export const metadata = { title: "New post · Studiskarte Marketplace" };
 
@@ -12,7 +13,7 @@ export default function NewPostPage() {
         ← Back
       </Link>
       <h1 className="mb-6 mt-2 text-2xl font-semibold">New post</h1>
-      <Suspense>
+      <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
         <Guarded />
       </Suspense>
     </main>
@@ -21,5 +22,5 @@ export default function NewPostPage() {
 
 async function Guarded() {
   await requireActiveStudent();
-  return <NewPostForm />;
+  return <PostForm mode="create" categories={await listCategories()} />;
 }

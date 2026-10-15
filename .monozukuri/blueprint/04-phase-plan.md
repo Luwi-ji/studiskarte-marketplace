@@ -32,7 +32,7 @@ Sizes: S one concern, M one module or boundary, L several modules or a data mode
 ## Phase 4: Listing lifecycle (S-M)
 - id: 4
 - intent: Posts expire after 30 days, owners are warned, and an owner relists an expired post. The owner also sees views, hearts, messages and offers on their posts.
-- affected: `post.expires_at`, `jobs/expire-posts.ts`, `jobs/expiry-warnings.ts`, `jobs/job-run.ts`, `src/app/api/jobs/`, Vercel cron, the GitHub Actions scheduled workflow, `posts/views.ts`, `post_view`, the owner insights view
+- affected: `post.expires_at`, `jobs/expire-posts.ts`, `jobs/expiry-warnings.ts`, `jobs/cleanup.ts` (delete post photos uploaded but never attached to a post, older than 24 hours, from R2 and the database; they come from abandoned or refused post forms since Phase 3), `jobs/job-run.ts`, `src/app/api/jobs/`, Vercel cron, the GitHub Actions scheduled workflow, `posts/views.ts`, `post_view`, the owner insights view
 - prereqs: 3
 - playbook: feature
 - risk: medium

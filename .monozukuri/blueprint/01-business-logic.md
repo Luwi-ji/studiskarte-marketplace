@@ -77,7 +77,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 
 ### Posts
 - A post needs: at least one photo, a title, a price statement, a description, a category, a condition (only where its category asks for one), at least one exchange option, at least one availability window, and the place that goes with each exchange option chosen (a meet-up location for meet-up, a delivery area for delivery). [Assumed from the owner's create list.]
-- The price statement is an amount of zero or more in a single currency, or "free", or "negotiable". [Assumed: one currency.] "Free" is a distinct value, not zero.
+- The price statement is an amount in whole Philippine pesos from ₱1 to ₱1,000,000, or "free", or "negotiable". "Free" is a distinct value, not zero. (Decided 2026-10-16.)
 - The exchange option is how the two students will exchange the item: **meet-up** (both go to the post's meet-up location) or **delivery** (the seller brings the item to the buyer, within the post's delivery area). A post can offer one or both. (Decided by the owner.) Delivery is arranged between the students. No courier is involved and the system takes no delivery fee. [Assumed.]
 - "Scheduled pickups" in the owner's notification list means scheduled deliveries. There is no separate pickup method. (Decided: delivery or meet-up only.)
 - Only the owner may edit, withdraw, or relist a post. Editing is allowed while the post is open.
@@ -89,7 +89,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A post's view count goes up by one when a signed-in student other than the owner opens it, at most once per student per day. Only the owner sees the view count, hearts, messages and offers on the post, and never who viewed it. [Assumed.] (Decided: clicks on listings are counted.)
 - **Services** (tutoring, printing, commissions, errands and similar) are posts like any other. They ask for no condition. Their exchange options mean: **meet-up** is doing the work in person at the post's location, and **delivery** is handing over the finished work, in person or online. A deal for a service completes when both students confirm the work was done. The system never moves money for services either. (Decided: services are in the first release.)
 - Showcase and Wishlist are separate kinds, shown with a type label. A post's kind never changes. They do not match each other automatically. (Decided: independent boards.)
-- A student can have a limited number of open posts, to limit spam. [Assumed. Limit open.]
+- A student can have at most 20 open posts, and a post has 1 to 10 photos. (Decided 2026-10-16.)
 - Only open posts and reserved posts appear in the feed and search. An expired post does not. A reserved post is labelled reserved and cannot receive new offers.
 - Posts from a student whom the viewer has blocked, or who blocked the viewer, are never shown to that viewer.
 - Posts from students of every school are visible to every student. The school is shown on each post and can be filtered. (Decided by the owner's filter list.)
@@ -256,21 +256,21 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A category is renamed or removed while posts use it -> existing posts keep their category. A relisting owner must choose a current one. [Assumed.]
 - Abusive or illegal content -> reported, reviewed by the admin.
 
-## Starter categories (Assumed, for the owner to confirm)
-Two levels, in the style of Facebook Marketplace, made for students. A main category marked "no condition" does not ask for a condition. Wishlist posts use the same list.
+## Categories (confirmed by the owner 2026-10-16)
+Two levels. A post chooses one subcategory. "No condition" main categories do not ask for a condition. Wishlist posts use the same list. Subcategories come from the owner's examples, plus an "Other" subcategory where items may not fit.
 
-- **Textbooks and study materials**: textbooks, reviewers and notes, lab manuals, non-academic books.
-- **School and office supplies**: stationery, art and drafting supplies, calculators, lab gowns and equipment.
-- **Uniforms and org merch**: school uniforms, PE uniforms, org shirts and merch.
-- **Electronics**: laptops and tablets, phones, accessories (chargers, headphones), peripherals, cameras.
-- **Dorm and living**: furniture, appliances, bedding, kitchenware, storage.
-- **Clothing and accessories**: tops, bottoms, shoes, bags, accessories.
-- **Hobbies and entertainment**: musical instruments, games, sports and fitness, art and crafts.
-- **Transportation**: bikes and scooters, commute accessories.
-- **Housing and bedspace** (no condition): dorm and bedspace rentals, room rentals.
-- **Food and treats** (no condition): baked goods, meals and snacks, drinks.
-- **Services** (no condition): tutoring, printing and binding, graphic design and commissions, photography, errands and delivery, other services.
-- **Other**: anything that fits nowhere else.
+- **Textbooks & Study Materials**: books, reviewers, notes, reference materials, other.
+- **School & Office Supplies**: notebooks, pens and writing, art materials, printing supplies, other.
+- **Uniforms & Org Merch**: school uniforms, org shirts, event merchandise, other.
+- **Electronics & Gadgets**: calculators, chargers, headphones, computer accessories, other.
+- **Dorm & Living Essentials**: storage, bedding, lamps, small appliances, other.
+- **Clothing & Accessories**: thrift clothes, shoes, bags, jewelry, other.
+- **Hobbies & Entertainment**: sports gear, instruments, games, collectibles, other.
+- **Transportation**: bikes, bike accessories, other transport needs.
+- **Housing & Bedspace** (no condition): dorms, rooms, bedspaces, roommates.
+- **Food & Treats** (no condition): snacks, meals, baked goods, desserts, drinks.
+- **Services** (no condition): tutoring, graphic design, programming, photography, repairs, other.
+- **Other** (no condition, since it covers items and services): other.
 
 ## Later work (recorded, not designed)
 These are large separate systems. Each gets its own questions when its phase starts. They must not weaken the rules above. In particular, a Conversation stays a thread between exactly two students.
@@ -282,13 +282,12 @@ These are large separate systems. Each gets its own questions when its phase sta
 ## Open questions
 - **Verified student vs staff**: `.edu.ph` also belongs to faculty and staff. Assumed: accept.
 - **Re-verification**: when does verification end? Assumed: never in the first phases.
-- Category list: the starter list below is made for students and is Assumed. The owner confirms it, or edits it.
 - Limits: open posts per student, photos per post and per message, photo size, handle format, display name rules, code length and lifetime and attempts, offer lifetime, review edit window, reminder times, the number of conversations needed to show a reply time, the expiry warning time.
 - Retention: how long expired posts and their photos are kept. Assumed: indefinitely. Storage may need cleanup later.
 - Services are in the first release. Paying a stranger for work has no protection, because the system never moves money. The community guidelines should say so. The owner supplies the text.
 - Prohibited items and cheating: past exams, answer keys, school IDs, medicine, and similar must be named in the community guidelines. Not designed here. The owner supplies the text.
-- Food and housing listings carry food safety and rental-fraud risk. Included in the starter list as Assumed. The owner decides.
-- Delivery: the seller brings the item to the buyer inside the post's delivery area, arranged between the students, with no courier and no fee. Assumed. Does the owner want a fixed list of campus delivery areas, or free text?
+- Food and housing listings carry food safety and rental-fraud risk. The owner kept both categories (2026-10-16); the community guidelines must cover them before launch.
+- Delivery: the seller brings the item to the buyer inside the post's delivery area, arranged between the students, with no courier and no fee. Meet-up location and delivery area are free text, and the form suggests public campus spots. (Decided 2026-10-16.)
 - Idle deal limits (7 days to schedule, 7 days after the meeting to complete) and the confirmation reminder times are Assumed. The owner may change them.
 - Moderation: the threshold of 3 reports, how fast the owner can review the queue, and coordinated false reports. A student whose reports the admin keeps dismissing might later count less. Not designed.
 - Block visibility: is blocking fully mutual-invisible, as assumed?

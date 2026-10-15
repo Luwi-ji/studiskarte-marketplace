@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -144,6 +145,24 @@ export const rateLimitEvent = pgTable(
   (t) => [index("rate_limit_event_lookup_idx").on(t.action, t.key, t.createdAt)],
 );
 
+// Two levels: main categories (no parent) hold subcategories. A post points at
+// a subcategory. Seeded by migration; the owner confirmed the list 2026-10-16.
+export const category = pgTable(
+  "category",
+  {
+    id: text("id").primaryKey(),
+    parentId: text("parent_id").references((): AnyPgColumn => category.id),
+    name: text("name").notNull(),
+    // Set on main categories only: whether their posts must state a condition.
+    requiresCondition: boolean("requires_condition").notNull().default(false),
+    position: integer("position").notNull(),
+  },
+  (t) => [
+    check("category_condition_on_main", sql`${t.parentId} is null or ${t.requiresCondition} = false`),
+    unique("category_position").on(t.parentId, t.position),
+  ],
+);
+
 export const post = pgTable(
   "post",
   {
@@ -153,12 +172,25 @@ export const post = pgTable(
       .references(() => student.id),
     kind: text("kind").notNull(),
     title: text("title").notNull(),
+    description: text("description").notNull(),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => category.id),
+    condition: text("condition"),
+    // "amount" (whole pesos in price_amount), "free" or "negotiable".
+    priceKind: text("price_kind").notNull(),
+    priceAmount: integer("price_amount"),
+    exchangeMeetup: boolean("exchange_meetup").notNull(),
+    exchangeDelivery: boolean("exchange_delivery").notNull(),
+    meetupLocation: text("meetup_location"),
+    deliveryArea: text("delivery_area"),
     status: text("status").notNull().default("open"),
     listedAt: timestamp("listed_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true })
       .notNull()
       .default(sql`now() + interval '30 days'`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check("post_kind", sql`${t.kind} in ('showcase', 'wishlist')`),
@@ -167,12 +199,60 @@ export const post = pgTable(
       sql`${t.status} in ('open', 'reserved', 'fulfilled', 'withdrawn', 'expired', 'hidden', 'removed')`,
     ),
     check("post_title_length", sql`char_length(btrim(${t.title})) between 1 and 120`),
+    check("post_description_length", sql`char_length(btrim(${t.description})) between 1 and 2000`),
+    check(
+      "post_condition_value",
+      sql`${t.condition} is null or ${t.condition} in ('new', 'used_like_new', 'used_good', 'used_fair')`,
+    ),
+    // Whole pesos, ₱1 to ₱1,000,000. "free" is its own kind, not zero.
+    check(
+      "post_price",
+      // coalesce: a CHECK that evaluates to NULL passes, so a missing amount must become false.
+      sql`(${t.priceKind} = 'amount' and coalesce(${t.priceAmount}, 0) between 1 and 1000000)
+        or (${t.priceKind} in ('free', 'negotiable') and ${t.priceAmount} is null)`,
+    ),
+    check("post_exchange_any", sql`${t.exchangeMeetup} or ${t.exchangeDelivery}`),
+    // A place exactly when its exchange option is chosen.
+    check(
+      "post_meetup_location",
+      sql`case when ${t.exchangeMeetup}
+        then char_length(btrim(coalesce(${t.meetupLocation}, ''))) between 1 and 120
+        else ${t.meetupLocation} is null end`,
+    ),
+    check(
+      "post_delivery_area",
+      sql`case when ${t.exchangeDelivery}
+        then char_length(btrim(coalesce(${t.deliveryArea}, ''))) between 1 and 120
+        else ${t.deliveryArea} is null end`,
+    ),
     check(
       "post_open_expiry",
       sql`${t.status} <> 'open' or ${t.expiresAt} > ${t.listedAt}`,
     ),
-    index("post_owner_idx").on(t.ownerId),
+    index("post_owner_idx").on(t.ownerId, t.status),
     index("post_feed_idx").on(t.status, t.listedAt.desc()),
+    // The same post twice while open is refused (business logic edge case).
+    uniqueIndex("post_open_duplicate")
+      .on(t.ownerId, t.kind, sql`lower(btrim(${t.title}))`, sql`md5(btrim(${t.description}))`)
+      .where(sql`${t.status} = 'open'`),
+  ],
+);
+
+// When the owner is available to hand over. A live post has at least one
+// (enforced by a trigger in migration 0005).
+export const availabilityWindow = pgTable(
+  "availability_window",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    check("availability_window_order", sql`${t.endsAt} > ${t.startsAt}`),
+    index("availability_window_post_idx").on(t.postId),
   ],
 );
 
@@ -209,6 +289,9 @@ export const postPhoto = pgTable(
   (t) => [
     primaryKey({ columns: [t.postId, t.imageId] }),
     unique("post_photo_position").on(t.postId, t.position),
-    check("post_photo_position_nonneg", sql`${t.position} >= 0`),
+    // A photo belongs to one post only.
+    unique("post_photo_image").on(t.imageId),
+    // Positions 0–9: at most 10 photos per post.
+    check("post_photo_position_range", sql`${t.position} between 0 and 9`),
   ],
 );

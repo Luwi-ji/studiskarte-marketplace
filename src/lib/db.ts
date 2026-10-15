@@ -1,7 +1,12 @@
 import { Pool } from "pg";
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { ExtractTablesWithRelations } from "drizzle-orm";
+import { drizzle, type NodePgDatabase, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import type { PgTransaction } from "drizzle-orm/pg-core";
 import { attachDatabasePool } from "@vercel/functions";
 import * as schema from "@/db/schema";
+
+/** The handle passed to `getDb().transaction(async (tx) => …)`. */
+export type DbTransaction = PgTransaction<NodePgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
 
 declare global {
   var __studiskartePool: Pool | undefined;

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
+import { formatPrice } from "@/lib/posts/format";
 import { getObjectStore } from "@/lib/images/store";
 import { signOut } from "./(public)/sign-in/actions";
 
@@ -34,6 +35,9 @@ async function Feed() {
           <Link href="/posts/new" className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900">
             New post
           </Link>
+          <Link href="/me/posts" className="text-sm text-zinc-600 dark:text-zinc-400">
+            My posts
+          </Link>
           <Link href="/me/settings" className="text-sm text-zinc-600 dark:text-zinc-400">
             Settings
           </Link>
@@ -55,6 +59,7 @@ async function Feed() {
               <img src={photos[index]} alt="" className="aspect-square w-full object-cover" loading="lazy" />
               <div className="p-2">
                 <p className="truncate font-medium">{item.title}</p>
+                <p className="text-sm font-semibold">{formatPrice(item.priceKind, item.priceAmount)}</p>
                 <p className="truncate text-xs text-zinc-500">
                   {item.kind === "wishlist" ? "Wanted" : "Offered"}
                   {item.ownerHandle ? ` · @${item.ownerHandle}` : ""}

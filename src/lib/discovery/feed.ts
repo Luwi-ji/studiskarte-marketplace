@@ -6,6 +6,8 @@ export type FeedItem = {
   id: string;
   kind: string;
   title: string;
+  priceKind: string;
+  priceAmount: number | null;
   listedAt: Date;
   /** Null only for posts made before the owner finished sign-up. */
   ownerHandle: string | null;
@@ -27,6 +29,8 @@ export async function listFeed(limit = FEED_PAGE_SIZE): Promise<FeedItem[]> {
       id: post.id,
       kind: post.kind,
       title: post.title,
+      priceKind: post.priceKind,
+      priceAmount: post.priceAmount,
       listedAt: post.listedAt,
       ownerHandle: student.handle,
       school: sql<string>`coalesce(${school.name}, ${school.domain})`,
