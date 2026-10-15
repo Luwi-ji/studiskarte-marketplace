@@ -10,7 +10,8 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Stage 2 (tech stack): approved, then updated for the static offline page and the added scheduled jobs. The updates only record the owner's decisions.
 - Stage 3 (logic-to-stack map): approved for the previous content, and updated for the same decisions. The updates need no new stack pieces.
 - Stage 4 (phase plan): approved, 16 phases plus 3 deferred. See `.monozukuri/blueprint/04-phase-plan.md`.
-- Phase 1 (walking skeleton): deployed at https://studiskarte-marketplace.vercel.app (Vercel, Neon `production`, R2 `studiskarte-prod`); CI green. Verified in production: a code reached the `tup.edu.ph` (Google mail) inbox and signed in; the owner posted two photos, stored with no EXIF, XMP or GPS data. The owner waived the Microsoft-mail inbox check (ADR 0004). **Not yet done:** posting and sign-in inside an installed iPhone and Android app. Phase 1 stays open until those pass.
+- Phase 1 (walking skeleton): **done 2026-10-16.** Live at https://studiskarte-marketplace.vercel.app (Vercel, Neon `production`, R2 `studiskarte-prod`), CI green. Verified in production: code to a `tup.edu.ph` (Google mail) inbox; sign-in inside the installed iPhone app reaches the feed; sign-in in Samsung Internet on Android; iPhone photo posts stored with no EXIF, XMP or GPS data. Microsoft-mail check waived by the owner (ADR 0004). Follow-up: confirm Samsung Internet offers "Install" on a real Galaxy phone (all of Samsung's documented criteria are met).
+- Phase 2 (identity completion): next.
 
 ## Decisions since the feature list
 - No payments. "Make offer" is a price proposal. "Buy now" is "Reserve at asking price". Handover and payment happen in person. Both students confirm the handover. Nobody else confirms for them.
@@ -23,6 +24,13 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Services are in the first release.
 - One static offline page is stored by the service worker. Nothing else is cached. The service worker and offline page were moved forward into Phase 1 (2026-10-16) because Samsung Internet only installs apps that register a service worker; push alerts stay in Phase 9.
 - Societies, Events, and AI listing are recorded as later work, with questions asked when each starts.
+
+## Lessons from Phase 1
+- Read env files with Node's own parser (`util.parseEnv`), never by hand: a hand parser sent Vercel a wrong Gmail password.
+- A library that swallows errors (Better Auth's send callback) needs its outcome reported back explicitly; never show "sent" without proof.
+- One credential per environment: dev and production R2 keys were once the same token.
+- Cache Components keeps visited pages alive: forms that create things must clear themselves after success.
+- Check what a production failure looks like in the logs before changing code (`vercel logs runtime`).
 
 ## Owner inputs still needed
 - The terms of service, privacy policy, and community guidelines text (including prohibited items and cheating, and a note that services have no payment protection).
