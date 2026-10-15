@@ -1,5 +1,6 @@
 import { and, eq, notInArray } from "drizzle-orm";
 import { availabilityWindow, image, post, postPhoto } from "@/db/schema";
+import { loadAvailability } from "@/lib/posts/availability";
 import { getDb } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
 import { discardImage } from "@/lib/images/upload";
@@ -97,23 +98,5 @@ export async function getEditablePost(ownerId: string, postId: string): Promise<
     .innerJoin(image, eq(image.id, postPhoto.imageId))
     .where(eq(postPhoto.postId, postId))
     .orderBy(postPhoto.position);
-  const windows = await db
-    .select({
-      weekday: availabilityWindow.weekday,
-      onDate: availabilityWindow.onDate,
-      startTime: availabilityWindow.startTime,
-      endTime: availabilityWindow.endTime,
-    })
-    .from(availabilityWindow)
-    .where(eq(availabilityWindow.postId, postId))
-    .orderBy(availabilityWindow.weekday, availabilityWindow.onDate);
-  // Postgres returns times as "HH:MM:SS"; the form works in "HH:MM".
-  const availability = windows.map((w): Availability => {
-    const times = { startTime: w.startTime.slice(0, 5), endTime: w.endTime.slice(0, 5) };
-    if (w.onDate !== null) return { kind: "date", date: w.onDate, ...times };
-    // The availability_window_kind CHECK guarantees a weekday when there is no date.
-    if (w.weekday === null) throw new Error(`availability row without day or date on post ${postId}`);
-    return { kind: "weekly", weekday: w.weekday, ...times };
-  });
-  return { post: row, photos, availability };
+  return { post: row, photos, availability: await loadAvailability(postId) };
 }

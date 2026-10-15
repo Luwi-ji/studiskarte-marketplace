@@ -48,6 +48,7 @@ async function Feed() {
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {items.map((item, index) => (
         <li key={item.id} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+          <Link href={`/posts/${item.id}`} className="block active:opacity-80">
           {/* Signed, short-lived links; next/image would route private photos through the optimizer. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photos[index]} alt="" className="aspect-square w-full object-cover" loading="lazy" />
@@ -60,6 +61,7 @@ async function Feed() {
             </p>
             <p className="truncate text-xs text-zinc-500">{item.school}</p>
           </div>
+          </Link>
         </li>
       ))}
     </ul>

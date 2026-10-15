@@ -52,7 +52,7 @@ async function Posts() {
       <ul className="flex flex-col gap-2">
         {posts.map((p, index) => (
           <li key={p.id} className="rounded-xl border border-zinc-200 p-2 dark:border-zinc-800">
-            <div className="flex gap-3">
+            <Link href={`/posts/${p.id}`} className="flex gap-3 active:opacity-80">
               {/* Signed, short-lived link. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={covers[index]} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
@@ -64,7 +64,7 @@ async function Posts() {
                 </p>
                 {p.status === "open" ? <p className="text-xs text-zinc-500">Expires {dateFormat.format(p.expiresAt)}</p> : null}
               </div>
-            </div>
+            </Link>
             {p.status === "open" ? (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <Link href={`/posts/${p.id}/edit`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
