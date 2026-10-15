@@ -176,12 +176,12 @@ export function PostForm(props: Props) {
         <fieldset className="flex flex-col gap-2">
           <legend className={label}>Type</legend>
           <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input type="radio" name="kind" checked={!wishlist} onChange={() => setKind("showcase")} /> Showcase
+            <label className="flex min-h-11 items-center gap-3">
+              <input className="h-5 w-5 shrink-0" type="radio" name="kind" checked={!wishlist} onChange={() => setKind("showcase")} /> Showcase
               (I offer)
             </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="kind" checked={wishlist} onChange={() => setKind("wishlist")} /> Wishlist (I
+            <label className="flex min-h-11 items-center gap-3">
+              <input className="h-5 w-5 shrink-0" type="radio" name="kind" checked={wishlist} onChange={() => setKind("wishlist")} /> Wishlist (I
               seek)
             </label>
           </div>
@@ -198,17 +198,28 @@ export function PostForm(props: Props) {
               {/* Signed, short-lived link to the uploaded thumbnail. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photo.thumbUrl} alt={`Photo ${index + 1}`} className="aspect-square w-full object-cover" />
-              <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/50 text-xs text-white">
-                <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} className="px-2 py-1 disabled:opacity-30" aria-label="Move earlier">
-                  ←
-                </button>
-                <button type="button" onClick={() => set("photos", values.photos.filter((p) => p.id !== photo.id))} className="px-2 py-1" aria-label="Remove photo">
-                  ✕
-                </button>
-                <button type="button" onClick={() => movePhoto(index, 1)} disabled={index === values.photos.length - 1} className="px-2 py-1 disabled:opacity-30" aria-label="Move later">
-                  →
-                </button>
-              </div>
+              {/* Each control is a full 44 px target; the visible mark sits inside it. */}
+              <button
+                type="button"
+                onClick={() => set("photos", values.photos.filter((p) => p.id !== photo.id))}
+                className="absolute right-0 top-0 flex h-11 w-11 items-start justify-end p-1.5"
+                aria-label="Remove photo"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-sm text-white">✕</span>
+              </button>
+              {index === 0 ? (
+                <span className="absolute left-1.5 top-1.5 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">Cover</span>
+              ) : null}
+              {values.photos.length > 1 ? (
+                <div className="absolute inset-x-0 bottom-0 flex justify-between">
+                  <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} className="flex h-11 w-11 items-end justify-start p-1.5 disabled:invisible" aria-label="Move earlier">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-sm text-white">←</span>
+                  </button>
+                  <button type="button" onClick={() => movePhoto(index, 1)} disabled={index === values.photos.length - 1} className="flex h-11 w-11 items-end justify-end p-1.5 disabled:invisible" aria-label="Move later">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-sm text-white">→</span>
+                  </button>
+                </div>
+              ) : null}
             </li>
           ))}
           {Array.from({ length: uploading }, (_, i) => (
@@ -231,7 +242,7 @@ export function PostForm(props: Props) {
 
       <label className="flex flex-col gap-2">
         <span className={label}>Title</span>
-        <input name="title" value={values.title} onChange={(e) => set("title", e.target.value)} maxLength={TITLE_MAX} className={field} />
+        <input name="title" enterKeyHint="next" value={values.title} onChange={(e) => set("title", e.target.value)} maxLength={TITLE_MAX} className={field} />
         <FieldError message={errors.title} />
       </label>
 
@@ -302,8 +313,8 @@ export function PostForm(props: Props) {
         <legend className={label}>{wishlist ? "Your budget" : "Price"}</legend>
         <div className="flex flex-wrap gap-4">
           {(["amount", "free", "negotiable"] as PriceKind[]).map((value) => (
-            <label key={value} className="flex items-center gap-2">
-              <input type="radio" name="priceKind" checked={values.priceKind === value} onChange={() => set("priceKind", value)} />
+            <label key={value} className="flex min-h-11 items-center gap-3">
+              <input className="h-5 w-5 shrink-0" type="radio" name="priceKind" checked={values.priceKind === value} onChange={() => set("priceKind", value)} />
               {value === "amount" ? "Amount" : value === "free" ? "Free" : "Negotiable"}
             </label>
           ))}
@@ -313,6 +324,7 @@ export function PostForm(props: Props) {
             <span className="text-zinc-500">₱</span>
             <input
               name="priceAmount"
+              enterKeyHint="next"
               inputMode="numeric"
               value={values.priceAmount}
               onChange={(e) => set("priceAmount", e.target.value)}
@@ -326,20 +338,20 @@ export function PostForm(props: Props) {
 
       <fieldset className="flex flex-col gap-3">
         <legend className={label}>{wishlist ? "How you'd like to receive it" : "How to hand it over"}</legend>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="exchangeMeetup" checked={values.exchangeMeetup} onChange={(e) => set("exchangeMeetup", e.target.checked)} />
+        <label className="flex min-h-11 items-center gap-3">
+          <input className="h-5 w-5 shrink-0" type="checkbox" name="exchangeMeetup" checked={values.exchangeMeetup} onChange={(e) => set("exchangeMeetup", e.target.checked)} />
           {services ? "Meet-up (the work is done in person)" : "Meet-up"}
         </label>
         {values.exchangeMeetup ? (
           <label className="flex flex-col gap-1 pl-6">
             <span className="text-sm">Where to meet</span>
-            <input name="meetupLocation" value={values.meetupLocation} onChange={(e) => set("meetupLocation", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. TUP Manila main gate" className={field} />
+            <input name="meetupLocation" enterKeyHint="next" value={values.meetupLocation} onChange={(e) => set("meetupLocation", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. TUP Manila main gate" className={field} />
             <span className={hint}>For your safety, choose a busy public spot on campus.</span>
             <FieldError message={errors.meetupLocation} />
           </label>
         ) : null}
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="exchangeDelivery" checked={values.exchangeDelivery} onChange={(e) => set("exchangeDelivery", e.target.checked)} />
+        <label className="flex min-h-11 items-center gap-3">
+          <input className="h-5 w-5 shrink-0" type="checkbox" name="exchangeDelivery" checked={values.exchangeDelivery} onChange={(e) => set("exchangeDelivery", e.target.checked)} />
           {services
             ? "Delivery (finished work is handed over or sent)"
             : wishlist
@@ -349,7 +361,7 @@ export function PostForm(props: Props) {
         {values.exchangeDelivery ? (
           <label className="flex flex-col gap-1 pl-6">
             <span className="text-sm">Delivery area</span>
-            <input name="deliveryArea" value={values.deliveryArea} onChange={(e) => set("deliveryArea", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. within campus, or anywhere in Metro Manila" className={field} />
+            <input name="deliveryArea" enterKeyHint="next" value={values.deliveryArea} onChange={(e) => set("deliveryArea", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. within campus, or anywhere in Metro Manila" className={field} />
             <span className={hint}>Any delivery fee is agreed between you. The app never handles payment.</span>
             <FieldError message={errors.deliveryArea} />
           </label>
@@ -369,14 +381,17 @@ export function PostForm(props: Props) {
         />
       </fieldset>
 
-      <FieldError message={errors.form ?? errors.kind} />
-      <button
-        type="submit"
-        disabled={saving || uploading > 0}
-        className="rounded-lg bg-zinc-900 px-3 py-3 text-base font-medium text-white disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900"
-      >
-        {uploading > 0 ? "Waiting for photos…" : saving ? "Saving…" : props.mode === "create" ? "Post" : "Save changes"}
-      </button>
+      {/* Sticky so the student never scrolls to the end to post; clears the iPhone home bar. */}
+      <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
+        <FieldError message={errors.form ?? errors.kind ?? (Object.values(errors).some(Boolean) ? "Check the fields marked in red." : undefined)} />
+        <button
+          type="submit"
+          disabled={saving || uploading > 0}
+          className="h-12 rounded-lg bg-zinc-900 px-3 text-base font-medium text-white disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900"
+        >
+          {uploading > 0 ? "Waiting for photos…" : saving ? "Saving…" : props.mode === "create" ? "Post" : "Save changes"}
+        </button>
+      </div>
     </form>
   );
 }

@@ -17,8 +17,24 @@
   }
 }
 
+html {
+  /* Keep text sizes as designed when a phone rotates. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* No grey flash on tap; no double-tap-to-zoom delay on buttons and links. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* The page, not the browser chrome, handles pull past the edges. */
+  overscroll-behavior-y: none;
+}
+
+/* Bottom tab bar height, used to keep content and sticky bars clear of it. */
+:root {
+  --tab-bar: 4rem;
 }

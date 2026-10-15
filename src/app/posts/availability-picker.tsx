@@ -23,7 +23,7 @@ const monthLabel = new Intl.DateTimeFormat("en-PH", { month: "long", year: "nume
 const field =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 const chip = (on: boolean) =>
-  `rounded-full border px-3 py-2 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900" : "border-zinc-300 dark:border-zinc-700"}`;
+  `min-h-11 rounded-full border px-3 py-2 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900" : "border-zinc-300 dark:border-zinc-700"}`;
 
 function entryLabel(entry: Entry): string {
   return entry.kind === "weekly" ? `Every ${WEEKDAY_LABEL[entry.weekday]}` : dateLabel.format(new Date(`${entry.date}T00:00:00Z`));
@@ -152,21 +152,21 @@ export function AvailabilityPicker({
       ) : (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <button type="button" onClick={() => setMonth(shiftMonth(month, -1))} disabled={month <= today.slice(0, 7)} aria-label="Previous month" className="px-3 py-1 disabled:opacity-30">
+            <button type="button" onClick={() => setMonth(shiftMonth(month, -1))} disabled={month <= today.slice(0, 7)} aria-label="Previous month" className="flex h-11 w-11 items-center justify-center text-xl disabled:opacity-30">
               ‹
             </button>
             <span className="text-sm font-medium">{monthLabel.format(new Date(`${month}-01T00:00:00Z`))}</span>
-            <button type="button" onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= lastDay.slice(0, 7)} aria-label="Next month" className="px-3 py-1 disabled:opacity-30">
+            <button type="button" onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= lastDay.slice(0, 7)} aria-label="Next month" className="flex h-11 w-11 items-center justify-center text-xl disabled:opacity-30">
               ›
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-500">
+          <div className="grid grid-cols-7 text-center text-xs text-zinc-500">
             {SHORT_DAY.map((d) => (
               <span key={d}>{d}</span>
             ))}
           </div>
           {monthGrid(month).map((week, w) => (
-            <div key={w} className="grid grid-cols-7 gap-1">
+            <div key={w} className="grid grid-cols-7">
               {week.map((day, d) => {
                 if (!day) return <span key={d} />;
                 const on = value.some((e) => e.kind === "date" && e.date === day);
@@ -179,7 +179,7 @@ export function AvailabilityPicker({
                     aria-label={dateLabel.format(new Date(`${day}T00:00:00Z`))}
                     disabled={outside || (!on && full)}
                     onClick={() => toggle({ kind: "date", date: day, startTime: "", endTime: "" })}
-                    className={`aspect-square rounded-full text-sm ${on ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900" : ""} ${day === today && !on ? "ring-1 ring-zinc-400" : ""} disabled:opacity-25`}
+                    className={`aspect-square min-h-11 rounded-full text-sm ${on ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900" : ""} ${day === today && !on ? "ring-1 ring-zinc-400" : ""} disabled:opacity-25`}
                   >
                     {Number(day.slice(8))}
                   </button>

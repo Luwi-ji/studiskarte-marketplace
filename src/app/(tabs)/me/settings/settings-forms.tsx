@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState, type ChangeEvent } from "react";
 import { DISPLAY_NAME_MAX, HANDLE_MAX } from "@/lib/identity/names";
 import { preparePhoto } from "@/lib/images/prepare-photo";
+import { signOut } from "@/app/(public)/sign-in/actions";
 import { saveDisplayName, saveHandle, type FieldState } from "./actions";
 
 const input =
@@ -130,7 +131,7 @@ export function AvatarForm({ pictureUrl }: { pictureUrl: string | null }) {
         <div className="h-20 w-20 rounded-full bg-zinc-200 dark:bg-zinc-800" aria-label="No profile picture" />
       )}
       <div className="flex flex-col gap-1">
-        <label className="cursor-pointer text-sm font-medium underline">
+        <label className="flex h-11 cursor-pointer items-center rounded-lg border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700">
           {busy ? "Uploading…" : pictureUrl ? "Change picture" : "Add a picture"}
           <input
             type="file"
@@ -147,5 +148,33 @@ export function AvatarForm({ pictureUrl }: { pictureUrl: string | null }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * Signs out, then reloads the sign-in page in full. Next.js keeps visited
+ * pages in memory; a full reload clears them, so the next person on a shared
+ * phone cannot see the previous student's screens (Next.js docs: logout flows).
+ */
+export function SignOutButton() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await signOut();
+        } finally {
+          // A full reload on purpose: client navigation would keep signed-in pages in memory.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.assign("/sign-in");
+        }
+      }}
+      className="flex h-12 w-full items-center justify-center rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700"
+    >
+      {busy ? "Signing out…" : "Sign out"}
+    </button>
   );
 }

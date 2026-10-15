@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
@@ -15,15 +15,14 @@ const PREVIEW_LINK_SECONDS = 60 * 60;
 
 export default function EditPostPage({ params }: PageProps<"/posts/[id]/edit">) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-6 py-8">
-      <Link href="/me/posts" className="text-sm text-zinc-600 dark:text-zinc-400">
-        ← My posts
-      </Link>
-      <h1 className="mb-6 mt-2 text-2xl font-semibold">Edit post</h1>
-      <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
-        <Editor params={params} />
-      </Suspense>
-    </main>
+    <>
+      <PageHeader title="Edit post" back="/me/posts" />
+      <main className="mx-auto w-full max-w-md flex-1 px-4 pt-4">
+        <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
+          <Editor params={params} />
+        </Suspense>
+      </main>
+    </>
   );
 }
 

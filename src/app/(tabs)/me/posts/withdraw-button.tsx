@@ -22,11 +22,16 @@ export function WithdrawButton({ postId, title }: { postId: string; title: strin
   }
 
   return (
-    <>
-      <button type="button" onClick={withdraw} disabled={busy} className="text-sm text-red-600 underline disabled:opacity-60">
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={withdraw}
+        disabled={busy}
+        className="flex h-11 items-center justify-center rounded-lg border border-red-300 text-sm font-medium text-red-600 disabled:opacity-60 dark:border-red-900"
+      >
         {busy ? "Withdrawing…" : "Withdraw"}
       </button>
       {failed ? <span className="text-xs text-red-600">Could not withdraw. Try again.</span> : null}
-    </>
+    </div>
   );
 }

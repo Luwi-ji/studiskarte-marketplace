@@ -53,7 +53,7 @@ export async function verifyCode(_prev: SignInState, formData: FormData): Promis
   redirect("/");
 }
 
+/** Ends the session. The caller reloads the page so no signed-in screen stays in memory. */
 export async function signOut(): Promise<void> {
   await auth.api.signOut({ headers: await headers() });
-  redirect("/sign-in");
 }

@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { requireActiveStudent } from "@/lib/access";
 import { getOwnProfile } from "@/lib/identity/profile";
 import { getObjectStore } from "@/lib/images/store";
-import { AvatarForm, DisplayNameForm, HandleForm } from "./settings-forms";
+import { AvatarForm, DisplayNameForm, HandleForm, SignOutButton } from "./settings-forms";
 
 export const metadata = { title: "Settings · Studiskarte Marketplace" };
 
@@ -12,15 +12,14 @@ const PICTURE_LINK_SECONDS = 5 * 60;
 
 export default function SettingsPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-6 py-8">
-      <Link href="/" className="text-sm text-zinc-600 dark:text-zinc-400">
-        ← Back
-      </Link>
-      <h1 className="mb-6 mt-2 text-2xl font-semibold">Settings</h1>
-      <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
-        <Settings />
-      </Suspense>
-    </main>
+    <>
+      <PageHeader title="Me" />
+      <main className="mx-auto w-full max-w-md flex-1 px-4 py-4">
+        <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
+          <Settings />
+        </Suspense>
+      </main>
+    </>
   );
 }
 
@@ -37,6 +36,12 @@ async function Settings() {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-1">
+        <p className="text-lg font-semibold">{profile.displayName}</p>
+        <p className="text-sm text-zinc-500">
+          @{profile.handle} · {profile.school}
+        </p>
+      </div>
       <AvatarForm pictureUrl={pictureUrl} />
       <DisplayNameForm current={profile.displayName} />
       <HandleForm current={profile.handle} nextChangeOn={nextChangeOn} />
@@ -45,6 +50,7 @@ async function Settings() {
         <p className="text-zinc-700 dark:text-zinc-300">{profile.school}</p>
         <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
       </div>
+      <SignOutButton />
     </div>
   );
 }

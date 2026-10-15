@@ -50,7 +50,7 @@ Sizes: S one concern, M one module or boundary, L several modules or a data mode
 ## Phase 6: Browse (M)
 - id: 6
 - intent: Students browse a two-column feed of cards, swipe small cards, open a post with a full-screen swipeable photo viewer, and see followed students' posts first.
-- affected: `discovery/visibility.ts`, `discovery/feed.ts`, cards, post detail page, photo viewer, hide-on-scroll navigation, keyset pagination
+- affected: `discovery/visibility.ts`, `discovery/feed.ts`, cards, post detail page, photo viewer, hide-on-scroll for the bottom tab bar that shipped in Phase 3, keyset pagination
 - prereqs: 3, 5
 - playbook: feature
 - risk: medium
