@@ -55,7 +55,9 @@ export function NewPostForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    // Read before any await: React clears currentTarget after the handler starts.
+    const form = event.currentTarget;
+    const data = new FormData(form);
     const photo = data.get("photo");
     if (!(photo instanceof File) || photo.size === 0) {
       setError("Add a photo");
@@ -77,6 +79,10 @@ export function NewPostForm() {
         setError(body.error ?? "Could not save the post. Try again.");
         return;
       }
+      // Next.js keeps this page alive (hidden) after navigating away, so clear
+      // it now or the next "New post" opens with this post's title and photo.
+      // A draft left without posting is kept on purpose.
+      form.reset();
       router.push("/");
       router.refresh();
     } catch {
