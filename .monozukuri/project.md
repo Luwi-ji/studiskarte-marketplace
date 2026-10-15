@@ -9,7 +9,8 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Stage 1 (business logic): approved, with all changes up to and including expiry, views, follow-first feed, reply time, student categories, services, idle-deal rules, and the static offline page.
 - Stage 2 (tech stack): approved, then updated for the static offline page and the added scheduled jobs. The updates only record the owner's decisions.
 - Stage 3 (logic-to-stack map): approved for the previous content, and updated for the same decisions. The updates need no new stack pieces.
-- Stage 4 (phase plan): drafted, 16 phases plus 3 deferred. Awaiting approval. See `.monozukuri/blueprint/04-phase-plan.md`.
+- Stage 4 (phase plan): approved, 16 phases plus 3 deferred. See `.monozukuri/blueprint/04-phase-plan.md`.
+- Phase 1 (walking skeleton): built and verified locally on the Neon `dev` branch (44 tests pass). Verified with real services: a code reached `tup.edu.ph` (Google mail) inbox immediately and signed in; a 3000x2000 GPS-tagged photo posted through the UI was stored in R2 as 1600 px and 400 px WebP with no GPS or camera data, and shown in the feed through signed links. **Not yet done:** a code at a second school (Microsoft mail ideally), sign-in inside an installed iPhone and Android app, Vercel deploy, first push to GitHub (CI has never run). Phase 1 stays open until those pass.
 
 ## Decisions since the feature list
 - No payments. "Make offer" is a price proposal. "Buy now" is "Reserve at asking price". Handover and payment happen in person. Both students confirm the handover. Nobody else confirms for them.
@@ -32,3 +33,4 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Sender mailbox: `studiskartemarketplace@gmail.com` (App Password held by the owner, never in the repo).
 - Repo: `https://github.com/Luwi-ji/studiskarte-marketplace.git` (empty, nothing pushed yet).
 - Hosting: Vercel Hobby, Neon Free, Cloudflare R2 (images, proposed), GitHub Actions (CI and reminder scheduler).
+- Neon branches: `production` (default, empty, never used by tests or local dev) and `dev` (local dev and tests). `.env.local` points at `dev`. Production connection strings are kept outside the repo at `~/.studiskarte/production.env`.

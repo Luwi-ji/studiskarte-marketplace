@@ -1,8 +1,11 @@
 import { Pool } from "pg";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { attachDatabasePool } from "@vercel/functions";
+import * as schema from "@/db/schema";
 
 declare global {
   var __studiskartePool: Pool | undefined;
+  var __studiskarteDb: NodePgDatabase<typeof schema> | undefined;
 }
 
 // Application traffic uses the pooled DATABASE_URL (the "-pooler" host).
@@ -23,4 +26,9 @@ function createPool(): Pool {
 export function getPool(): Pool {
   globalThis.__studiskartePool ??= createPool();
   return globalThis.__studiskartePool;
+}
+
+export function getDb(): NodePgDatabase<typeof schema> {
+  globalThis.__studiskarteDb ??= drizzle(getPool(), { schema });
+  return globalThis.__studiskarteDb;
 }
