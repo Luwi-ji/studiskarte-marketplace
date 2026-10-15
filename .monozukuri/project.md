@@ -11,7 +11,7 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Stage 3 (logic-to-stack map): approved for the previous content, and updated for the same decisions. The updates need no new stack pieces.
 - Stage 4 (phase plan): approved, 16 phases plus 3 deferred. See `.monozukuri/blueprint/04-phase-plan.md`.
 - Phase 1 (walking skeleton): **done 2026-10-16.** Live at https://studiskarte-marketplace.vercel.app (Vercel, Neon `production`, R2 `studiskarte-prod`), CI green. Verified in production: code to a `tup.edu.ph` (Google mail) inbox; sign-in inside the installed iPhone app reaches the feed; sign-in in Samsung Internet on Android; iPhone photo posts stored with no EXIF, XMP or GPS data. Microsoft-mail check waived by the owner (ADR 0004). Follow-up: confirm Samsung Internet offers "Install" on a real Galaxy phone (all of Samsung's documented criteria are met).
-- Phase 2 (identity completion): next.
+- Phase 2 (identity completion): built and deployed 2026-10-16 (commit 2b78c19, CI green). Production migrated after a rehearsal on a copy of production. Exit checks verified locally: handles unique ignoring case, school shown by domain until named, no page or payload contains the email (Better Auth HTTP routes removed). Waiting for the owner to finish sign-up on the live site and name `tup.edu.ph`.
 
 ## Decisions since the feature list
 - No payments. "Make offer" is a price proposal. "Buy now" is "Reserve at asking price". Handover and payment happen in person. Both students confirm the handover. Nobody else confirms for them.
