@@ -34,6 +34,9 @@ async function Feed() {
           <Link href="/posts/new" className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900">
             New post
           </Link>
+          <Link href="/me/settings" className="text-sm text-zinc-600 dark:text-zinc-400">
+            Settings
+          </Link>
           <form action={signOut}>
             <button type="submit" className="text-sm text-zinc-600 dark:text-zinc-400">
               Sign out
@@ -53,8 +56,10 @@ async function Feed() {
               <div className="p-2">
                 <p className="truncate font-medium">{item.title}</p>
                 <p className="truncate text-xs text-zinc-500">
-                  {item.kind === "wishlist" ? "Wanted" : "Offered"} · {item.schoolDomain}
+                  {item.kind === "wishlist" ? "Wanted" : "Offered"}
+                  {item.ownerHandle ? ` · @${item.ownerHandle}` : ""}
                 </p>
+                <p className="truncate text-xs text-zinc-500">{item.school}</p>
               </div>
             </li>
           ))}

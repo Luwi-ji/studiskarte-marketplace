@@ -2,48 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-
-const MAX_EDGE = 1600;
-// The server refuses bigger requests (Vercel's limit is 4.5 MB).
-const MAX_RAW_UPLOAD = 4 * 1024 * 1024;
-const SERVER_FORMATS: Record<string, true> = { "image/jpeg": true, "image/png": true, "image/webp": true };
-
-// Phone photos are several MB. Shrinking here keeps the upload under the
-// request limit; the server re-encodes and strips metadata again.
-// Decoding through <img> (not createImageBitmap options) works on iPhone
-// Safari, reads HEIC, and applies the camera's rotation.
-async function shrink(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const scale = Math.min(1, MAX_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(img.naturalWidth * scale);
-    canvas.height = Math.round(img.naturalHeight * scale);
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("no canvas");
-    context.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.85),
-    );
-    if (!blob) throw new Error("canvas produced no image");
-    return blob;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-/** The shrunk photo, or the original when the browser cannot shrink it but the server can take it. */
-async function preparePhoto(file: File): Promise<Blob | null> {
-  try {
-    return await shrink(file);
-  } catch (error) {
-    console.warn("could not shrink photo in the browser", error);
-    return SERVER_FORMATS[file.type] && file.size <= MAX_RAW_UPLOAD ? file : null;
-  }
-}
+import { preparePhoto } from "@/lib/images/prepare-photo";
 
 const field =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";

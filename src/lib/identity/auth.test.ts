@@ -67,7 +67,8 @@ describe("sending codes", () => {
     },
   );
 
-  it("cannot be bypassed through the public HTTP endpoint", async () => {
+  // The HTTP handler is not mounted (no /api/auth route), but the guard must hold if it ever is.
+  it("cannot be bypassed through Better Auth's HTTP handler", async () => {
     const response = await auth.handler(
       new Request("http://localhost:3000/api/auth/email-otp/send-verification-otp", {
         method: "POST",

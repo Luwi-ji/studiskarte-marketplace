@@ -22,6 +22,20 @@
       "when": 1792058112264,
       "tag": "0002_better_auth_account",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792087248452,
+      "tag": "0003_identity_completion",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792087306575,
+      "tag": "0004_display_name_bound",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { post, postPhoto } from "@/db/schema";
 import { getDb } from "@/lib/db";
-import { discardImage, storePostPhoto } from "@/lib/images/upload";
+import { discardImage, storeImage } from "@/lib/images/upload";
 import type { ObjectStore } from "@/lib/images/store";
 import { newPostSchema } from "@/lib/posts/schema";
 
@@ -16,9 +16,10 @@ export async function createPost(args: {
   store: ObjectStore;
 }): Promise<{ id: string }> {
   const input = newPostSchema.parse(args.input);
-  const stored = await storePostPhoto({
+  const stored = await storeImage({
     ownerId: args.ownerId,
     bytes: args.photo,
+    purpose: "post_photo",
     store: args.store,
   });
 

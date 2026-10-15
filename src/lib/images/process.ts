@@ -1,8 +1,14 @@
 import sharp from "sharp";
 
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // Vercel Hobby request limit is 4.5 MB.
-const MAIN_EDGE = 1600;
-const THUMB_EDGE = 400;
+
+// "photo": post photos keep their shape. "avatar": profile pictures are
+// cropped to a centred square.
+export type ImageShape = "photo" | "avatar";
+const SHAPES: Record<ImageShape, { main: number; thumb: number; fit: "inside" | "cover" }> = {
+  photo: { main: 1600, thumb: 400, fit: "inside" },
+  avatar: { main: 512, thumb: 128, fit: "cover" },
+};
 const ACCEPTED_FORMATS: Record<string, true> = { jpeg: true, png: true, webp: true };
 // Refuse decompression bombs: a small file that expands to a huge bitmap.
 const MAX_INPUT_PIXELS = 40_000_000;
@@ -24,10 +30,11 @@ export type ProcessedImage = {
 /**
  * Checks that the bytes are really a JPEG, PNG or WebP picture, then
  * re-encodes it. Re-encoding drops every metadata block (GPS location, camera,
- * owner), applies the camera's rotation first, and shrinks to 1600 px. A
- * 400 px thumbnail is written alongside.
+ * owner), applies the camera's rotation first, and resizes per `shape`
+ * (photo: 1600 px plus a 400 px thumbnail; avatar: 512 px square plus 128 px).
  */
-export async function processImage(input: Buffer): Promise<ProcessedImage> {
+export async function processImage(input: Buffer, shape: ImageShape = "photo"): Promise<ProcessedImage> {
+  const size = SHAPES[shape];
   if (input.length === 0 || input.length > MAX_UPLOAD_BYTES) {
     throw new InvalidImageError("image is empty or too large");
   }
@@ -47,11 +54,11 @@ export async function processImage(input: Buffer): Promise<ProcessedImage> {
     // No .withMetadata(): sharp omits all metadata from the output by default.
     const upright = () => decode().rotate();
     const main = await upright()
-      .resize(MAIN_EDGE, MAIN_EDGE, { fit: "inside", withoutEnlargement: true })
+      .resize(size.main, size.main, { fit: size.fit, withoutEnlargement: size.fit === "inside" })
       .webp({ quality: 80 })
       .toBuffer({ resolveWithObject: true });
     const thumb = await upright()
-      .resize(THUMB_EDGE, THUMB_EDGE, { fit: "inside", withoutEnlargement: true })
+      .resize(size.thumb, size.thumb, { fit: size.fit, withoutEnlargement: size.fit === "inside" })
       .webp({ quality: 70 })
       .toBuffer();
     return {

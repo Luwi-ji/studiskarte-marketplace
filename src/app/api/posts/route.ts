@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { getActiveStudent } from "@/lib/access";
+import { getSignedInStudent, hasFinishedSignUp } from "@/lib/access";
 import { InvalidImageError, MAX_UPLOAD_BYTES } from "@/lib/images/process";
 import { getObjectStore } from "@/lib/images/store";
 import { UploadLimitError } from "@/lib/images/upload";
@@ -13,8 +13,9 @@ export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
     return NextResponse.json({ error: "Bad origin" }, { status: 403 });
   }
-  const me = await getActiveStudent(request.headers);
+  const me = await getSignedInStudent(request.headers);
   if (!me) return NextResponse.json({ error: "Sign in first" }, { status: 401 });
+  if (!hasFinishedSignUp(me)) return NextResponse.json({ error: "Finish sign-up first" }, { status: 403 });
 
   const form = await request.formData();
   const photo = form.get("photo");

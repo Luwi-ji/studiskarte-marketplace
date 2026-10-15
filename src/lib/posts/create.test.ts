@@ -8,11 +8,12 @@ import { listFeed } from "@/lib/discovery/feed";
 import { InvalidImageError } from "@/lib/images/process";
 import type { ObjectStore } from "@/lib/images/store";
 import { createPost } from "@/lib/posts/create";
+import { createTestStudent, deleteTestStudent, TEST_SCHOOL } from "@/test/fixtures";
 
 const db = getDb();
 const run = randomUUID().slice(0, 8);
 const ownerId = `owner-${run}`;
-const ownerEmail = `owner-${run}@testschool.edu.ph`;
+const ownerEmail = `${ownerId}@${TEST_SCHOOL}`;
 
 class MemoryStore implements ObjectStore {
   objects = new Map<string, Buffer>();
@@ -33,9 +34,7 @@ const photo = () =>
     .toBuffer();
 
 beforeAll(async () => {
-  await db
-    .insert(student)
-    .values({ id: ownerId, email: ownerEmail, emailVerified: true, schoolDomain: "testschool.edu.ph" });
+  await createTestStudent(ownerId);
 });
 
 afterAll(async () => {
@@ -43,7 +42,7 @@ afterAll(async () => {
   await db.delete(post).where(eq(post.ownerId, ownerId));
   await db.delete(image).where(eq(image.ownerId, ownerId));
   await db.delete(rateLimitEvent).where(eq(rateLimitEvent.key, ownerId));
-  await db.delete(student).where(eq(student.id, ownerId));
+  await deleteTestStudent(ownerId);
   await getPool().end();
   globalThis.__studiskartePool = undefined;
 });
@@ -64,7 +63,7 @@ describe("createPost", () => {
     expect(item).toMatchObject({
       title: "Calculus textbook",
       kind: "showcase",
-      schoolDomain: "testschool.edu.ph",
+      school: TEST_SCHOOL,
     });
     expect(store.objects.has(item!.thumbKey)).toBe(true);
     expect(JSON.stringify(feed)).not.toContain(ownerEmail);

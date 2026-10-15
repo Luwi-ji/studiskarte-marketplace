@@ -1,0 +1,2 @@
+ALTER TABLE "student" DROP CONSTRAINT "student_name_length";--> statement-breakpoint
+ALTER TABLE "student" ADD CONSTRAINT "student_name_length" CHECK (char_length("student"."name") <= 200 and "student"."name" !~ '[\r\n]');

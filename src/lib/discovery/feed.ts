@@ -1,5 +1,5 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { image, post, postPhoto, student } from "@/db/schema";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 
 export type FeedItem = {
@@ -7,7 +7,10 @@ export type FeedItem = {
   kind: string;
   title: string;
   listedAt: Date;
-  schoolDomain: string;
+  /** Null only for posts made before the owner finished sign-up. */
+  ownerHandle: string | null;
+  /** The school's name, or its email domain until the owner names it. */
+  school: string;
   thumbKey: string;
 };
 
@@ -25,11 +28,13 @@ export async function listFeed(limit = FEED_PAGE_SIZE): Promise<FeedItem[]> {
       kind: post.kind,
       title: post.title,
       listedAt: post.listedAt,
-      schoolDomain: student.schoolDomain,
+      ownerHandle: student.handle,
+      school: sql<string>`coalesce(${school.name}, ${school.domain})`,
       thumbKey: image.thumbKey,
     })
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
+    .innerJoin(school, eq(school.domain, student.schoolDomain))
     .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
     .innerJoin(image, eq(image.id, postPhoto.imageId))
     .where(and(inArray(post.status, ["open", "reserved"]), eq(student.accountStatus, "active")))

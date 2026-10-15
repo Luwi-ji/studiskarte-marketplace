@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getActiveStudent } from "@/lib/access";
+import { getSignedInStudent } from "@/lib/access";
 import { SignInForm } from "./sign-in-form";
 
 export const metadata = { title: "Sign in · Studiskarte Marketplace" };
@@ -24,6 +24,6 @@ export default function SignInPage() {
 
 // A signed-in student has no reason to be here.
 async function SkipIfSignedIn() {
-  if (await getActiveStudent()) redirect("/");
+  if (await getSignedInStudent()) redirect("/");
   return null;
 }

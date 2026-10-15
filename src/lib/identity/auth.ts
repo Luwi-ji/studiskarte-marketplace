@@ -74,6 +74,11 @@ const authOptions = {
           if (!school) {
             throw notSchoolEmailError();
           }
+          // The student row references its school, so make sure the school exists.
+          await getDb()
+            .insert(schema.school)
+            .values({ domain: school.domain })
+            .onConflictDoNothing();
           return { data: { ...user, email: school.email, schoolDomain: school.domain } };
         },
       },

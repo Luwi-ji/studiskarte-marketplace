@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigserial,
   boolean,
   check,
@@ -13,9 +14,23 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+// One row per school email domain. Created at a student's first sign-in; the
+// owner gives it a readable name later. Until then the domain is shown.
+export const school = pgTable(
+  "school",
+  {
+    domain: text("domain").primaryKey(),
+    name: text("name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("school_domain_shape", sql`${t.domain} ~ '^([a-z0-9-]+\\.)+edu\\.ph$'`),
+    check("school_name_length", sql`${t.name} is null or char_length(btrim(${t.name})) between 1 and 120`),
+  ],
+);
+
 // Better Auth owns the shape of `student`, `session` and `verification`.
 // Property names below are the names Better Auth reads; column names are ours.
-
 export const student = pgTable(
   "student",
   {
@@ -24,7 +39,16 @@ export const student = pgTable(
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
-    schoolDomain: text("school_domain").notNull(),
+    schoolDomain: text("school_domain")
+      .notNull()
+      .references(() => school.domain),
+    // Null until the student finishes sign-up (chooses a handle).
+    handle: text("handle").unique(),
+    // Last change after sign-up; null means the student has never changed it.
+    handleChangedAt: timestamp("handle_changed_at", { withTimezone: true }),
+    avatarImageId: uuid("avatar_image_id").references((): AnyPgColumn => image.id, {
+      onDelete: "set null",
+    }),
     accountStatus: text("account_status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -37,6 +61,18 @@ export const student = pgTable(
     check(
       "student_account_status",
       sql`${t.accountStatus} in ('active', 'suspended', 'deleted')`,
+    ),
+    // Mirrors src/lib/identity/names.ts: 3–20 of a–z 0–9 . _, lowercase,
+    // no leading, trailing or doubled dots.
+    check(
+      "student_handle_format",
+      sql`${t.handle} is null or (char_length(${t.handle}) between 3 and 20 and ${t.handle} ~ '^[a-z0-9_]+(\\.[a-z0-9_]+)*$')`,
+    ),
+    // names.ts limits what people see (40 graphemes; one emoji can be several
+    // code points). This is only an outer bound against oversized rows.
+    check(
+      "student_name_length",
+      sql`char_length(${t.name}) <= 200 and ${t.name} !~ '[\\r\\n]'`,
     ),
   ],
 );
@@ -156,7 +192,7 @@ export const image = pgTable(
     bytes: integer("bytes").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("image_purpose", sql`${t.purpose} in ('post_photo')`)],
+  (t) => [check("image_purpose", sql`${t.purpose} in ('post_photo', 'avatar')`)],
 );
 
 export const postPhoto = pgTable(

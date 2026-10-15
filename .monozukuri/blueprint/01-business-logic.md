@@ -69,7 +69,8 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - The system limits how many codes it sends to one address, and how many requests it accepts from one visitor, in a period. [Assumed. Limits open.]
 - A signed-in student stays signed in on that device for 30 days. Signing out, suspension, or revoked verification ends it sooner. (Decided.)
 - At first verification a student chooses a unique handle and a display name, and accepts the terms of service and privacy policy. The acceptance time and version are recorded. [Assumed.]
-- A handle is unique, compared case-insensitively. [Open: allowed characters and length, and whether it can be changed.]
+- A handle is unique, compared case-insensitively. It is 3 to 20 characters of a-z, 0-9, dot and underscore, does not start or end with a dot, and has no two dots in a row. It is stored lowercase. A student can change it at most once every 30 days; the first choice at sign-up does not count. A released handle becomes free for others. (Decided 2026-10-16.)
+- A display name is 1 to 40 characters, any letters including ñ and emoji, trimmed, with no line breaks. It can be changed at any time. (Decided 2026-10-16.)
 - The "verified student" check mark on a profile means the student proved a `.edu.ph` address. Every student has it. [Open: it carries no extra information until a second verification level exists.]
 - A student's school email address is never shown to other students. [Assumed.]
 - A student can delete their account. Deletion is final.
