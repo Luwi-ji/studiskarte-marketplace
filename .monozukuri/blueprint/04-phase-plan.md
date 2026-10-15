@@ -77,7 +77,7 @@ Sizes: S one concern, M one module or boundary, L several modules or a data mode
 ## Phase 9: Notifications, alerts, and the offline page (M)
 - id: 9
 - intent: A student sees an in-app notification list with unread counts, turns alerts on per device, gets an alert for a new message, and sees a static page when offline.
-- affected: `notification`, `push_subscription`, `notifications/`, `notifications/push/`, `public/sw.js`, `public/offline.html`, alerts toggle, install help, VAPID keys
+- affected: `notification`, `push_subscription`, `notifications/`, `notifications/push/`, `public/sw.js` (add push and notificationclick; the offline page part shipped in Phase 1), alerts toggle, install help, VAPID keys
 - prereqs: 8; external: generated VAPID keys, a real iPhone and an Android phone for testing
 - playbook: feature
 - risk: high

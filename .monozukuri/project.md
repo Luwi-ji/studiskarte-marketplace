@@ -21,7 +21,7 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Reports: a post reported by 3 different verified students is hidden at once, and goes to the owner's admin queue. The owner has no team. Students are never suspended automatically.
 - Listings expire 30 days after listing and must be relisted. Views are counted per student per day, owner-only. The default feed puts followed students' posts first. Profiles show stars and "typically replies within". Categories are two-level, made for students.
 - Services are in the first release.
-- One static offline page is stored by the service worker. Nothing else is cached.
+- One static offline page is stored by the service worker. Nothing else is cached. The service worker and offline page were moved forward into Phase 1 (2026-10-16) because Samsung Internet only installs apps that register a service worker; push alerts stay in Phase 9.
 - Societies, Events, and AI listing are recorded as later work, with questions asked when each starts.
 
 ## Owner inputs still needed
