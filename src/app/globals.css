@@ -3,11 +3,14 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* The logo's blue. White text on it has 4.9:1 contrast (WCAG AA). */
+  --brand: #0365fc;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -37,4 +40,10 @@ body {
 /* Bottom tab bar height, used to keep content and sticky bars clear of it. */
 :root {
   --tab-bar: 4rem;
+}
+
+/* Radio buttons and checkboxes in the brand colour. */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--brand);
 }

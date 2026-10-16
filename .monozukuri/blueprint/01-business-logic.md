@@ -39,7 +39,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 ## Entities and relationships
 - **Student**: a verified person. Attributes: unique handle (like an Instagram handle), display name, profile picture, school email, school (from the email domain), verification status, account status (active, suspended, deleted), the time they accepted the legal terms and which version.
 - **Post** (kind **Showcase** or **Wishlist**): attributes: one to many photos (at least one), title, price (an amount, "free", or "negotiable"), description, category, condition (only where the category asks for one), exchange options (meet-up, delivery, or both), meet-up location (when meet-up is offered), delivery area (when delivery is offered), availability (days of the week, or specific dates, each with a time range), status, listed date, expiry date (30 days after it was listed), and view count. For a Wishlist, the price is what the poster is willing to pay, the condition is the condition wanted, and the exchange options say how the poster would like to receive the item. [Assumed from the owner's list: the same required fields apply to both kinds.]
-- **Category**: two levels, like Facebook Marketplace: a main category and a subcategory. A post chooses one subcategory. The list is made for students. Each main category says whether its posts need a condition. The starter list is below and is Assumed. The owner must confirm it.
+- **Category**: one level (owner, 2026-10-16: no subcategories). A post chooses one category. Each category says whether its posts need a condition. The list is below.
 - **Condition**: one value from a fixed list: new, used like new, used good, used fair. Needed only for categories that ask for it. [Assumed, following Facebook.]
 - **School**: identified by the school's email domain, such as `up.edu.ph`. It has a readable name. Until the admin sets one, the domain is shown as the name. [Assumed.]
 - **Heart**: a student's saved mark on a post.
@@ -76,6 +76,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A student can delete their account. Deletion is final.
 
 ### Posts
+- Each photo may have its own short description (up to 300 characters), shown under it. The post's main description is always required. (Owner, 2026-10-16.)
 - A post needs: at least one photo, a title, a price statement, a description, a category, a condition (only where its category asks for one), at least one exchange option, at least one availability window, and the place that goes with each exchange option chosen (a meet-up location for meet-up, a delivery area for delivery). [Assumed from the owner's create list.]
 - **Availability** is given either as days of the week (for example every Monday and Wednesday) or as specific dates picked on a calendar. Each day or date has a time range, the same for all or different per day. Dates are today or later, up to 60 days ahead; at most 14 entries. (Decided 2026-10-16.)
 - The price statement is an amount in whole Philippine pesos from ₱1 to ₱1,000,000, or "free", or "negotiable". "Free" is a distinct value, not zero. (Decided 2026-10-16.)
@@ -257,21 +258,21 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A category is renamed or removed while posts use it -> existing posts keep their category. A relisting owner must choose a current one. [Assumed.]
 - Abusive or illegal content -> reported, reviewed by the admin.
 
-## Categories (confirmed by the owner 2026-10-16)
-Two levels. A post chooses one subcategory. "No condition" main categories do not ask for a condition. Wishlist posts use the same list. Subcategories come from the owner's examples, plus an "Other" subcategory where items may not fit.
+## Categories (confirmed by the owner 2026-10-16; one level, no subcategories)
+A post chooses one category. Categories marked "no condition" do not ask for a condition. Wishlist posts use the same list. The owner's examples describe what each holds.
 
-- **Textbooks & Study Materials**: books, reviewers, notes, reference materials, other.
-- **School & Office Supplies**: notebooks, pens and writing, art materials, printing supplies, other.
-- **Uniforms & Org Merch**: school uniforms, org shirts, event merchandise, other.
-- **Electronics & Gadgets**: calculators, chargers, headphones, computer accessories, other.
-- **Dorm & Living Essentials**: storage, bedding, lamps, small appliances, other.
-- **Clothing & Accessories**: thrift clothes, shoes, bags, jewelry, other.
-- **Hobbies & Entertainment**: sports gear, instruments, games, collectibles, other.
-- **Transportation**: bikes, bike accessories, other transport needs.
+- **Textbooks & Study Materials**: books, reviewers, notes, reference materials.
+- **School & Office Supplies**: notebooks, pens, art materials, printing supplies.
+- **Uniforms & Org Merch**: school uniforms, org shirts, event merchandise.
+- **Electronics & Gadgets**: calculators, chargers, headphones, computer accessories.
+- **Dorm & Living Essentials**: storage, bedding, lamps, small appliances.
+- **Clothing & Accessories**: thrift clothes, shoes, bags, jewelry.
+- **Hobbies & Entertainment**: sports gear, instruments, games, collectibles.
+- **Transportation**: bikes, bike accessories, transport-related needs.
 - **Housing & Bedspace** (no condition): dorms, rooms, bedspaces, roommates.
 - **Food & Treats** (no condition): snacks, meals, baked goods, desserts, drinks.
-- **Services** (no condition): tutoring, graphic design, programming, photography, repairs, other.
-- **Other** (no condition, since it covers items and services): other.
+- **Services** (no condition): tutoring, graphic design, programming, photography, repairs.
+- **Other** (no condition): items or services that fit nowhere else.
 
 ## Later work (recorded, not designed)
 These are large separate systems. Each gets its own questions when its phase starts. They must not weaken the rules above. In particular, a Conversation stays a thread between exactly two students.

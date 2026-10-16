@@ -13,6 +13,7 @@ import { OPEN_POSTS_MAX, type NewPostInput } from "@/lib/posts/schema";
 import { withdrawPost } from "@/lib/posts/transitions";
 import { getEditablePost, updatePost } from "@/lib/posts/update";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
+import { photosOf } from "@/test/photos";
 
 const db = getDb();
 const run = randomUUID().slice(0, 6);
@@ -58,7 +59,7 @@ async function input(overrides: Partial<NewPostInput> = {}): Promise<NewPostInpu
     kind: "showcase",
     title: `Calculator ${run} #${titleCounter}`,
     description: "Casio fx-991ES, complete with cover.",
-    categoryId: "electronics.calculators",
+    categoryId: "electronics",
     condition: "used_good",
     priceKind: "amount",
     priceAmount: "1200",
@@ -67,7 +68,7 @@ async function input(overrides: Partial<NewPostInput> = {}): Promise<NewPostInpu
     meetupLocation: "Main gate",
     deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "12:00" }],
-    photoIds: [await photoOf(owner)],
+    photos: photosOf([await photoOf(owner)]),
     ...overrides,
   };
 }
@@ -105,19 +106,19 @@ describe("createPost", () => {
 
   it("keeps photos in the order given", async () => {
     const photos = [await photoOf(owner), await photoOf(owner), await photoOf(owner)];
-    const id = await created({ photoIds: photos });
+    const id = await created({ photos: photosOf(photos) });
     const rows = await db.select().from(postPhoto).where(eq(postPhoto.postId, id)).orderBy(postPhoto.position);
     expect(rows.map((row) => row.imageId)).toEqual(photos);
   });
 
   it("refuses another student's photo, and a photo already on a post", async () => {
-    const stranger = await createPost({ ownerId: owner, input: await input({ photoIds: [await photoOf(other)] }) });
-    expect(stranger).toMatchObject({ ok: false, errors: { photoIds: expect.any(String) } });
+    const stranger = await createPost({ ownerId: owner, input: await input({ photos: photosOf([await photoOf(other)]) }) });
+    expect(stranger).toMatchObject({ ok: false, errors: { photos: expect.any(String) } });
 
     const shared = await photoOf(owner);
-    await created({ photoIds: [shared] });
-    const reused = await createPost({ ownerId: owner, input: await input({ photoIds: [shared] }) });
-    expect(reused).toMatchObject({ ok: false, errors: { photoIds: expect.any(String) } });
+    await created({ photos: photosOf([shared]) });
+    const reused = await createPost({ ownerId: owner, input: await input({ photos: photosOf([shared]) }) });
+    expect(reused).toMatchObject({ ok: false, errors: { photos: expect.any(String) } });
   });
 
   it("refuses the same post twice while it is open", async () => {
@@ -150,7 +151,7 @@ describe("open-post limit", () => {
           .returning({ id: image.id });
         const posts = await tx
           .insert(post)
-          .values(Array.from({ length: n }, (_, i) => ({ ownerId: student, kind: "showcase", title: `Seed ${i}`, description: "Seeded.", categoryId: "other.other", priceKind: "free", exchangeMeetup: true, exchangeDelivery: false, meetupLocation: "Gate" })))
+          .values(Array.from({ length: n }, (_, i) => ({ ownerId: student, kind: "showcase", title: `Seed ${i}`, description: "Seeded.", categoryId: "other", priceKind: "free", exchangeMeetup: true, exchangeDelivery: false, meetupLocation: "Gate" })))
           .returning({ id: post.id });
         await tx.insert(postPhoto).values(posts.map((p, i) => ({ postId: p.id, imageId: images[i].id, position: 0 })));
         await tx.insert(availabilityWindow).values(posts.map((p) => ({ postId: p.id, kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" })));
@@ -160,7 +161,7 @@ describe("open-post limit", () => {
           .insert(image)
           .values({ ownerId: student, purpose: "post_photo", key: `t/${student}/${n}`, thumbKey: `t/${student}/${n}-t`, width: 1, height: 1, bytes: 1 })
           .returning({ id: image.id });
-        return createPost({ ownerId: student, input: { ...(await input()), title: `Limit ${n}`, photoIds: [row.id] } });
+        return createPost({ ownerId: student, input: { ...(await input()), title: `Limit ${n}`, photos: photosOf([row.id]) } });
       };
       // Several at once so the transactions really overlap.
       const race = await Promise.all([100, 101, 102, 103, 104, 105].map(make));
@@ -179,13 +180,13 @@ describe("updatePost and withdrawPost", () => {
     const store = new MemoryStore();
     const keep = await storeImage({ ownerId: owner, bytes: await tinyJpeg(), purpose: "post_photo", store });
     const drop = await storeImage({ ownerId: owner, bytes: await tinyJpeg(), purpose: "post_photo", store });
-    const id = await created({ photoIds: [keep.id, drop.id] });
+    const id = await created({ photos: photosOf([keep.id, drop.id]) });
 
     const result = await updatePost({
       ownerId: owner,
       postId: id,
       store,
-      input: { ...(await input()), title: `Edited ${run}`, priceKind: "free", priceAmount: "", photoIds: [keep.id] },
+      input: { ...(await input()), title: `Edited ${run}`, priceKind: "free", priceAmount: "", photos: photosOf([keep.id]) },
     });
     expect(result).toEqual({ ok: true, id });
     const editable = await getEditablePost(owner, id);
@@ -193,6 +194,24 @@ describe("updatePost and withdrawPost", () => {
     expect(editable?.photos.map((p) => p.id)).toEqual([keep.id]);
     expect(store.objects.has(drop.keys[0])).toBe(false);
     expect(store.objects.has(keep.keys[0])).toBe(true);
+  });
+
+  it("saves photo captions and changes them on edit", async () => {
+    const [a, b] = [await photoOf(owner), await photoOf(owner)];
+    const id = await created({ photos: [{ id: a, caption: "Front" }, { id: b, caption: "" }] });
+    const before = await db.select({ imageId: postPhoto.imageId, caption: postPhoto.caption }).from(postPhoto).where(eq(postPhoto.postId, id)).orderBy(postPhoto.position);
+    expect(before).toEqual([{ imageId: a, caption: "Front" }, { imageId: b, caption: null }]);
+
+    const store = new MemoryStore();
+    await updatePost({ ownerId: owner, postId: id, store, input: { ...(await input()), photos: [{ id: b, caption: "Back" }, { id: a, caption: "" }] } });
+    expect((await getEditablePost(owner, id))?.photos.map((p) => [p.id, p.caption])).toEqual([[b, "Back"], [a, null]]);
+  });
+
+  it("refuses a blank caption written straight to the database", async () => {
+    const id = await created();
+    await expect(db.update(postPhoto).set({ caption: "   " }).where(eq(postPhoto.postId, id))).rejects.toMatchObject({
+      cause: { constraint: "post_photo_caption_length" },
+    });
   });
 
   it("lets only the owner edit or withdraw, and only while open", async () => {
@@ -224,7 +243,7 @@ describe("database rules (exit check: bad input is refused even if the app is by
     kind: "showcase",
     title: `Direct ${randomUUID()}`,
     description: "Written straight to the database.",
-    categoryId: "electronics.calculators",
+    categoryId: "electronics",
     condition: "used_good" as string | null,
     priceKind: "amount",
     priceAmount: 100 as number | null,
@@ -298,9 +317,9 @@ describe("database rules (exit check: bad input is refused even if the app is by
   });
 
   it.each([
-    ["a condition for a category that has none", { categoryId: "services.tutoring", condition: "new" }, /takes no condition/],
+    ["a condition for a category that has none", { categoryId: "services", condition: "new" }, /takes no condition/],
     ["no condition where one is needed", { condition: null }, /needs a condition/],
-    ["a main category instead of a subcategory", { categoryId: "electronics" }, /subcategory/],
+    ["an unknown category", { categoryId: "no-such-category" }, /unknown category/],
   ])("refuses %s", async (_label, change, pattern) => {
     await expect(insertDirect({ ...base(), ...change })).rejects.toMatchObject(refused(pattern));
   });

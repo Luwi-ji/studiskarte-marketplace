@@ -3,11 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { preparePhoto } from "@/lib/images/prepare-photo";
-import type { CategoryTree } from "@/lib/posts/categories";
+import type { Category } from "@/lib/posts/categories";
 import type { SaveResult } from "@/lib/posts/create";
 import {
   CONDITION_LABEL,
   CONDITIONS,
+  CAPTION_MAX,
   DESCRIPTION_MAX,
   PHOTOS_MAX,
   PLACE_MAX,
@@ -21,8 +22,8 @@ import {
 import { createPostAction, updatePostAction } from "./actions";
 import { AvailabilityPicker } from "./availability-picker";
 
-export type FormPhoto = { id: string; thumbUrl: string };
-export type PostFormValues = Omit<PostFields, "photoIds"> & { photos: FormPhoto[] };
+export type FormPhoto = { id: string; thumbUrl: string; caption: string };
+export type PostFormValues = Omit<PostFields, "photos"> & { photos: FormPhoto[] };
 
 const EMPTY: PostFormValues = {
   title: "",
@@ -52,7 +53,7 @@ const ANSWERS: Record<keyof PostFormValues, string[]> = {
   meetupLocation: ["meetupLocation"],
   deliveryArea: ["deliveryArea"],
   availability: ["availability"],
-  photos: ["photoIds"],
+  photos: ["photos"],
 };
 
 const field =
@@ -69,8 +70,8 @@ function FieldError({ message }: { message?: string }) {
 }
 
 type Props =
-  | { mode: "create"; categories: CategoryTree }
-  | { mode: "edit"; categories: CategoryTree; postId: string; kind: PostKind; initial: PostFormValues };
+  | { mode: "create"; categories: Category[] }
+  | { mode: "edit"; categories: Category[]; postId: string; kind: PostKind; initial: PostFormValues };
 
 export function PostForm(props: Props) {
   const router = useRouter();
@@ -79,6 +80,8 @@ export function PostForm(props: Props) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uploading, setUploading] = useState(0);
   const [saving, setSaving] = useState(false);
+  // On when the student wants a description under each photo (owner, 2026-10-16).
+  const [perPhoto, setPerPhoto] = useState(() => values.photos.some((p) => p.caption.length > 0));
 
   const clearErrors = (...keys: string[]) =>
     setErrors((current) => {
@@ -90,16 +93,16 @@ export function PostForm(props: Props) {
     setValues((current) => ({ ...current, [key]: value }));
     clearErrors(...ANSWERS[key]);
   };
-  const main = props.categories.find((entry) => entry.subcategories.some((sub) => sub.id === values.categoryId));
+  const chosen = props.categories.find((c) => c.id === values.categoryId);
   const wishlist = kind === "wishlist";
-  const services = main?.id === "services";
+  const services = chosen?.id === "services";
 
   async function addPhotos(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
     const files = Array.from(input.files ?? []).slice(0, PHOTOS_MAX - values.photos.length);
     input.value = "";
     if (files.length === 0) return;
-    setErrors((current) => ({ ...current, photoIds: undefined }));
+    setErrors((current) => ({ ...current, photos: undefined }));
     setUploading((n) => n + files.length);
     for (const file of files) {
       try {
@@ -116,14 +119,14 @@ export function PostForm(props: Props) {
               : "Could not upload a photo. Try again.";
           throw new Error(message);
         }
-        const photo = { id: String(reply.id), thumbUrl: String(reply.thumbUrl) };
+        const photo = { id: String(reply.id), thumbUrl: String(reply.thumbUrl), caption: "" };
         setValues((current) =>
           current.photos.length < PHOTOS_MAX ? { ...current, photos: [...current.photos, photo] } : current,
         );
       } catch (error) {
         setErrors((current) => ({
           ...current,
-          photoIds: error instanceof Error ? error.message : "Could not upload a photo. Try again.",
+          photos: error instanceof Error ? error.message : "Could not upload a photo. Try again.",
         }));
       } finally {
         setUploading((n) => n - 1);
@@ -145,7 +148,8 @@ export function PostForm(props: Props) {
     setSaving(true);
     setErrors({});
     const { photos, ...rest } = values;
-    const input = { ...rest, photoIds: photos.map((photo) => photo.id) };
+    // With "Describe each photo" off, captions are cleared rather than kept hidden.
+    const input = { ...rest, photos: photos.map((photo) => ({ id: photo.id, caption: perPhoto ? photo.caption : "" })) };
     let result: SaveResult;
     try {
       result =
@@ -237,7 +241,42 @@ export function PostForm(props: Props) {
           ) : null}
         </ul>
         <span className={hint}>The first photo is the cover. Location data is removed from every photo.</span>
-        <FieldError message={errors.photoIds} />
+        <FieldError message={errors.photos} />
+        {values.photos.length > 0 ? (
+          <label className="flex min-h-11 items-center gap-3">
+            <input className="h-5 w-5 shrink-0" type="checkbox" checked={perPhoto} onChange={(e) => setPerPhoto(e.target.checked)} />
+            Describe each photo
+          </label>
+        ) : null}
+        {perPhoto ? (
+          <ul className="flex flex-col gap-3">
+            {values.photos.map((photo, index) => (
+              <li key={photo.id} className="flex gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.thumbUrl} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <textarea
+                    aria-label={`Description of photo ${index + 1}`}
+                    value={photo.caption}
+                    onChange={(e) => {
+                      const caption = e.target.value;
+                      setValues((current) => ({
+                        ...current,
+                        photos: current.photos.map((p) => (p.id === photo.id ? { ...p, caption } : p)),
+                      }));
+                      clearErrors(`photos.${index}`);
+                    }}
+                    maxLength={CAPTION_MAX}
+                    rows={2}
+                    placeholder={index === 0 ? "e.g. Front, with the cover" : "Describe this photo (optional)"}
+                    className={field}
+                  />
+                  <FieldError message={errors[`photos.${index}`]} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <label className="flex flex-col gap-2">
@@ -247,7 +286,7 @@ export function PostForm(props: Props) {
       </label>
 
       <label className="flex flex-col gap-2">
-        <span className={label}>Description</span>
+        <span className={label}>{perPhoto ? "Main description" : "Description"}</span>
         <textarea
           name="description"
           value={values.description}
@@ -265,7 +304,7 @@ export function PostForm(props: Props) {
           name="categoryId"
           value={values.categoryId}
           onChange={(e) => {
-            const next = props.categories.find((entry) => entry.subcategories.some((sub) => sub.id === e.target.value));
+            const next = props.categories.find((c) => c.id === e.target.value);
             setValues((current) => ({
               ...current,
               categoryId: e.target.value,
@@ -276,20 +315,16 @@ export function PostForm(props: Props) {
           className={field}
         >
           <option value="">Choose a category</option>
-          {props.categories.map((entry) => (
-            <optgroup key={entry.id} label={entry.name}>
-              {entry.subcategories.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.name}
-                </option>
-              ))}
-            </optgroup>
+          {props.categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
         <FieldError message={errors.categoryId} />
       </label>
 
-      {main?.requiresCondition ? (
+      {chosen?.requiresCondition ? (
         <label className="flex flex-col gap-2">
           <span className={label}>{wishlist ? "Condition wanted" : "Condition"}</span>
           <select
@@ -387,7 +422,7 @@ export function PostForm(props: Props) {
         <button
           type="submit"
           disabled={saving || uploading > 0}
-          className="h-12 rounded-lg bg-zinc-900 px-3 text-base font-medium text-white disabled:opacity-60 dark:bg-zinc-50 dark:text-zinc-900"
+          className="h-12 rounded-lg bg-brand px-3 text-base font-medium text-white disabled:opacity-60"
         >
           {uploading > 0 ? "Waiting for photos…" : saving ? "Saving…" : props.mode === "create" ? "Post" : "Save changes"}
         </button>

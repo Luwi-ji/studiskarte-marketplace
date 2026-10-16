@@ -42,13 +42,14 @@ export async function updatePost(args: {
         .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), eq(post.status, "open")))
         .for("update");
       if (!current) return null;
-      if (!(await checkPhotos(tx, args.ownerId, data.photoIds, args.postId))) return "photos" as const;
+      const photoIds = data.photos.map((p) => p.id);
+      if (!(await checkPhotos(tx, args.ownerId, photoIds, args.postId))) return "photos" as const;
 
       const dropped = await tx
         .select({ id: image.id, key: image.key, thumbKey: image.thumbKey })
         .from(postPhoto)
         .innerJoin(image, eq(image.id, postPhoto.imageId))
-        .where(and(eq(postPhoto.postId, args.postId), notInArray(postPhoto.imageId, data.photoIds)));
+        .where(and(eq(postPhoto.postId, args.postId), notInArray(postPhoto.imageId, photoIds)));
 
       await tx
         .update(post)
@@ -61,7 +62,7 @@ export async function updatePost(args: {
       return dropped;
     });
     if (outcome === null) return NOT_EDITABLE;
-    if (outcome === "photos") return { ok: false, errors: { photoIds: "A photo is missing. Upload it again." } };
+    if (outcome === "photos") return { ok: false, errors: { photos: "A photo is missing. Upload it again." } };
     removed = outcome;
   } catch (error) {
     if (isDuplicatePost(error)) return DUPLICATE_POST;
@@ -80,7 +81,7 @@ export async function updatePost(args: {
 /** What the edit form starts from. */
 export type EditablePost = {
   post: typeof post.$inferSelect;
-  photos: { id: string; thumbKey: string }[];
+  photos: { id: string; thumbKey: string; caption: string | null }[];
   availability: Availability[];
 };
 
@@ -93,7 +94,7 @@ export async function getEditablePost(ownerId: string, postId: string): Promise<
     .where(and(eq(post.id, postId), eq(post.ownerId, ownerId), eq(post.status, "open")));
   if (!row) return null;
   const photos = await db
-    .select({ id: image.id, thumbKey: image.thumbKey })
+    .select({ id: image.id, thumbKey: image.thumbKey, caption: postPhoto.caption })
     .from(postPhoto)
     .innerJoin(image, eq(image.id, postPhoto.imageId))
     .where(eq(postPhoto.postId, postId))

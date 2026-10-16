@@ -12,9 +12,8 @@ export type PostDetail = {
   status: string;
   title: string;
   description: string;
+  categoryId: string;
   categoryName: string;
-  mainCategoryId: string;
-  mainCategoryName: string;
   condition: string | null;
   priceKind: string;
   priceAmount: number | null;
@@ -26,11 +25,10 @@ export type PostDetail = {
   expiresAt: Date;
   isOwner: boolean;
   seller: { handle: string | null; displayName: string; school: string; avatarThumbKey: string | null };
-  photos: { key: string; width: number; height: number }[];
+  photos: { key: string; width: number; height: number; caption: string | null }[];
   availability: Availability[];
 };
 
-const mainCategory = alias(category, "main_category");
 const avatar = alias(image, "avatar");
 
 /**
@@ -47,9 +45,8 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       status: post.status,
       title: post.title,
       description: post.description,
+      categoryId: category.id,
       categoryName: category.name,
-      mainCategoryId: mainCategory.id,
-      mainCategoryName: mainCategory.name,
       condition: post.condition,
       priceKind: post.priceKind,
       priceAmount: post.priceAmount,
@@ -68,7 +65,6 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     })
     .from(post)
     .innerJoin(category, eq(category.id, post.categoryId))
-    .innerJoin(mainCategory, eq(mainCategory.id, category.parentId))
     .innerJoin(student, eq(student.id, post.ownerId))
     .innerJoin(school, eq(school.domain, student.schoolDomain))
     .leftJoin(avatar, eq(avatar.id, student.avatarImageId))
@@ -85,7 +81,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
 
   const [photos, availability] = await Promise.all([
     db
-      .select({ key: image.key, width: image.width, height: image.height })
+      .select({ key: image.key, width: image.width, height: image.height, caption: postPhoto.caption })
       .from(postPhoto)
       .innerJoin(image, eq(image.id, postPhoto.imageId))
       .where(eq(postPhoto.postId, postId))
@@ -99,9 +95,8 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     status: row.status,
     title: row.title,
     description: row.description,
+    categoryId: row.categoryId,
     categoryName: row.categoryName,
-    mainCategoryId: row.mainCategoryId,
-    mainCategoryName: row.mainCategoryName,
     condition: row.condition,
     priceKind: row.priceKind,
     priceAmount: row.priceAmount,

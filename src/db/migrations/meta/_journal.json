@@ -57,6 +57,13 @@
       "when": 1792094447282,
       "tag": "0007_availability_days_and_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792109601663,
+      "tag": "0008_flat_categories_photo_captions",
+      "breakpoints": true
     }
   ]
 }

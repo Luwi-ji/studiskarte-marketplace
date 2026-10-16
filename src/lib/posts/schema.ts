@@ -24,6 +24,7 @@ export const DESCRIPTION_MAX = 2000;
 export const PLACE_MAX = 120;
 export const PRICE_MAX = 1_000_000;
 export const PHOTOS_MAX = 10;
+export const CAPTION_MAX = 300;
 export const AVAILABILITY_MAX = 14;
 export const AVAILABILITY_DAYS_AHEAD = 60;
 export const OPEN_POSTS_MAX = 20;
@@ -89,7 +90,8 @@ export const postFieldsSchema = z.object({
       z.object({ kind: z.literal("date"), date: z.string(), startTime: z.string(), endTime: z.string() }),
     ]),
   ),
-  photoIds: z.array(z.string()),
+  // In order; the first is the cover. A caption is "" when the photo has none.
+  photos: z.array(z.object({ id: z.string(), caption: z.string() })),
 });
 export type PostFields = z.input<typeof postFieldsSchema>;
 
@@ -109,7 +111,7 @@ export type PostData = {
   meetupLocation: string | null;
   deliveryArea: string | null;
   availability: Availability[];
-  photoIds: string[];
+  photos: { id: string; caption: string | null }[];
 };
 
 export type FieldErrors = Partial<Record<string, string>>;
@@ -134,10 +136,16 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
   errors.title = textError(title, "a title", TITLE_MAX);
   errors.description = textError(description, "a description", DESCRIPTION_MAX);
 
-  if (raw.photoIds.length === 0) errors.photoIds = "Add at least one photo.";
-  else if (raw.photoIds.length > PHOTOS_MAX) errors.photoIds = `Add at most ${PHOTOS_MAX} photos.`;
-  else if (!raw.photoIds.every((id) => UUID.test(id))) errors.photoIds = "A photo is missing. Upload it again.";
-  else if (new Set(raw.photoIds).size !== raw.photoIds.length) errors.photoIds = "A photo was added twice.";
+  const photoIds = raw.photos.map((p) => p.id);
+  if (photoIds.length === 0) errors.photos = "Add at least one photo.";
+  else if (photoIds.length > PHOTOS_MAX) errors.photos = `Add at most ${PHOTOS_MAX} photos.`;
+  else if (!photoIds.every((id) => UUID.test(id))) errors.photos = "A photo is missing. Upload it again.";
+  else if (new Set(photoIds).size !== photoIds.length) errors.photos = "A photo was added twice.";
+  const photos = raw.photos.map((p, index) => {
+    const caption = p.caption.trim();
+    if (caption.length > CAPTION_MAX) errors[`photos.${index}`] = `Use at most ${CAPTION_MAX} characters.`;
+    return { id: p.id, caption: caption.length > 0 ? caption : null };
+  });
 
   const category = lookup(raw.categoryId);
   if (!category) errors.categoryId = "Choose a category.";
@@ -221,7 +229,7 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     meetupLocation: raw.exchangeMeetup ? meetupLocation : null,
     deliveryArea: raw.exchangeDelivery ? deliveryArea : null,
     availability,
-    photoIds: raw.photoIds,
+    photos,
   };
   return { ok: true as const, data };
 }
@@ -231,7 +239,7 @@ function zodErrors(error: z.ZodError): FieldErrors {
   for (const issue of error.issues) {
     const key = issue.path.length > 0 ? issue.path.join(".") : "form";
     // Errors inside the photo list belong to the photo field as a whole.
-    const field = key.startsWith("photoIds") ? "photoIds" : key;
+    const field = key.startsWith("photos") ? "photos" : key;
     errors[field] ??= issue.message;
   }
   return errors;

@@ -18,7 +18,9 @@ export async function checkPhotos(tx: DbTransaction, ownerId: string, photoIds: 
 }
 
 export async function writeDetails(tx: DbTransaction, postId: string, data: PostData) {
-  await tx.insert(postPhoto).values(data.photoIds.map((imageId, position) => ({ postId, imageId, position })));
+  await tx
+    .insert(postPhoto)
+    .values(data.photos.map((photo, position) => ({ postId, imageId: photo.id, position, caption: photo.caption })));
   await tx.insert(availabilityWindow).values(
     data.availability.map((entry) =>
       entry.kind === "weekly"
@@ -76,8 +78,8 @@ export async function createPost(args: { ownerId: string; input: unknown; now?: 
       if (open >= OPEN_POSTS_MAX) {
         return { ok: false, errors: { form: `You can have at most ${OPEN_POSTS_MAX} open posts. Withdraw one first.` } };
       }
-      if (!(await checkPhotos(tx, args.ownerId, data.photoIds, null))) {
-        return { ok: false, errors: { photoIds: "A photo is missing. Upload it again." } };
+      if (!(await checkPhotos(tx, args.ownerId, data.photos.map((p) => p.id), null))) {
+        return { ok: false, errors: { photos: "A photo is missing. Upload it again." } };
       }
       const [created] = await tx
         .insert(post)

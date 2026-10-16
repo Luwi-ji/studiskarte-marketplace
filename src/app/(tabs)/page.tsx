@@ -11,7 +11,7 @@ const PHOTO_LINK_SECONDS = 5 * 60;
 export default function Home() {
   return (
     <>
-      <PageHeader title="Studiskarte" />
+      <PageHeader title="Studiskarte" logo />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
         <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
           <Feed />
@@ -36,7 +36,7 @@ async function Feed() {
         <p className="text-zinc-600 dark:text-zinc-400">Nothing posted yet. Be the first.</p>
         <Link
           href="/posts/new"
-          className="flex h-12 items-center rounded-full bg-zinc-900 px-6 font-medium text-white dark:bg-zinc-50 dark:text-zinc-900"
+          className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white"
         >
           Sell or ask for something
         </Link>

@@ -55,7 +55,11 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
         deliveryArea: post.deliveryArea ?? "",
         availability,
         photos: await Promise.all(
-          photos.map(async (photo) => ({ id: photo.id, thumbUrl: await store.signedUrl(photo.thumbKey, PREVIEW_LINK_SECONDS) })),
+          photos.map(async (photo) => ({
+            id: photo.id,
+            thumbUrl: await store.signedUrl(photo.thumbKey, PREVIEW_LINK_SECONDS),
+            caption: photo.caption ?? "",
+          })),
         ),
       }}
     />

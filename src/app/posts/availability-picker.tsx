@@ -21,9 +21,9 @@ const dateLabel = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "s
 const monthLabel = new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "UTC" });
 
 const field =
-  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
+  "w-full rounded-lg border border-zinc-300 bg-white min-h-11 px-3 py-2 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 const chip = (on: boolean) =>
-  `min-h-11 rounded-full border px-3 py-2 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900" : "border-zinc-300 dark:border-zinc-700"}`;
+  `min-h-11 min-w-11 rounded-full border px-3 py-2 text-sm ${on ? "border-brand bg-brand text-white" : "border-zinc-300 dark:border-zinc-700"}`;
 
 function entryLabel(entry: Entry): string {
   return entry.kind === "weekly" ? `Every ${WEEKDAY_LABEL[entry.weekday]}` : dateLabel.format(new Date(`${entry.date}T00:00:00Z`));
@@ -179,7 +179,7 @@ export function AvailabilityPicker({
                     aria-label={dateLabel.format(new Date(`${day}T00:00:00Z`))}
                     disabled={outside || (!on && full)}
                     onClick={() => toggle({ kind: "date", date: day, startTime: "", endTime: "" })}
-                    className={`aspect-square min-h-11 rounded-full text-sm ${on ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900" : ""} ${day === today && !on ? "ring-1 ring-zinc-400" : ""} disabled:opacity-25`}
+                    className={`aspect-square min-h-11 rounded-full text-sm ${on ? "bg-brand text-white" : ""} ${day === today && !on ? "ring-1 ring-zinc-400" : ""} disabled:opacity-25`}
                   >
                     {Number(day.slice(8))}
                   </button>
@@ -192,8 +192,8 @@ export function AvailabilityPicker({
 
       {value.length > 0 ? (
         <div className="flex flex-col gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={sameTime} onChange={(e) => setSame(e.target.checked)} />
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input className="h-5 w-5 shrink-0" type="checkbox" checked={sameTime} onChange={(e) => setSame(e.target.checked)} />
             Same time for every {mode === "weekly" ? "day" : "date"}
           </label>
           {sameTime ? (

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { photosOf } from "@/test/photos";
 import { addDays, manilaToday, parseDate, parseNewPost, parsePostEdit, parseTime, type NewPostInput } from "./schema";
 
 const now = new Date("2026-10-16T04:00:00Z"); // 12:00 on 16 October in Manila
 const categories: Record<string, { requiresCondition: boolean }> = {
-  "electronics.calculators": { requiresCondition: true },
-  "services.tutoring": { requiresCondition: false },
+  "electronics": { requiresCondition: true },
+  "services": { requiresCondition: false },
 };
 const lookup = (id: string) => categories[id];
 const photo = "5b0c2a7e-6d3f-4c1a-9e8b-1f2a3b4c5d6e";
@@ -14,7 +15,7 @@ function valid(overrides: Partial<NewPostInput> = {}): NewPostInput {
     kind: "showcase",
     title: " Casio fx-991ES ",
     description: "Works perfectly, with cover.",
-    categoryId: "electronics.calculators",
+    categoryId: "electronics",
     condition: "used_good",
     priceKind: "amount",
     priceAmount: "₱1,200",
@@ -23,7 +24,7 @@ function valid(overrides: Partial<NewPostInput> = {}): NewPostInput {
     meetupLocation: "TUP main gate",
     deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "13:00", endTime: "17:00" }],
-    photoIds: [photo],
+    photos: photosOf([photo]),
     ...overrides,
   };
 }
@@ -52,9 +53,9 @@ describe("parseNewPost", () => {
   });
 
   it.each([
-    ["no photo", { photoIds: [] }, "photoIds"],
-    ["11 photos", { photoIds: Array(11).fill(photo) }, "photoIds"],
-    ["the same photo twice", { photoIds: [photo, photo] }, "photoIds"],
+    ["no photo", { photos: photosOf([]) }, "photos"],
+    ["11 photos", { photos: photosOf(Array(11).fill(photo)) }, "photos"],
+    ["the same photo twice", { photos: photosOf([photo, photo]) }, "photos"],
     ["empty title", { title: "   " }, "title"],
     ["empty description", { description: "" }, "description"],
     ["zero amount", { priceAmount: "0" }, "priceAmount"],
@@ -65,7 +66,7 @@ describe("parseNewPost", () => {
     ["meet-up without a place", { meetupLocation: "  " }, "meetupLocation"],
     ["delivery without an area", { exchangeDelivery: true, deliveryArea: "" }, "deliveryArea"],
     ["condition missing where needed", { condition: null }, "condition"],
-    ["unknown category", { categoryId: "electronics" }, "categoryId"],
+    ["unknown category", { categoryId: "no-such-category" }, "categoryId"],
     ["no kind", { kind: undefined }, "kind"],
   ])("rejects %s", (_label, overrides, field) => {
     expect(errorsOf(valid(overrides as Partial<NewPostInput>))).toHaveProperty([field]);
@@ -73,7 +74,7 @@ describe("parseNewPost", () => {
 
   it("drops a condition sent for a category that takes none", () => {
     const result = parseNewPost(
-      valid({ categoryId: "services.tutoring", condition: "new", priceKind: "negotiable", priceAmount: "" }),
+      valid({ categoryId: "services", condition: "new", priceKind: "negotiable", priceAmount: "" }),
       lookup,
       now,
     );
@@ -85,14 +86,14 @@ describe("parseNewPost", () => {
       valid({
         title: "",
         description: "",
-        photoIds: [],
+        photos: photosOf([]),
         categoryId: "",
         meetupLocation: "",
         availability: [{ kind: "weekly", weekday: 1, startTime: "", endTime: "" }],
       }),
     );
     expect(Object.keys(errors).filter((key) => errors[key])).toEqual(
-      expect.arrayContaining(["title", "description", "photoIds", "categoryId", "meetupLocation", "availability.0"]),
+      expect.arrayContaining(["title", "description", "photos", "categoryId", "meetupLocation", "availability.0"]),
     );
   });
 
@@ -160,6 +161,21 @@ describe("availability", () => {
     ],
   ])("rejects %s", (_label, availability, field) => {
     expect(availabilityOf(availability)).toHaveProperty([field]);
+  });
+});
+
+describe("photo captions", () => {
+  const second = "6c1d3b8f-7e4a-4d2b-8f9c-2a3b4c5d6e7f";
+  it("trims captions and treats a blank one as none", () => {
+    const result = parseNewPost(valid({ photos: [{ id: photo, caption: "  Front view " }, { id: second, caption: "   " }] }), lookup, now);
+    expect(result.ok && result.data.photos).toEqual([
+      { id: photo, caption: "Front view" },
+      { id: second, caption: null },
+    ]);
+  });
+
+  it("refuses a caption over 300 characters, naming the photo", () => {
+    expect(errorsOf(valid({ photos: [{ id: photo, caption: "x".repeat(301) }] }))).toHaveProperty(["photos.0"]);
   });
 });
 

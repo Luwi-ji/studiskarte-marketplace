@@ -1,49 +1,20 @@
-import { asc, eq } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { asc } from "drizzle-orm";
 import { category } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import type { CategoryLookup } from "@/lib/posts/schema";
 
-export type CategoryTree = {
-  id: string;
-  name: string;
-  requiresCondition: boolean;
-  subcategories: { id: string; name: string }[];
-}[];
+export type Category = { id: string; name: string; requiresCondition: boolean };
 
-const main = alias(category, "main");
-
-/** Main categories in order, each with its subcategories. */
-export async function listCategories(): Promise<CategoryTree> {
-  const rows = await getDb()
-    .select({
-      mainId: main.id,
-      mainName: main.name,
-      requiresCondition: main.requiresCondition,
-      subId: category.id,
-      subName: category.name,
-    })
+/** The categories in display order (one level; owner, 2026-10-16). */
+export async function listCategories(): Promise<Category[]> {
+  return getDb()
+    .select({ id: category.id, name: category.name, requiresCondition: category.requiresCondition })
     .from(category)
-    .innerJoin(main, eq(main.id, category.parentId))
-    .orderBy(asc(main.position), asc(category.position));
-
-  const tree: CategoryTree = [];
-  for (const row of rows) {
-    let entry = tree.at(-1);
-    if (entry?.id !== row.mainId) {
-      entry = { id: row.mainId, name: row.mainName, requiresCondition: row.requiresCondition, subcategories: [] };
-      tree.push(entry);
-    }
-    entry.subcategories.push({ id: row.subId, name: row.subName });
-  }
-  return tree;
+    .orderBy(asc(category.position));
 }
 
-/** Lookup from subcategory id to its main category's condition rule. */
-export function categoryLookup(tree: CategoryTree): CategoryLookup {
-  const bySub = new Map<string, { requiresCondition: boolean }>();
-  for (const entry of tree) {
-    for (const sub of entry.subcategories) bySub.set(sub.id, { requiresCondition: entry.requiresCondition });
-  }
-  return (id) => bySub.get(id);
+/** Lookup from category id to its condition rule. */
+export function categoryLookup(categories: Category[]): CategoryLookup {
+  const byId = new Map(categories.map((c) => [c.id, { requiresCondition: c.requiresCondition }]));
+  return (id) => byId.get(id);
 }

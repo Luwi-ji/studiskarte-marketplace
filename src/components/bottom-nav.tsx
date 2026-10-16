@@ -29,7 +29,7 @@ export function BottomNav() {
                 className={`flex h-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
               >
                 <span
-                  className={`flex items-center justify-center ${"primary" in tab ? "h-8 w-12 rounded-full bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900" : "h-8 w-8"}`}
+                  className={`flex items-center justify-center ${"primary" in tab ? "h-8 w-12 rounded-full bg-brand text-white" : "h-8 w-8"}`}
                 >
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d={tab.icon} />

@@ -148,22 +148,17 @@ export const rateLimitEvent = pgTable(
   (t) => [index("rate_limit_event_lookup_idx").on(t.action, t.key, t.createdAt)],
 );
 
-// Two levels: main categories (no parent) hold subcategories. A post points at
-// a subcategory. Seeded by migration; the owner confirmed the list 2026-10-16.
+// One level (owner, 2026-10-16: no subcategories). Seeded by migration.
 export const category = pgTable(
   "category",
   {
     id: text("id").primaryKey(),
-    parentId: text("parent_id").references((): AnyPgColumn => category.id),
     name: text("name").notNull(),
-    // Set on main categories only: whether their posts must state a condition.
+    // Whether posts in this category must state a condition.
     requiresCondition: boolean("requires_condition").notNull().default(false),
     position: integer("position").notNull(),
   },
-  (t) => [
-    check("category_condition_on_main", sql`${t.parentId} is null or ${t.requiresCondition} = false`),
-    unique("category_position").on(t.parentId, t.position),
-  ],
+  (t) => [unique("category_position").on(t.position)],
 );
 
 export const post = pgTable(
@@ -302,6 +297,8 @@ export const postPhoto = pgTable(
       .notNull()
       .references(() => image.id),
     position: integer("position").notNull(),
+    // Optional description of this photo, shown under it (owner, 2026-10-16).
+    caption: text("caption"),
   },
   (t) => [
     primaryKey({ columns: [t.postId, t.imageId] }),
@@ -310,5 +307,6 @@ export const postPhoto = pgTable(
     unique("post_photo_image").on(t.imageId),
     // Positions 0–9: at most 10 photos per post.
     check("post_photo_position_range", sql`${t.position} between 0 and 9`),
+    check("post_photo_caption_length", sql`${t.caption} is null or char_length(btrim(${t.caption})) between 1 and 300`),
   ],
 );

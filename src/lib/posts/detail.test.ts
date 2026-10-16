@@ -24,14 +24,14 @@ async function photo(): Promise<string> {
   return row.id;
 }
 
-async function newPost(title: string): Promise<string> {
+async function newPost(title: string, captions: string[] = ["", ""]): Promise<string> {
   const result = await createPost({
     ownerId: owner,
     input: {
       kind: "showcase",
       title,
       description: "Line one.\nLine two.",
-      categoryId: "electronics.calculators",
+      categoryId: "electronics",
       condition: "used_good",
       priceKind: "amount",
       priceAmount: "650",
@@ -44,7 +44,7 @@ async function newPost(title: string): Promise<string> {
         { kind: "weekly", weekday: 0, startTime: "13:00", endTime: "15:00" },
         { kind: "weekly", weekday: 1, startTime: "15:00", endTime: "17:30" },
       ],
-      photoIds: [await photo(), await photo()],
+      photos: [{ id: await photo(), caption: captions[0] }, { id: await photo(), caption: captions[1] }],
     },
     now: new Date("2098-12-31T00:00:00Z"),
   });
@@ -73,8 +73,7 @@ describe("getPostDetail", () => {
     expect(detail).toMatchObject({
       title: `Open ${run}`,
       description: "Line one.\nLine two.",
-      categoryName: "Calculators",
-      mainCategoryName: "Electronics & Gadgets",
+      categoryName: "Electronics & Gadgets",
       condition: "used_good",
       priceAmount: 650,
       meetupLocation: "Main gate",
@@ -84,6 +83,11 @@ describe("getPostDetail", () => {
     });
     expect(detail?.photos).toHaveLength(2);
     expect(JSON.stringify(detail)).not.toContain(ownerEmail);
+  });
+
+  it("returns each photo's caption, in order", async () => {
+    const id = await newPost(`Captions ${run}`, ["Front", ""]);
+    expect((await getPostDetail(viewer, id))?.photos.map((p) => p.caption)).toEqual(["Front", null]);
   });
 
   it("lists weekdays Monday first, then dates", async () => {

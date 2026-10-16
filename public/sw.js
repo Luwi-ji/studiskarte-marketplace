@@ -3,7 +3,8 @@
 // and nothing else, so no private data is ever kept on the device.
 // Alerts (push) are added in Phase 9.
 
-const CACHE = "offline-v1";
+// Bump when offline.html changes so installed apps fetch the new copy.
+const CACHE = "offline-v2";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {

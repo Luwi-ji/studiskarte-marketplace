@@ -10,7 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#0a0a0a",
+    // The splash screen shows the logo on its own blue.
+    background_color: "#0365fc",
     theme_color: "#0a0a0a",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },

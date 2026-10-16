@@ -48,12 +48,12 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
     detail.seller.avatarThumbKey ? store.signedUrl(detail.seller.avatarThumbKey, PHOTO_LINK_SECONDS) : null,
   ]);
   const wishlist = detail.kind === "wishlist";
-  const services = detail.mainCategoryId === "services";
+  const services = detail.categoryId === "services";
   const condition = CONDITIONS.find((c) => c === detail.condition);
 
   return (
     <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
-      <PhotoCarousel urls={photoUrls} title={detail.title} />
+      <PhotoCarousel photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))} title={detail.title} />
 
       <div className="flex flex-col px-4">
         {detail.status !== "open" ? (
@@ -78,7 +78,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
               </span>
             ) : null}
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
-              {detail.mainCategoryName} › {detail.categoryName}
+              {detail.categoryName}
             </span>
           </div>
         </div>
@@ -160,7 +160,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
               My posts
             </Link>
             {detail.status === "open" ? (
-              <Link href={`/posts/${detail.id}/edit`} className="flex h-12 items-center justify-center rounded-lg bg-zinc-900 font-medium text-white dark:bg-zinc-50 dark:text-zinc-900">
+              <Link href={`/posts/${detail.id}/edit`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white">
                 Edit
               </Link>
             ) : (

@@ -37,7 +37,7 @@ async function Posts() {
     return (
       <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
         <p className="text-zinc-600 dark:text-zinc-400">You have no posts yet.</p>
-        <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-zinc-900 px-6 font-medium text-white dark:bg-zinc-50 dark:text-zinc-900">
+        <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
           Create a post
         </Link>
       </div>
