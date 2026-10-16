@@ -4,7 +4,7 @@ import { category, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { loadAvailability } from "@/lib/posts/availability";
 import { unitsTaken } from "@/lib/deals/capacity";
-import { countPendingOffers, hasActiveReservation } from "@/lib/deals/count";
+import { countPendingOffers, findPendingOffer, hasActiveReservation } from "@/lib/deals/count";
 import { countViews } from "@/lib/posts/views";
 import { countHearts, hasHearted } from "@/lib/social/heart";
 import { visibleToOthers } from "@/lib/discovery/visibility";
@@ -37,6 +37,8 @@ export type PostDetail = {
   quantity: number | null;
   /** Units reserved or handed over. */
   unitsTaken: number;
+  /** The viewer's offer on this post that is waiting for the owner, with the conversation it is in. */
+  pendingOffer: { conversationId: string } | null;
   /** The viewer already has a reservation here (so no further offers). Always false for the owner. */
   hasReservation: boolean;
   /** Offers waiting for a decision. Null unless the viewer is the owner. */
@@ -131,6 +133,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     heartCount: row.ownerId === viewerId ? await countHearts(postId) : null,
     quantity: row.quantity,
     unitsTaken: await unitsTaken(db, postId),
+    pendingOffer: row.ownerId === viewerId ? null : await pendingOfferOf(viewerId, postId),
     hasReservation: row.ownerId === viewerId ? false : await hasActiveReservation(viewerId, postId),
     pendingOffers: row.ownerId === viewerId ? await countPendingOffers(postId) : null,
     hearted: row.ownerId === viewerId ? false : await hasHearted(viewerId, postId),
@@ -143,4 +146,9 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     photos,
     availability,
   };
+}
+
+async function pendingOfferOf(viewerId: string, postId: string): Promise<{ conversationId: string } | null> {
+  const found = await findPendingOffer(viewerId, postId);
+  return found ? { conversationId: found.conversationId } : null;
 }

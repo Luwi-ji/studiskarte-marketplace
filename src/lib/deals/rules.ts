@@ -6,6 +6,7 @@ import { PRICE_MAX, QUANTITY_MAX } from "@/lib/posts/schema";
 export const OFFER_DAYS = 3;
 
 export const RESERVED_POST = "This post is fully reserved, so it takes no new offers.";
+export const PENDING_OFFER = "You already have a pending offer on this post. Withdraw it first.";
 export const HAS_RESERVATION = "You already have a reservation on this post. Open it in your messages to manage it.";
 
 export type OfferKind = "offer" | "reserve";
@@ -62,7 +63,8 @@ export type OfferOptions = {
 /**
  * Offers are open on a post that is open (not expired) and has units left.
  * Reserved (fully taken), closed, expired and hidden posts take none, and
- * neither does a post where this buyer already has a reservation. A free post
+ * neither does a post where this buyer already has a reservation or an offer
+ * waiting for the owner. A free post
  * can only be reserved (there is no price to bargain over), and a negotiable
  * post can only get an offer (there is no asking price to reserve at). A post
  * with an amount takes both. `unitsLeft` is null when the post is ongoing.
@@ -75,6 +77,8 @@ export function offerOptions(args: {
   responderStatus: string;
   unitsLeft: number | null;
   hasActiveDeal: boolean;
+  /** The buyer has an offer here that is waiting for the owner. */
+  hasPendingOffer: boolean;
   now?: Date;
 }): OfferOptions {
   const none = (reason: string): OfferOptions => ({ offer: false, reserve: false, maxQuantity: 0, reason });
@@ -83,6 +87,7 @@ export function offerOptions(args: {
   if (args.postStatus === "reserved" || args.unitsLeft === 0) return none(RESERVED_POST);
   if (args.postStatus !== "open" || args.postExpiresAt.getTime() <= now.getTime()) return none(CLOSED_POST);
   if (args.hasActiveDeal) return none(HAS_RESERVATION);
+  if (args.hasPendingOffer) return none(PENDING_OFFER);
   return {
     offer: args.priceKind === "amount" || args.priceKind === "negotiable",
     reserve: args.priceKind === "amount" || args.priceKind === "free",

@@ -89,6 +89,7 @@ function conversationColumns() {
     postQuantity: post.quantity,
     unitsTaken: unitsTakenSql(post.id),
     hasActiveDeal: sql<boolean>`exists (select 1 from ${deal} where ${deal.postId} = ${post.id} and ${deal.responderId} = ${conversation.responderId} and ${deal.status} in ('agreed', 'scheduled'))`,
+    hasPendingOffer: sql<boolean>`exists (select 1 from ${offer} where ${offer.conversationId} = ${conversation.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now())`,
     thumbKey: cover.thumbKey,
     ownerHandle: owner.handle,
     ownerName: owner.name,
@@ -131,6 +132,7 @@ type Row = {
   postQuantity: number | null;
   unitsTaken: number;
   hasActiveDeal: boolean;
+  hasPendingOffer: boolean;
   thumbKey: string;
   ownerHandle: string | null;
   ownerName: string;
@@ -328,6 +330,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       responderStatus: row.responderStatus,
       unitsLeft: unitsLeft(row.postQuantity, row.unitsTaken),
       hasActiveDeal: row.hasActiveDeal,
+      hasPendingOffer: row.hasPendingOffer,
     }),
   };
 }

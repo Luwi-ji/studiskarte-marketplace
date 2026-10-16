@@ -21,3 +21,14 @@ export async function hasActiveReservation(studentId: string, postId: string): P
     .where(and(eq(deal.postId, postId), eq(deal.responderId, studentId), inArray(deal.status, [...ACTIVE_STATUSES])));
   return row.n > 0;
 }
+
+/** The buyer's offer on a post that is still waiting for the owner (not yet out of time), if they have one. */
+export async function findPendingOffer(studentId: string, postId: string, now = new Date()): Promise<{ offerId: string; conversationId: string } | null> {
+  const [row] = await getDb()
+    .select({ offerId: offer.id, conversationId: offer.conversationId })
+    .from(offer)
+    .innerJoin(conversation, eq(conversation.id, offer.conversationId))
+    .where(and(eq(conversation.postId, postId), eq(conversation.responderId, studentId), eq(offer.status, "pending"), gt(offer.expiresAt, now)))
+    .limit(1);
+  return row ?? null;
+}

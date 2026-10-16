@@ -43,6 +43,7 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
     responderStatus: "active",
     unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken),
     hasActiveDeal: detail.hasReservation,
+    hasPendingOffer: detail.pendingOffer !== null,
   });
   const labels = offerLabels(detail.kind);
   const allowed = kind === "reserve" ? options.reserve : options.offer;

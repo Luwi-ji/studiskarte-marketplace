@@ -1,13 +1,13 @@
-import { and, count, eq, inArray, lte } from "drizzle-orm";
+import { and, count, eq, gt, inArray, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { conversation, deal, offer, post, student } from "@/db/schema";
-import { getDb } from "@/lib/db";
+import { getDb, type DbTransaction } from "@/lib/db";
 import { isUniqueViolation, getOrCreateConversation, writeMessage } from "@/lib/messaging/send";
 import { MESSAGES_PER_MINUTE } from "@/lib/messaging/rules";
 import { offerKey, recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
 import { ACTIVE_STATUSES, unitsLeft, unitsTaken } from "@/lib/deals/capacity";
-import { OFFER_DAYS, offerOptions, parseOffer } from "@/lib/deals/rules";
+import { OFFER_DAYS, offerOptions, parseOffer, PENDING_OFFER } from "@/lib/deals/rules";
 
 export type OfferResult =
   | { ok: true; conversationId: string; offerId: string }
@@ -16,8 +16,17 @@ export type DecisionResult = { ok: true; conversationId: string } | { ok: false;
 
 export const OFFER_NOT_FOUND = "That offer could not be found.";
 export const OFFER_CLOSED = "This offer is no longer open.";
+/** The buyer has an offer here that is waiting and not yet out of time. */
+async function hasPendingOfferIn(tx: DbTransaction, postId: string, responderId: string, now: Date): Promise<boolean> {
+  const [row] = await tx
+    .select({ n: count() })
+    .from(offer)
+    .innerJoin(conversation, eq(conversation.id, offer.conversationId))
+    .where(and(eq(conversation.postId, postId), eq(conversation.responderId, responderId), eq(offer.status, "pending"), gt(offer.expiresAt, now)));
+  return row.n > 0;
+}
+
 const TOO_FAST = "You are sending messages too fast. Wait a moment and try again.";
-const PENDING_EXISTS = "You already have a pending offer on this post. Withdraw it first.";
 
 /**
  * The responder makes an offer on a post, or reserves it at the asking price.
@@ -71,6 +80,7 @@ export async function makeOffer(args: {
       const options = offerOptions({
         unitsLeft: unitsLeft(target.quantity, await unitsTaken(tx, args.postId)),
         hasActiveDeal: mine.n > 0,
+        hasPendingOffer: await hasPendingOfferIn(tx, args.postId, args.responderId, now),
         priceKind: target.priceKind,
         postStatus: target.status,
         postExpiresAt: target.expiresAt,
@@ -122,7 +132,7 @@ export async function makeOffer(args: {
     if (result.ok && recorded?.alert) args.alert?.(recorded.id);
     return result;
   } catch (error) {
-    if (isUniqueViolation(error)) return { ok: false, error: PENDING_EXISTS };
+    if (isUniqueViolation(error)) return { ok: false, error: PENDING_OFFER };
     throw error;
   }
 }

@@ -111,7 +111,7 @@ describe("what an offer may be", () => {
     expect(parseOffer(offerInput(100, "x".repeat(2001)))).toMatchObject({ ok: false, field: "note" });
   });
 
-  const base = { postStatus: "open", postExpiresAt: new Date(Date.now() + DAY), ownerStatus: "active", responderStatus: "active", unitsLeft: null, hasActiveDeal: false };
+  const base = { postStatus: "open", postExpiresAt: new Date(Date.now() + DAY), ownerStatus: "active", responderStatus: "active", unitsLeft: null, hasActiveDeal: false, hasPendingOffer: false };
   it("offers both on a priced post, only a reserve on a free one, only an offer on a negotiable one", () => {
     expect(offerOptions({ ...base, priceKind: "amount" })).toEqual({ offer: true, reserve: true, maxQuantity: 1000, reason: null });
     expect(offerOptions({ ...base, priceKind: "free" })).toEqual({ offer: false, reserve: true, maxQuantity: 1000, reason: null });

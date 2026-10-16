@@ -5,8 +5,8 @@ import { deal, image, notification, offer, post, rateLimitEvent } from "@/db/sch
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_CLOSED, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { unitsLeft, unitsTaken } from "@/lib/deals/capacity";
-import { makeOffer } from "@/lib/deals/offers";
-import { HAS_RESERVATION, offerOptions, parseOffer, RESERVED_POST } from "@/lib/deals/rules";
+import { makeOffer, withdrawOffer } from "@/lib/deals/offers";
+import { HAS_RESERVATION, offerOptions, parseOffer, PENDING_OFFER, RESERVED_POST } from "@/lib/deals/rules";
 import { getDb, getPool } from "@/lib/db";
 import { expirePosts } from "@/lib/jobs/expire-posts";
 import { getConversation } from "@/lib/messaging/read";
@@ -120,11 +120,12 @@ describe("what a post says about how many", () => {
   });
 
   it("limits an offer to what is left, and shuts it when nothing is, or the buyer already has a reservation", () => {
-    const base = { priceKind: "amount", postStatus: "open", postExpiresAt: new Date(Date.now() + DAY), ownerStatus: "active", responderStatus: "active", hasActiveDeal: false };
+    const base = { priceKind: "amount", postStatus: "open", postExpiresAt: new Date(Date.now() + DAY), ownerStatus: "active", responderStatus: "active", hasActiveDeal: false, hasPendingOffer: false };
     expect(offerOptions({ ...base, unitsLeft: 3 })).toMatchObject({ offer: true, reserve: true, maxQuantity: 3 });
     expect(offerOptions({ ...base, unitsLeft: null })).toMatchObject({ maxQuantity: 1000 });
     expect(offerOptions({ ...base, unitsLeft: 0 })).toMatchObject({ offer: false, reserve: false, reason: RESERVED_POST });
     expect(offerOptions({ ...base, unitsLeft: 3, hasActiveDeal: true })).toMatchObject({ offer: false, reserve: false, reason: HAS_RESERVATION });
+    expect(offerOptions({ ...base, unitsLeft: 3, hasPendingOffer: true })).toMatchObject({ offer: false, reserve: false, reason: PENDING_OFFER });
   });
 
   it("asks for a whole number of units from 1 to 1,000", () => {
@@ -231,6 +232,38 @@ describe("several reservations on one listing", () => {
     expect(accepted).toBeLessThanOrEqual(2);
     const deals = await db.select().from(deal).where(eq(deal.postId, postId));
     expect(deals.reduce((sum, d) => sum + d.quantity, 0)).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("a buyer who already has an offer waiting", () => {
+  it("is not offered Reserve or Make offer again, on the post or in the thread, until that offer is settled", async () => {
+    const postId = await newPost(5);
+    const a = await ask(ana, postId, reserve(1));
+    // The post page data says so, and a second try is refused with the reason.
+    expect((await getPostDetail(ana, postId))?.pendingOffer).toEqual({ conversationId: a.conversationId });
+    expect((await getPostDetail(ben, postId))?.pendingOffer).toBeNull();
+    expect((await getPostDetail(seller, postId))?.pendingOffer).toBeNull();
+    expect(await makeOffer({ responderId: ana, postId, input: reserve(1) })).toEqual({ ok: false, error: PENDING_OFFER });
+    expect(await makeOffer({ responderId: ana, postId, input: bid(50) })).toEqual({ ok: false, error: PENDING_OFFER });
+    const view = await getConversation(ana, a.conversationId);
+    expect(view?.offerOptions).toMatchObject({ offer: false, reserve: false, reason: PENDING_OFFER });
+    // Another buyer is unaffected.
+    expect((await getConversation(seller, a.conversationId))?.viewerIsOwner).toBe(true);
+    expect((await makeOffer({ responderId: ben, postId, input: reserve(1) })).ok).toBe(true);
+
+    // Once the offer is withdrawn the buttons come back.
+    await withdrawOffer({ responderId: ana, offerId: a.offerId });
+    expect((await getPostDetail(ana, postId))?.pendingOffer).toBeNull();
+    expect((await getConversation(ana, a.conversationId))?.offerOptions).toMatchObject({ offer: true, reserve: true });
+    expect((await makeOffer({ responderId: ana, postId, input: reserve(1) })).ok).toBe(true);
+  });
+
+  it("gets the buttons back when the offer has run out of time, even before the job sweeps it", async () => {
+    const postId = await newPost(5);
+    const a = await ask(ana, postId, reserve(1));
+    await db.update(offer).set({ expiresAt: sql`now() - interval '1 minute'` }).where(eq(offer.id, a.offerId));
+    expect((await getPostDetail(ana, postId))?.pendingOffer).toBeNull();
+    expect((await getConversation(ana, a.conversationId))?.offerOptions).toMatchObject({ offer: true });
   });
 });
 
