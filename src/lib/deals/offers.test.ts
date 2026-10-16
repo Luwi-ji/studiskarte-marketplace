@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { conversation, deal, image, message, notification, offer, post, rateLimitEvent, student } from "@/db/schema";
 import { acceptOffer } from "@/lib/deals/accept";
 import { declineOffer, makeOffer, OFFER_CLOSED, OFFER_NOT_FOUND, withdrawOffer } from "@/lib/deals/offers";
@@ -12,6 +12,9 @@ import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
 import { photosOf } from "@/test/photos";
+
+// These tests make many round trips to the database; give them room.
+vi.setConfig({ testTimeout: 120_000 });
 
 const db = getDb();
 const run = randomUUID().slice(0, 6);
@@ -98,7 +101,7 @@ describe("what an offer may be", () => {
     for (const bad of ["0", "-5", "1.5", "1e3", "", "abc", "1000001", "99999999"]) {
       expect(parseOffer(offerInput(bad))).toMatchObject({ ok: false, field: "amount" });
     }
-    expect(parseOffer(reserveInput())).toEqual({ ok: true, data: { kind: "reserve", amount: null, note: null } });
+    expect(parseOffer(reserveInput())).toEqual({ ok: true, data: { kind: "reserve", amount: null, quantity: 1, note: null } });
     expect(parseOffer({ kind: "haggle" }).ok).toBe(false);
     expect(parseOffer(null).ok).toBe(false);
   });
@@ -108,11 +111,11 @@ describe("what an offer may be", () => {
     expect(parseOffer(offerInput(100, "x".repeat(2001)))).toMatchObject({ ok: false, field: "note" });
   });
 
-  const base = { postStatus: "open", postExpiresAt: new Date(Date.now() + DAY), ownerStatus: "active", responderStatus: "active" };
+  const base = { postStatus: "open", postExpiresAt: new Date(Date.now() + DAY), ownerStatus: "active", responderStatus: "active", unitsLeft: null, hasActiveDeal: false };
   it("offers both on a priced post, only a reserve on a free one, only an offer on a negotiable one", () => {
-    expect(offerOptions({ ...base, priceKind: "amount" })).toEqual({ offer: true, reserve: true, reason: null });
-    expect(offerOptions({ ...base, priceKind: "free" })).toEqual({ offer: false, reserve: true, reason: null });
-    expect(offerOptions({ ...base, priceKind: "negotiable" })).toEqual({ offer: true, reserve: false, reason: null });
+    expect(offerOptions({ ...base, priceKind: "amount" })).toEqual({ offer: true, reserve: true, maxQuantity: 1000, reason: null });
+    expect(offerOptions({ ...base, priceKind: "free" })).toEqual({ offer: false, reserve: true, maxQuantity: 1000, reason: null });
+    expect(offerOptions({ ...base, priceKind: "negotiable" })).toEqual({ offer: true, reserve: false, maxQuantity: 1000, reason: null });
   });
 
   it("offers nothing on a reserved, closed or expired post, or when someone is suspended", () => {
@@ -384,13 +387,14 @@ describe("rules the database keeps", () => {
     await expect(db.insert(offer).values({ conversationId: a.conversationId, amount: 5, status: "accepted", expiresAt })).rejects.toMatchObject({ cause: { code: "23514" } });
   });
 
-  it("allows only one active deal per post, between the owner and the offer's responder", async () => {
-    const postId = await newPost();
+  it("refuses in the database a deal for more units than the post has, and a deal between the wrong people", async () => {
+    const postId = await newPost(); // one unit
     const a = await offered(ana, postId);
     const b = await offered(ben, postId);
     await acceptOffer({ ownerId: seller, offerId: a.offerId });
-    await expect(db.insert(deal).values({ postId, offerId: b.offerId, ownerId: seller, responderId: ben, amount: 1 })).rejects.toMatchObject({ cause: { code: "23505" } });
-    // Cancelled deals do not count: a new one is then allowed (the hand-back of a cancelled deal is Phase 11).
+    // The only unit is taken: a second deal for another buyer is refused.
+    await expect(db.insert(deal).values({ postId, offerId: b.offerId, ownerId: seller, responderId: ben, amount: 1 })).rejects.toMatchObject({ cause: { code: "23514" } });
+    // Cancelled deals do not count: with the unit free again a deal is allowed, but only between the offer's own people.
     await db.update(deal).set({ status: "cancelled" }).where(eq(deal.postId, postId));
     await expect(db.insert(deal).values({ postId, offerId: b.offerId, ownerId: seller, responderId: ana, amount: 1 })).rejects.toMatchObject({ cause: { code: "23514" } });
     await expect(db.insert(deal).values({ postId, offerId: b.offerId, ownerId: ben, responderId: ben, amount: 1 })).rejects.toMatchObject({ cause: { code: "23514" } });

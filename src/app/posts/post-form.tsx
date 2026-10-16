@@ -32,6 +32,8 @@ const EMPTY: PostFormValues = {
   condition: null,
   priceKind: "amount",
   priceAmount: "",
+  quantity: "1",
+  unlimited: false,
   exchangeMeetup: true,
   exchangeDelivery: false,
   meetupLocation: "",
@@ -48,6 +50,8 @@ const ANSWERS: Record<keyof PostFormValues, string[]> = {
   condition: ["condition"],
   priceKind: ["priceKind", "priceAmount"],
   priceAmount: ["priceAmount"],
+  quantity: ["quantity"],
+  unlimited: ["quantity"],
   exchangeMeetup: ["exchange", "meetupLocation"],
   exchangeDelivery: ["exchange", "deliveryArea"],
   meetupLocation: ["meetupLocation"],
@@ -364,6 +368,35 @@ export function PostForm(props: Props) {
           </div>
         ) : null}
         <FieldError message={errors.priceAmount ?? errors.priceKind} />
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className={label}>{wishlist ? "How many do you need" : "How many are available"}</legend>
+        <div className="flex flex-wrap items-center gap-x-4">
+          <input
+            name="quantity"
+            inputMode="numeric"
+            enterKeyHint="next"
+            aria-label={wishlist ? "How many you need" : "How many are available"}
+            value={values.unlimited ? "" : (values.quantity ?? "1")}
+            disabled={values.unlimited}
+            onChange={(e) => set("quantity", e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
+            placeholder={values.unlimited ? "No limit" : "1"}
+            className={`${field} w-28 disabled:opacity-50`}
+          />
+          <label className="flex min-h-11 items-center gap-3">
+            <input className="h-5 w-5 shrink-0" type="checkbox" name="unlimited" checked={values.unlimited ?? false} onChange={(e) => set("unlimited", e.target.checked)} />
+            Ongoing / No limit
+          </label>
+        </div>
+        <span className={hint}>
+          {values.unlimited
+            ? "For services and anything you can keep providing. Students can keep reserving, and you accept each one."
+            : wishlist
+              ? "Students can offer to supply up to this many."
+              : "Each accepted reservation uses some up. When none are left the post shows Fully reserved, and a cancelled reservation frees them again."}
+        </span>
+        <FieldError message={errors.quantity} />
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">

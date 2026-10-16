@@ -218,10 +218,10 @@ describe("updatePost and withdrawPost", () => {
     const id = await created();
     const store = new MemoryStore();
     expect((await updatePost({ ownerId: other, postId: id, store, input: await input() })).ok).toBe(false);
-    expect(await withdrawPost(other, id)).toBe(false);
+    expect(await withdrawPost(other, id)).toBe("not_available");
 
-    expect(await withdrawPost(owner, id)).toBe(true);
-    expect(await withdrawPost(owner, id)).toBe(false);
+    expect(await withdrawPost(owner, id)).toBe("ok");
+    expect(await withdrawPost(owner, id)).toBe("not_available");
     expect((await updatePost({ ownerId: owner, postId: id, store, input: await input() })).ok).toBe(false);
     expect((await listFeed(owner, { limit: 200 })).items.some((item) => item.id === id)).toBe(false);
   });

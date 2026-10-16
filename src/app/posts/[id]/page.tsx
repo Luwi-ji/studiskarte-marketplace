@@ -8,7 +8,8 @@ import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
-import { expiryNotice, formatAvailability, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
+import { expiryNotice, formatAvailability, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
+import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
@@ -57,7 +58,8 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   // Students can message about a post while it is open or reserved (never their own).
   const canMessage = !detail.isOwner && (detail.status === "open" || detail.status === "reserved");
   // What they may do about the price: offer, reserve, both, or neither (a reserved post takes no offers).
-  const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active" });
+  const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active", unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken), hasActiveDeal: detail.hasReservation });
+  const howMany = quantityLine(detail.kind, detail.quantity, detail.unitsTaken);
   const labels = offerLabels(detail.kind);
 
   return (
@@ -91,6 +93,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
         <div className="flex flex-col gap-1 pb-4">
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">{kindLabel(detail.kind)}</span>
+            {howMany ? <span className="rounded-full bg-brand/10 px-2.5 py-1 font-medium text-brand">{howMany}</span> : null}
             {condition ? (
               <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
                 {wishlist ? "Wants: " : ""}

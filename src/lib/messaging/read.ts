@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gt, inArray, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
+import { conversation, deal, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
+import { unitsLeft, unitsTakenSql } from "@/lib/deals/capacity";
 import { getDb } from "@/lib/db";
 import { offerOptions, type OfferOptions } from "@/lib/deals/rules";
 import { readOnlyReason } from "@/lib/messaging/rules";
@@ -24,17 +25,21 @@ export type ConversationSummary = {
   id: string;
   other: Person;
   post: PostCard;
-  lastMessage: { body: string | null; hasPictures: boolean; offer: { amount: number; isReserve: boolean } | null; fromMe: boolean; at: Date } | null;
+  lastMessage: { body: string | null; hasPictures: boolean; offer: { amount: number; quantity: number; isReserve: boolean } | null; fromMe: boolean; at: Date } | null;
   unread: number;
 };
 
 /** An offer as it stands now, shown as a card in the thread. */
 export type OfferCard = {
   id: string;
+  /** Per unit. */
   amount: number;
+  quantity: number;
   isReserve: boolean;
   status: string;
   expiresAt: Date;
+  /** The reservation made from this offer when it was accepted, with its own state. */
+  deal: { id: string; status: string } | null;
 };
 
 export type ChatMessage = {
@@ -81,6 +86,9 @@ function conversationColumns() {
     postStatus: post.status,
     postExpiresAt: post.expiresAt,
     postKind: post.kind,
+    postQuantity: post.quantity,
+    unitsTaken: unitsTakenSql(post.id),
+    hasActiveDeal: sql<boolean>`exists (select 1 from ${deal} where ${deal.postId} = ${post.id} and ${deal.responderId} = ${conversation.responderId} and ${deal.status} in ('agreed', 'scheduled'))`,
     thumbKey: cover.thumbKey,
     ownerHandle: owner.handle,
     ownerName: owner.name,
@@ -120,6 +128,9 @@ type Row = {
   postStatus: string;
   postExpiresAt: Date;
   postKind: string;
+  postQuantity: number | null;
+  unitsTaken: number;
+  hasActiveDeal: boolean;
   thumbKey: string;
   ownerHandle: string | null;
   ownerName: string;
@@ -191,6 +202,7 @@ export async function listConversations(viewerId: string): Promise<ConversationS
         createdAt: message.createdAt,
         hasPictures: sql<boolean>`exists (select 1 from ${messageImage} where ${messageImage.messageId} = ${message.id})`,
         offerAmount: offer.amount,
+        offerQuantity: offer.quantity,
         offerIsReserve: offer.isReserve,
       })
       .from(message)
@@ -211,7 +223,7 @@ export async function listConversations(viewerId: string): Promise<ConversationS
         ? {
             body: last.body,
             hasPictures: last.hasPictures,
-            offer: last.offerAmount === null ? null : { amount: last.offerAmount, isReserve: last.offerIsReserve ?? false },
+            offer: last.offerAmount === null ? null : { amount: last.offerAmount, quantity: last.offerQuantity ?? 1, isReserve: last.offerIsReserve ?? false },
             fromMe: last.senderId === viewerId,
             at: last.createdAt,
           }
@@ -252,10 +264,33 @@ export async function getConversation(viewerId: string, conversationId: string):
     offerIds.length === 0
       ? []
       : await getDb()
-          .select({ id: offer.id, amount: offer.amount, isReserve: offer.isReserve, status: offer.status, expiresAt: offer.expiresAt })
+          .select({
+            id: offer.id,
+            amount: offer.amount,
+            quantity: offer.quantity,
+            isReserve: offer.isReserve,
+            status: offer.status,
+            expiresAt: offer.expiresAt,
+            dealId: deal.id,
+            dealStatus: deal.status,
+          })
           .from(offer)
+          .leftJoin(deal, eq(deal.offerId, offer.id))
           .where(inArray(offer.id, offerIds));
-  const offerById = new Map(offers.map((o) => [o.id, o]));
+  const offerById = new Map(
+    offers.map((o): [string, OfferCard] => [
+      o.id,
+      {
+        id: o.id,
+        amount: o.amount,
+        quantity: o.quantity,
+        isReserve: o.isReserve,
+        status: o.status,
+        expiresAt: o.expiresAt,
+        deal: o.dealId && o.dealStatus ? { id: o.dealId, status: o.dealStatus } : null,
+      },
+    ]),
+  );
   // A pending offer past its time is shown as expired even before the job has swept it.
   const now = Date.now();
   const shown = (o: OfferCard): OfferCard => (o.status === "pending" && o.expiresAt.getTime() <= now ? { ...o, status: "expired" } : o);
@@ -291,6 +326,8 @@ export async function getConversation(viewerId: string, conversationId: string):
       postExpiresAt: row.postExpiresAt,
       ownerStatus: row.ownerStatus,
       responderStatus: row.responderStatus,
+      unitsLeft: unitsLeft(row.postQuantity, row.unitsTaken),
+      hasActiveDeal: row.hasActiveDeal,
     }),
   };
 }

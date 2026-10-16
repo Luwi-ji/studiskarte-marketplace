@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { conversation, heart, image, offer, post, postPhoto, postView } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { unitsTakenSql } from "@/lib/deals/capacity";
 
 export type OwnPost = {
   id: string;
@@ -15,6 +16,10 @@ export type OwnPost = {
   viewCount: number;
   /** How many students hearted it, never who. */
   heartCount: number;
+  /** How many are available; null when ongoing. */
+  quantity: number | null;
+  /** Units reserved or handed over. */
+  unitsTaken: number;
   /** Offers waiting for the owner to accept or decline. */
   pendingOffers: number;
 };
@@ -34,6 +39,8 @@ export async function listOwnPosts(ownerId: string): Promise<OwnPost[]> {
       coverThumbKey: image.thumbKey,
       viewCount: sql<number>`(select count(*)::int from ${postView} where ${postView.postId} = ${post.id})`,
       heartCount: sql<number>`(select count(*)::int from ${heart} where ${heart.postId} = ${post.id})`,
+      quantity: post.quantity,
+      unitsTaken: unitsTakenSql(post.id),
       pendingOffers: sql<number>`(select count(*)::int from ${offer} join ${conversation} on ${conversation.id} = ${offer.conversationId} where ${conversation.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now())`,
     })
     .from(post)

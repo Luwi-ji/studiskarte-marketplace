@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { acceptOfferAction, declineOfferAction, withdrawOfferAction } from "@/app/deals/actions";
+import { acceptOfferAction, cancelDealAction, declineOfferAction, withdrawOfferAction } from "@/app/deals/actions";
 import { formatPrice } from "@/lib/posts/format";
 
-export type OfferCardData = { id: string; amount: number; isReserve: boolean; status: string; expiresAt: string };
+export type OfferCardData = {
+  id: string;
+  /** Per unit. */
+  amount: number;
+  quantity: number;
+  isReserve: boolean;
+  status: string;
+  expiresAt: string;
+  /** The reservation made when this offer was accepted. */
+  deal: { id: string; status: string } | null;
+};
 
 /** "in 3 days", "in 5 hours", or "soon". Days are rounded to the nearest, so a fresh 3-day offer reads "in 3 days". */
 function timeLeft(expiresAt: string, now = Date.now()): string {
@@ -34,21 +44,28 @@ type Props = {
  */
 export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }: Props) {
   const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState<"accept" | "decline" | "withdraw" | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [busy, setBusy] = useState<"accept" | "decline" | "withdraw" | "cancel" | null>(null);
+  // The reservation as we last changed it, until the server's answer arrives.
+  const [dealDone, setDealDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // What we just did, shown at once; the server's answer takes over when it arrives with a final state.
   const [done, setDone] = useState<string | null>(null);
   const status = offer.status !== "pending" ? offer.status : (done ?? "pending");
 
-  async function run(kind: "accept" | "decline" | "withdraw") {
+  async function run(kind: "accept" | "decline" | "withdraw" | "cancel") {
     setBusy(kind);
     setError(null);
     try {
-      const act = kind === "accept" ? acceptOfferAction : kind === "decline" ? declineOfferAction : withdrawOfferAction;
-      const result = await act(offer.id);
-      if (result.ok) setDone(kind === "accept" ? "accepted" : kind === "decline" ? "declined" : "withdrawn");
-      else setError(result.error);
+      const result =
+        kind === "cancel"
+          ? await cancelDealAction(offer.deal?.id)
+          : await (kind === "accept" ? acceptOfferAction : kind === "decline" ? declineOfferAction : withdrawOfferAction)(offer.id);
+      if (!result.ok) setError(result.error);
+      else if (kind === "cancel") setDealDone("cancelled");
+      else setDone(kind === "accept" ? "accepted" : kind === "decline" ? "declined" : "withdrawn");
       setConfirming(false);
+      setConfirmingCancel(false);
     } catch {
       setError("Could not do that. Check your connection and try again.");
     } finally {
@@ -56,39 +73,51 @@ export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }:
     }
   }
 
-  const price = offer.isReserve && offer.amount === 0 ? "free" : formatPrice("amount", offer.amount);
-  const title = offer.isReserve
-    ? postKind === "wishlist"
-      ? `Offers to supply it at ${price}`
-      : offer.amount === 0
-        ? "Reserve request"
-        : `Reserve at ${price}`
-    : postKind === "wishlist"
-      ? `Offers ${price} to supply it`
-      : `Offer: ${price}`;
+  const qty = offer.quantity;
+  const many = qty > 1;
+  const free = offer.isReserve && offer.amount === 0;
+  const each = formatPrice("amount", offer.amount);
+  const total = formatPrice("amount", offer.amount * qty);
+  const supply = postKind === "wishlist";
+  let title: string;
+  if (offer.isReserve) {
+    if (free) title = supply ? `Offers to supply ${many ? qty : "it"}` : many ? `Reserve ${qty}` : "Reserve request";
+    else if (supply) title = many ? `Offers to supply ${qty} at ${each} each (${total})` : `Offers to supply it at ${each}`;
+    else title = many ? `Reserve ${qty} × ${each} = ${total}` : `Reserve at ${each}`;
+  } else if (supply) {
+    title = many ? `Offers ${each} each to supply ${qty} (${total})` : `Offers ${each} to supply it`;
+  } else {
+    title = many ? `Offer: ${each} each × ${qty} = ${total}` : `Offer: ${each}`;
+  }
   const who = viewerIsOwner ? responderName : "You";
 
   const statusText: Record<string, string> = {
     pending: viewerIsOwner ? `Waiting for you. Expires ${timeLeft(offer.expiresAt)}.` : `Waiting for the owner. Expires ${timeLeft(offer.expiresAt)}.`,
     accepted: viewerIsOwner
-      ? "Accepted. The post is reserved. Agree a time and place in this chat."
-      : "Accepted! The post is reserved for you. Agree a time and place in this chat.",
+      ? `Accepted. ${many ? `${qty} are reserved for ${responderName}.` : "Reserved for them."} Agree a time and place in this chat.`
+      : `Accepted! ${many ? `${qty} are reserved for you.` : "It is reserved for you."} Agree a time and place in this chat.`,
     declined: viewerIsOwner ? "You declined this." : "The owner declined this.",
     withdrawn: viewerIsOwner ? `${responderName} withdrew this.` : "You withdrew this.",
     expired: "This offer expired.",
   };
 
+  // A reservation can be cancelled after it was accepted; that is its own, final state.
+  const dealStatus = dealDone ?? offer.deal?.status ?? null;
+  const cancelled = status === "accepted" && dealStatus === "cancelled";
+  const canCancel = status === "accepted" && offer.deal !== null && (dealStatus === "agreed" || dealStatus === "scheduled");
   const settled = status !== "pending";
   return (
-    <div className={`w-[85%] rounded-2xl border p-3 ${status === "accepted" ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
+    <div className={`w-[85%] rounded-2xl border p-3 ${status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
       <p className="text-xs text-zinc-500">{who}</p>
       <p className="text-lg font-semibold">{title}</p>
-      <p className={`text-sm ${settled && status !== "accepted" ? "text-zinc-500" : ""}`}>{statusText[status] ?? ""}</p>
+      <p className={`text-sm ${(settled && status !== "accepted") || cancelled ? "text-zinc-500" : ""}`}>{cancelled ? "Reservation cancelled. The units went back to the post." : (statusText[status] ?? "")}</p>
 
       {status === "pending" && viewerIsOwner ? (
         confirming ? (
           <div className="mt-3 flex flex-col gap-2">
-            <p className="text-sm">Accept and reserve this post for {responderName}? Other offers will be declined.</p>
+            <p className="text-sm">
+              Accept and reserve {offer.quantity > 1 ? offer.quantity : "it"} for {responderName}? If that uses the last one, the other offers are declined.
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" disabled={busy !== null} onClick={() => setConfirming(false)} className="h-11 rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
                 Cancel
@@ -114,6 +143,26 @@ export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }:
         <button type="button" disabled={busy !== null} onClick={() => run("withdraw")} className="mt-3 h-11 w-full rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700">
           {busy === "withdraw" ? "Withdrawing…" : "Withdraw offer"}
         </button>
+      ) : null}
+
+      {canCancel && !cancelled ? (
+        confirmingCancel ? (
+          <div className="mt-3 flex flex-col gap-2">
+            <p className="text-sm">Cancel this reservation? {viewerIsOwner ? "The units go back to your post." : "The seller is told."}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" disabled={busy !== null} onClick={() => setConfirmingCancel(false)} className="h-11 rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
+                Keep it
+              </button>
+              <button type="button" disabled={busy !== null} onClick={() => run("cancel")} className="h-11 rounded-lg border border-red-300 font-medium text-red-600 disabled:opacity-60 dark:border-red-900">
+                {busy === "cancel" ? "Cancelling…" : "Yes, cancel"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" disabled={busy !== null} onClick={() => setConfirmingCancel(true)} className="mt-3 h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+            Cancel reservation
+          </button>
+        )
       ) : null}
 
       {error ? (

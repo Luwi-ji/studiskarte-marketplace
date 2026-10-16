@@ -31,13 +31,16 @@ export async function updatePostAction(postId: unknown, input: unknown): Promise
   return result;
 }
 
-export async function withdrawPostAction(postId: unknown): Promise<{ ok: boolean }> {
+export async function withdrawPostAction(postId: unknown): Promise<{ ok: boolean; error?: string }> {
   const me = await requireActiveStudent();
   const id = postIdSchema.safeParse(postId);
   if (!id.success) return { ok: false };
-  const ok = await withdrawPost(me.id, id.data);
-  if (ok) refresh();
-  return { ok };
+  const result = await withdrawPost(me.id, id.data);
+  if (result === "ok") refresh();
+  return {
+    ok: result === "ok",
+    error: result === "has_reservations" ? "Cancel the reservations first. Open them in your messages." : undefined,
+  };
 }
 
 /** Saves an expired post's details and lists it again for 30 days. */

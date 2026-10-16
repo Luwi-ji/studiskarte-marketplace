@@ -28,6 +28,8 @@ export const CAPTION_MAX = 300;
 export const AVAILABILITY_MAX = 14;
 export const AVAILABILITY_DAYS_AHEAD = 60;
 export const OPEN_POSTS_MAX = 20;
+/** The most units one post can offer or ask for, and the most one offer can request. */
+export const QUANTITY_MAX = 1000;
 
 export const WEEKDAY_LABEL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -80,6 +82,9 @@ export const postFieldsSchema = z.object({
   priceKind: z.enum(PRICE_KINDS, { error: "Choose a price." }),
   // Typed as text so "1,200" works; parsed in parseFields.
   priceAmount: z.string(),
+  // How many are available (or needed, on a Wishlist). Typed as text; "unlimited" means ongoing, no limit.
+  quantity: z.string().default("1"),
+  unlimited: z.boolean().default(false),
   exchangeMeetup: z.boolean(),
   exchangeDelivery: z.boolean(),
   meetupLocation: z.string(),
@@ -106,6 +111,8 @@ export type PostData = {
   condition: Condition | null;
   priceKind: PriceKind;
   priceAmount: number | null;
+  /** Units available; null when ongoing (no limit). */
+  quantity: number | null;
   exchangeMeetup: boolean;
   exchangeDelivery: boolean;
   meetupLocation: string | null;
@@ -157,6 +164,15 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     priceAmount = /^\d+$/.test(digits) ? Number(digits) : NaN;
     if (!Number.isInteger(priceAmount) || priceAmount < 1 || priceAmount > PRICE_MAX) {
       errors.priceAmount = `Enter a whole amount from ₱1 to ₱${PRICE_MAX.toLocaleString("en-PH")}. Choose "Free" for ₱0.`;
+    }
+  }
+
+  let quantity: number | null = null;
+  if (!raw.unlimited) {
+    const digits = raw.quantity.trim();
+    quantity = /^\d{1,4}$/.test(digits) ? Number(digits) : NaN;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > QUANTITY_MAX) {
+      errors.quantity = `Enter a whole number from 1 to ${QUANTITY_MAX.toLocaleString("en-PH")}, or choose Ongoing.`;
     }
   }
 
@@ -224,6 +240,7 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     condition: category?.requiresCondition ? raw.condition : null,
     priceKind: raw.priceKind,
     priceAmount,
+    quantity,
     exchangeMeetup: raw.exchangeMeetup,
     exchangeDelivery: raw.exchangeDelivery,
     meetupLocation: raw.exchangeMeetup ? meetupLocation : null,

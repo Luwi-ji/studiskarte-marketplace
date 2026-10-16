@@ -5,17 +5,17 @@ import { withdrawPostAction } from "@/app/posts/actions";
 
 export function WithdrawButton({ postId, title }: { postId: string; title: string }) {
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
   async function withdraw() {
     if (!window.confirm(`Withdraw "${title}"? It leaves the feed for good and cannot be relisted.`)) return;
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
-      const { ok } = await withdrawPostAction(postId);
-      if (!ok) setFailed(true);
+      const { ok, error } = await withdrawPostAction(postId);
+      if (!ok) setFailed(error ?? "Could not withdraw. Try again.");
     } catch {
-      setFailed(true);
+      setFailed("Could not withdraw. Try again.");
     } finally {
       setBusy(false);
     }
@@ -31,7 +31,7 @@ export function WithdrawButton({ postId, title }: { postId: string; title: strin
       >
         {busy ? "Withdrawing…" : "Withdraw"}
       </button>
-      {failed ? <span className="text-xs text-red-600">Could not withdraw. Try again.</span> : null}
+      {failed ? <span className="text-xs text-red-600">{failed}</span> : null}
     </div>
   );
 }

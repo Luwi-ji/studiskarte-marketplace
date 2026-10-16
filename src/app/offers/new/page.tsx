@@ -5,6 +5,7 @@ import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { ProductCard } from "@/components/product-card";
 import { requireActiveStudent } from "@/lib/access";
+import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
@@ -40,6 +41,8 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
     postExpiresAt: detail.expiresAt,
     ownerStatus: "active",
     responderStatus: "active",
+    unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken),
+    hasActiveDeal: detail.hasReservation,
   });
   const labels = offerLabels(detail.kind);
   const allowed = kind === "reserve" ? options.reserve : options.offer;
@@ -63,7 +66,14 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
           thumbUrl={thumbUrl}
         />
         {allowed ? (
-          <OfferForm postId={detail.id} kind={kind} askingText={askingText} />
+          <OfferForm
+            postId={detail.id}
+            kind={kind}
+            askingText={askingText}
+            maxQuantity={options.maxQuantity}
+            limited={detail.quantity !== null}
+            unitPrice={detail.priceAmount}
+          />
         ) : (
           <div className="flex flex-col gap-4 py-6 text-center">
             <p className="text-zinc-600 dark:text-zinc-400">{options.reason ?? (kind === "reserve" ? "This post has no price to reserve at. Make an offer instead." : "This post is free. Reserve it instead.")}</p>

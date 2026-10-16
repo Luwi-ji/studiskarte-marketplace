@@ -38,6 +38,7 @@ export function postColumns(data: PostData) {
     condition: data.condition,
     priceKind: data.priceKind,
     priceAmount: data.priceAmount,
+    quantity: data.quantity,
     exchangeMeetup: data.exchangeMeetup,
     exchangeDelivery: data.exchangeDelivery,
     meetupLocation: data.meetupLocation,

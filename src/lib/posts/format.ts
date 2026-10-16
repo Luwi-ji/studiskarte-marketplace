@@ -46,3 +46,16 @@ export function expiryNotice(expiresAt: Date, now = new Date()): { text: string;
   if (days === 1) return { text: "Expires tomorrow", warn: true };
   return { text: `Expires in ${days} days`, warn: days <= EXPIRY_WARNING_DAYS };
 }
+
+/**
+ * How many are taken, for a post with more than one (or no limit): "2 of 5
+ * reserved", "3 reserved" (ongoing), or "Ongoing, no limit" when none yet.
+ * A single item has nothing to count: its status says "Reserved". A Wishlist
+ * counts suppliers chosen.
+ */
+export function quantityLine(kind: string, quantity: number | null, taken: number): string | null {
+  const done = kind === "wishlist" ? "supplied" : "reserved";
+  if (quantity === null) return taken > 0 ? `${taken} ${done}` : "Ongoing, no limit";
+  if (quantity === 1) return null;
+  return `${taken} of ${quantity} ${done}`;
+}

@@ -254,6 +254,8 @@ export const offer = pgTable(
     // Whole pesos. A reserve of a free post is 0.
     amount: integer("amount").notNull(),
     isReserve: boolean("is_reserve").notNull().default(false),
+    // How many units the responder asks for. The amount is per unit.
+    quantity: integer("quantity").notNull().default(1),
     status: text("status").notNull().default("pending"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -265,6 +267,7 @@ export const offer = pgTable(
       "offer_amount",
       sql`(${t.isReserve} and ${t.amount} between 0 and 1000000) or (not ${t.isReserve} and ${t.amount} between 1 and 1000000)`,
     ),
+    check("offer_quantity", sql`${t.quantity} between 1 and 1000`),
     check("offer_decided", sql`(${t.status} = 'pending') = (${t.decidedAt} is null)`),
     uniqueIndex("offer_one_pending_idx").on(t.conversationId).where(sql`${t.status} = 'pending'`),
     index("offer_conversation_idx").on(t.conversationId, t.createdAt),
@@ -272,7 +275,9 @@ export const offer = pgTable(
 );
 
 // Created when the owner accepts an offer. The handover (method, time, place)
-// is agreed in the next phase. At most one active deal per post (the index).
+// is agreed in the next phase. One active deal per post and buyer (the index);
+// together the active and completed deals of a post never use more units than
+// the post has (a trigger).
 export const deal = pgTable(
   "deal",
   {
@@ -290,7 +295,9 @@ export const deal = pgTable(
     responderId: text("responder_id")
       .notNull()
       .references(() => student.id),
+    // Per unit, as agreed in the offer.
     amount: integer("amount").notNull(),
+    quantity: integer("quantity").notNull().default(1),
     status: text("status").notNull().default("agreed"),
     handoverMethod: text("handover_method"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
@@ -302,7 +309,9 @@ export const deal = pgTable(
     check("deal_status", sql`${t.status} in ('agreed', 'scheduled', 'completed', 'cancelled')`),
     check("deal_handover", sql`${t.handoverMethod} is null or ${t.handoverMethod} in ('meetup', 'delivery')`),
     check("deal_distinct_people", sql`${t.ownerId} <> ${t.responderId}`),
-    uniqueIndex("deal_one_active_idx").on(t.postId).where(sql`${t.status} in ('agreed', 'scheduled')`),
+    check("deal_quantity", sql`${t.quantity} between 1 and 1000`),
+    // One active deal per post and buyer: each buyer's deal is separate from the others.
+    uniqueIndex("deal_one_active_idx").on(t.postId, t.responderId).where(sql`${t.status} in ('agreed', 'scheduled')`),
     index("deal_owner_idx").on(t.ownerId),
     index("deal_responder_idx").on(t.responderId),
   ],
@@ -353,7 +362,7 @@ export const notification = pgTable(
     onceKey: text("once_key"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
@@ -437,6 +446,8 @@ export const post = pgTable(
     exchangeDelivery: boolean("exchange_delivery").notNull(),
     meetupLocation: text("meetup_location"),
     deliveryArea: text("delivery_area"),
+    // How many are available (or needed, for a Wishlist). Null means ongoing: no limit.
+    quantity: integer("quantity").default(1),
     status: text("status").notNull().default("open"),
     listedAt: timestamp("listed_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true })
@@ -451,6 +462,7 @@ export const post = pgTable(
       "post_status",
       sql`${t.status} in ('open', 'reserved', 'fulfilled', 'withdrawn', 'expired', 'hidden', 'removed')`,
     ),
+    check("post_quantity_range", sql`${t.quantity} is null or ${t.quantity} between 1 and 1000`),
     check("post_title_length", sql`char_length(btrim(${t.title})) between 1 and 120`),
     check("post_description_length", sql`char_length(btrim(${t.description})) between 1 and 2000`),
     check(

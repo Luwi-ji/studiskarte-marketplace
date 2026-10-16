@@ -7,7 +7,7 @@ export type NotificationSpec =
   | { type: "heart"; recipientId: string; postId: string }
   | { type: "post_expiring" | "post_expired"; recipientId: string; postId: string; onceKey: string }
   | {
-      type: "offer_received" | "offer_accepted" | "offer_declined" | "offer_expired";
+      type: "offer_received" | "offer_accepted" | "offer_declined" | "offer_expired" | "deal_cancelled";
       recipientId: string;
       postId: string;
       conversationId: string;

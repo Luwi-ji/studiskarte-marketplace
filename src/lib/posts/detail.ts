@@ -3,7 +3,8 @@ import { alias } from "drizzle-orm/pg-core";
 import { category, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { loadAvailability } from "@/lib/posts/availability";
-import { countPendingOffers } from "@/lib/deals/count";
+import { unitsTaken } from "@/lib/deals/capacity";
+import { countPendingOffers, hasActiveReservation } from "@/lib/deals/count";
 import { countViews } from "@/lib/posts/views";
 import { countHearts, hasHearted } from "@/lib/social/heart";
 import { visibleToOthers } from "@/lib/discovery/visibility";
@@ -32,6 +33,12 @@ export type PostDetail = {
   viewCount: number | null;
   /** How many students hearted the post, never who. Null unless the viewer is the owner. */
   heartCount: number | null;
+  /** How many are available; null when ongoing (no limit). */
+  quantity: number | null;
+  /** Units reserved or handed over. */
+  unitsTaken: number;
+  /** The viewer already has a reservation here (so no further offers). Always false for the owner. */
+  hasReservation: boolean;
   /** Offers waiting for a decision. Null unless the viewer is the owner. */
   pendingOffers: number | null;
   /** Whether the viewer hearted it. Always false for the owner. */
@@ -66,6 +73,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       exchangeDelivery: post.exchangeDelivery,
       meetupLocation: post.meetupLocation,
       deliveryArea: post.deliveryArea,
+      quantity: post.quantity,
       listedAt: post.listedAt,
       expiresAt: post.expiresAt,
       ownerId: post.ownerId,
@@ -121,6 +129,9 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     isOwner: row.ownerId === viewerId,
     viewCount: row.ownerId === viewerId ? await countViews(postId) : null,
     heartCount: row.ownerId === viewerId ? await countHearts(postId) : null,
+    quantity: row.quantity,
+    unitsTaken: await unitsTaken(db, postId),
+    hasReservation: row.ownerId === viewerId ? false : await hasActiveReservation(viewerId, postId),
     pendingOffers: row.ownerId === viewerId ? await countPendingOffers(postId) : null,
     hearted: row.ownerId === viewerId ? false : await hasHearted(viewerId, postId),
     seller: {

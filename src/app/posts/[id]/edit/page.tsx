@@ -50,6 +50,8 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
         condition: CONDITIONS.find((value) => value === post.condition) ?? null,
         priceKind: PRICE_KINDS.find((value) => value === post.priceKind) ?? "negotiable",
         priceAmount: post.priceAmount === null ? "" : String(post.priceAmount),
+        quantity: post.quantity === null ? "1" : String(post.quantity),
+        unlimited: post.quantity === null,
         exchangeMeetup: post.exchangeMeetup,
         exchangeDelivery: post.exchangeDelivery,
         meetupLocation: post.meetupLocation ?? "",

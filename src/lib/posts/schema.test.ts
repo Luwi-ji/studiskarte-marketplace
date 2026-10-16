@@ -164,6 +164,36 @@ describe("availability", () => {
   });
 });
 
+describe("how many are available", () => {
+  const quantityOf = (overrides: Partial<NewPostInput>) => {
+    const result = parseNewPost(valid(overrides), lookup, now);
+    return result.ok ? result.data.quantity : result.errors.quantity;
+  };
+
+  it("defaults to one, and takes a whole number from 1 to 1,000", () => {
+    expect(quantityOf({})).toBe(1);
+    expect(quantityOf({ quantity: "5" })).toBe(5);
+    expect(quantityOf({ quantity: " 1000 " })).toBe(1000);
+  });
+
+  it("means ongoing, with no limit, when chosen, whatever the number says", () => {
+    expect(quantityOf({ unlimited: true })).toBeNull();
+    expect(quantityOf({ unlimited: true, quantity: "abc" })).toBeNull();
+  });
+
+  it("refuses zero, negatives, decimals, more than 1,000 and junk", () => {
+    for (const bad of ["0", "-1", "1.5", "1001", "", "abc", "1e3", "99999"]) {
+      expect(quantityOf({ quantity: bad })).toEqual(expect.stringContaining("from 1 to 1,000"));
+    }
+  });
+
+  it("is checked for an edit as well", () => {
+    // The edit rules ignore the kind, which never changes.
+    const result = parsePostEdit(valid({ quantity: "0" }), lookup, now);
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe("photo captions", () => {
   const second = "6c1d3b8f-7e4a-4d2b-8f9c-2a3b4c5d6e7f";
   it("trims captions and treats a blank one as none", () => {

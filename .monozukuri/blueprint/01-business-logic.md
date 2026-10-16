@@ -128,7 +128,8 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A pending offer expires after 3 days. [Chosen 2026-10-16, phase 10; the owner may change it.]
 - Which buttons a post shows: a post with an amount takes both Make offer and Reserve; a free post takes only Reserve (there is no price to bargain over); a negotiable post takes only Make offer (there is no asking price to reserve at). A reserve of a free post is at ₱0. Offers are whole pesos from ₱1 to ₱1,000,000. The offer shows as a card in the conversation, with an optional note. [Chosen 2026-10-16, phase 10.]
 - The owner sees how many offers are waiting on each post. An offer keeps the amount it was made at, even if the owner changes the price. Pending offers also expire when their post is no longer open; offers that expired stay expired after a relist.
-- Accepting an offer creates a Deal, reserves the post, and declines all other pending offers on that post. Only one deal can be active on a post at a time.
+- A post has a quantity: how many are available (or, on a Wishlist, needed), default 1, or Ongoing with no limit (for services and the like). An offer or reserve asks for a number of units, and its amount is per unit. [Owner, 2026-10-17.] Accepting an offer creates a Deal for those units. While units are left the post stays open and other offers stay pending; when the last unit is taken the post becomes Fully reserved and the other pending offers are declined. A post shows how many are taken ("2 of 5 reserved"). A buyer has one active deal per post, and each buyer's conversation and deal are separate from the others'.
+- Cancelling a reservation (either person, while it is being arranged) gives its units back: a Fully reserved post becomes Active again with at least 7 days left. A post with reservations in progress is not expired when its 30 days pass (it stays reserved until they end), and cannot be withdrawn until they are cancelled. The owner can edit a reserved post; raising the quantity makes it Active again, and it cannot go below what is already reserved.
 - After acceptance the two students agree the handover: the responder proposes a time inside the post's availability, and the owner confirms or suggests another. [Assumed.] The deal is "scheduled" once both agree a time and place.
 - Either participant can cancel a deal before it completes. The post then returns to open. [Assumed.]
 - A deal completes when both participants confirm the handover. Completion is final. The post becomes fulfilled.
@@ -201,7 +202,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - Every post has exactly one owner, at least one photo, and a kind that never changes.
 - Every conversation has exactly two distinct participants and exactly one post, and at most one conversation exists per (post, responder).
 - A student has at most one pending offer per post, and never offers on their own post.
-- At most one active deal exists per post. A deal's two participants are the post owner and the responder of the accepted offer, and they are distinct.
+- At most one active deal exists per post and buyer, and the units of a post's active and completed deals never exceed its quantity. A deal's two participants are the post owner and the responder of the accepted offer, and they are distinct.
 - A deal completes only after both participants confirm.
 - A review exists only for a completed deal, at most one per reviewer per deal, with a rating from 1 to 5. The reviewer and reviewee are the deal's two participants.
 - A handle is unique. A school email is unique. At most one follow exists per pair, never to oneself. At most one heart exists per (student, post). At most one block exists per pair, never to oneself. At most one report exists per (reporter, target).
@@ -221,7 +222,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A post with no photo, or with a zero or negative amount -> rejected.
 - A photo upload fails midway -> the post is not created, and the student keeps what they typed. [Assumed.]
 - An offer on a reserved, closed, hidden, or own post -> rejected, with a reason.
-- Two offers accepted at the same moment -> exactly one wins, and the other is declined.
+- Two offers accepted at the same moment -> together they never use more units than the post has; with one unit exactly one wins and the other is declined.
 - A responder makes an offer on a post that is withdrawn in the meantime -> the offer is rejected, with a reason.
 - The owner changes the price while an offer is pending -> the offer keeps its own amount.
 - A Reserve on a "negotiable" post -> not available. The responder must make an offer.

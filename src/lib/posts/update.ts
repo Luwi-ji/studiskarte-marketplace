@@ -1,6 +1,7 @@
-import { and, count, eq, notInArray } from "drizzle-orm";
+import { and, count, eq, inArray, notInArray } from "drizzle-orm";
 import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { syncAvailability, unitsTaken } from "@/lib/deals/capacity";
 import type { ObjectStore } from "@/lib/images/store";
 import { discardImage } from "@/lib/images/upload";
 import { loadAvailability } from "@/lib/posts/availability";
@@ -18,7 +19,7 @@ import { manilaToday, OPEN_POSTS_MAX, parsePostEdit, type Availability } from "@
 /** A listing lasts 30 days from when it is listed (or relisted). */
 export const LISTING_DAYS = 30;
 
-const NOT_EDITABLE: SaveResult = { ok: false, errors: { form: "Only your own open posts can be edited." } };
+const NOT_EDITABLE: SaveResult = { ok: false, errors: { form: "Only your own open or reserved posts can be edited." } };
 const NOT_RELISTABLE: SaveResult = { ok: false, errors: { form: "Only your own expired posts can be relisted." } };
 
 /**
@@ -43,6 +44,7 @@ export async function updatePost(args: {
   const relist = args.relist === true;
 
   let removed: { id: string; key: string; thumbKey: string }[];
+  let takenUnits = 0;
   try {
     const outcome = await getDb().transaction(async (tx) => {
       // Relisting adds an open post, so serialize with other creates and relists of this student.
@@ -50,7 +52,7 @@ export async function updatePost(args: {
       const [current] = await tx
         .select({ id: post.id })
         .from(post)
-        .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), eq(post.status, relist ? "expired" : "open")))
+        .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), inArray(post.status, relist ? ["expired"] : ["open", "reserved"])))
         .for("update");
       if (!current) return null;
       if (relist) {
@@ -62,6 +64,12 @@ export async function updatePost(args: {
       }
       const photoIds = data.photos.map((p) => p.id);
       if (!(await checkPhotos(tx, args.ownerId, photoIds, args.postId))) return "photos" as const;
+      // Units already reserved or handed over cannot be taken back by lowering the quantity.
+      const taken = await unitsTaken(tx, args.postId);
+      if (data.quantity !== null && data.quantity < taken) {
+        takenUnits = taken;
+        return "quantity" as const;
+      }
 
       const dropped = await tx
         .select({ id: image.id, key: image.key, thumbKey: image.thumbKey })
@@ -87,10 +95,15 @@ export async function updatePost(args: {
       await tx.delete(postPhoto).where(eq(postPhoto.postId, args.postId));
       await tx.delete(availabilityWindow).where(eq(availabilityWindow.postId, args.postId));
       await writeDetails(tx, args.postId, data);
+      // A raised quantity can make a fully reserved post Active again (and a lowered one the reverse).
+      if (!relist) await syncAvailability(tx, args.postId, now);
       return dropped;
     });
     if (outcome === null) return relist ? NOT_RELISTABLE : NOT_EDITABLE;
     if (outcome === "photos") return { ok: false, errors: { photos: "A photo is missing. Upload it again." } };
+    if (outcome === "quantity") {
+      return { ok: false, errors: { quantity: `${takenUnits} already reserved, so the quantity cannot go below ${takenUnits}.` } };
+    }
     if (outcome === "limit") {
       return { ok: false, errors: { form: `You can have at most ${OPEN_POSTS_MAX} open posts. Withdraw one first.` } };
     }
@@ -129,7 +142,7 @@ export async function getEditablePost(ownerId: string, postId: string, now = new
     .select()
     .from(post)
     .where(and(eq(post.id, postId), eq(post.ownerId, ownerId)));
-  if (!row || (row.status !== "open" && row.status !== "expired")) return null;
+  if (!row || (row.status !== "open" && row.status !== "reserved" && row.status !== "expired")) return null;
   const photos = await db
     .select({ id: image.id, thumbKey: image.thumbKey, caption: postPhoto.caption })
     .from(postPhoto)

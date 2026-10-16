@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { acceptOffer } from "@/lib/deals/accept";
+import { cancelDeal, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { declineOffer, makeOffer, OFFER_NOT_FOUND, withdrawOffer, type DecisionResult, type OfferResult } from "@/lib/deals/offers";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 
@@ -46,6 +47,16 @@ export async function withdrawOfferAction(offerId: unknown): Promise<DecisionRes
   const id = idSchema.safeParse(offerId);
   if (!id.success) return GONE;
   const result = await withdrawOffer({ responderId: me.id, offerId: id.data });
+  refresh();
+  return result;
+}
+
+/** Either person cancels a reservation that is still being arranged. The units go back to the post. */
+export async function cancelDealAction(dealId: unknown): Promise<DecisionResult> {
+  const me = await requireActiveStudent();
+  const id = idSchema.safeParse(dealId);
+  if (!id.success) return { ok: false, error: DEAL_NOT_FOUND };
+  const result = await cancelDeal({ actorId: me.id, dealId: id.data, alert: sendAlertAfterResponse });
   refresh();
   return result;
 }

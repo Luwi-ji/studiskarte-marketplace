@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
-import { expiryNotice, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
+import { expiryNotice, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
 import { listOwnPosts } from "@/lib/posts/mine";
 import { OPEN_POSTS_MAX } from "@/lib/posts/schema";
 import { WithdrawButton } from "./withdraw-button";
@@ -72,6 +72,7 @@ async function Posts() {
                   {kindLabel(p.kind)} · {STATUS_LABEL[p.status] ?? p.status}
                 </p>
                 {p.status === "open" ? <ExpiryLine expiresAt={p.expiresAt} views={p.viewCount} hearts={p.heartCount} offers={p.pendingOffers} /> : null}
+                {quantityLine(p.kind, p.quantity, p.unitsTaken) ? <p className="text-xs font-medium text-brand">{quantityLine(p.kind, p.quantity, p.unitsTaken)}</p> : null}
                 {p.status === "expired" ? <p className="text-xs text-amber-700 dark:text-amber-400">Expired {dateFormat.format(p.expiresAt)}</p> : null}
               </div>
             </Link>

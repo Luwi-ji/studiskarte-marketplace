@@ -8,6 +8,7 @@ export const NOTIFICATION_TYPES = [
   "offer_accepted",
   "offer_declined",
   "offer_expired",
+  "deal_cancelled",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -24,6 +25,7 @@ const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> =
   offer_accepted: "Your offer was accepted",
   offer_declined: "Your offer was declined",
   offer_expired: "Your offer expired",
+  deal_cancelled: "A reservation was cancelled",
 };
 
 /** The headline: what happened. The post's title goes under it. */
@@ -33,9 +35,9 @@ export function headline(type: NotificationType, count: number): string {
   return HEADLINE[type];
 }
 
-/** Notifications that open the conversation (messages and everything about an offer). */
+/** Notifications that open the conversation (messages and everything about an offer or reservation). */
 function opensConversation(type: NotificationType): boolean {
-  return type === "message" || type.startsWith("offer_");
+  return type === "message" || type.startsWith("offer_") || type.startsWith("deal_");
 }
 
 /** Where tapping a notification goes. */
