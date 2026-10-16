@@ -53,9 +53,11 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   const wishlist = detail.kind === "wishlist";
   const services = detail.categoryId === "services";
   const condition = CONDITIONS.find((c) => c === detail.condition);
+  // Students can message about a post while it is open or reserved (never their own).
+  const canMessage = !detail.isOwner && (detail.status === "open" || detail.status === "reserved");
 
   return (
-    <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
+    <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner || canMessage ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
       {detail.isOwner ? null : <ViewTracker postId={detail.id} />}
       <PhotoCarousel photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))} title={detail.title} />
 
@@ -184,6 +186,16 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           {detail.heartCount !== null ? ` · ${detail.heartCount} ${detail.heartCount === 1 ? "heart" : "hearts"}` : ""}
         </p>
       </div>
+
+      {canMessage ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
+          <div className="mx-auto max-w-md">
+            <Link href={`/messages/new?post=${detail.id}`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white">
+              Message {detail.seller.displayName || (detail.seller.handle ? `@${detail.seller.handle}` : "the seller")}
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {detail.isOwner ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">

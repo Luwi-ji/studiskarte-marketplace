@@ -17,10 +17,11 @@ export class UploadLimitError extends Error {
 
 export type StoredImage = { id: string; keys: [string, string] };
 
-export type ImagePurpose = "post_photo" | "avatar";
+export type ImagePurpose = "post_photo" | "avatar" | "message_photo";
 const LAYOUT: Record<ImagePurpose, { folder: string; shape: ImageShape }> = {
   post_photo: { folder: "posts", shape: "photo" },
   avatar: { folder: "avatars", shape: "avatar" },
+  message_photo: { folder: "messages", shape: "photo" },
 };
 
 /**

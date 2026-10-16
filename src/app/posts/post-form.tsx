@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
-import { preparePhoto } from "@/lib/images/prepare-photo";
+import { uploadPhoto } from "@/lib/images/prepare-photo";
 import type { Category } from "@/lib/posts/categories";
 import type { SaveResult } from "@/lib/posts/create";
 import {
@@ -106,20 +106,8 @@ export function PostForm(props: Props) {
     setUploading((n) => n + files.length);
     for (const file of files) {
       try {
-        const prepared = await preparePhoto(file);
-        if (!prepared) throw new Error("Could not read one of the photos. Try another one.");
-        const body = new FormData();
-        body.set("photo", prepared, prepared === file ? file.name : "photo.jpg");
-        const response = await fetch("/api/uploads/post-photo", { method: "POST", body });
-        const reply: unknown = await response.json().catch(() => null);
-        if (!response.ok || !reply || typeof reply !== "object" || !("id" in reply) || !("thumbUrl" in reply)) {
-          const message =
-            reply && typeof reply === "object" && "error" in reply && typeof reply.error === "string"
-              ? reply.error
-              : "Could not upload a photo. Try again.";
-          throw new Error(message);
-        }
-        const photo = { id: String(reply.id), thumbUrl: String(reply.thumbUrl), caption: "" };
+        const uploaded = await uploadPhoto(file, "/api/uploads/post-photo");
+        const photo = { ...uploaded, caption: "" };
         setValues((current) =>
           current.photos.length < PHOTOS_MAX ? { ...current, photos: [...current.photos, photo] } : current,
         );

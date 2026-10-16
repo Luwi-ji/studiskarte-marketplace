@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  bigint,
   bigserial,
   boolean,
   check,
@@ -188,6 +189,73 @@ export const heart = pgTable(
   (t) => [primaryKey({ columns: [t.studentId, t.postId] }), index("heart_post_idx").on(t.postId)],
 );
 
+// A private thread between a post's owner and one responder about that post.
+// The database refuses the owner as responder (trigger) and a second thread for
+// the same (post, responder). Whether it accepts new messages is worked out
+// from the post's state when it is read, so relisting reactivates it.
+export const conversation = pgTable(
+  "conversation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    responderId: text("responder_id")
+      .notNull()
+      .references(() => student.id),
+    // The newest message, for ordering the inbox.
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    // Each side has read every message up to this number (0: none yet).
+    ownerReadUpTo: bigint("owner_read_up_to", { mode: "number" }).notNull().default(0),
+    responderReadUpTo: bigint("responder_read_up_to", { mode: "number" }).notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("conversation_post_responder").on(t.postId, t.responderId),
+    index("conversation_responder_idx").on(t.responderId, t.lastMessageAt.desc()),
+  ],
+);
+
+// Text, pictures, or both (a trigger refuses a message with neither).
+export const message = pgTable(
+  "message",
+  {
+    // Ordered by this number; also what "read up to" counts.
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversation.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => student.id),
+    body: text("body"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("message_body_length", sql`${t.body} is null or char_length(btrim(${t.body})) between 1 and 2000`),
+    index("message_conversation_idx").on(t.conversationId, t.id),
+  ],
+);
+
+export const messageImage = pgTable(
+  "message_image",
+  {
+    messageId: bigint("message_id", { mode: "number" })
+      .notNull()
+      .references(() => message.id, { onDelete: "cascade" }),
+    imageId: uuid("image_id")
+      .notNull()
+      .references(() => image.id)
+      .unique(),
+    position: smallint("position").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.imageId] }),
+    unique("message_image_position").on(t.messageId, t.position),
+    check("message_image_position_range", sql`${t.position} between 0 and 3`),
+  ],
+);
+
 // One row per (post, viewer, Manila day). Views are counted from these rows,
 // never stored as a counter. The owner's own opens are never inserted.
 export const postView = pgTable(
@@ -355,7 +423,7 @@ export const image = pgTable(
     bytes: integer("bytes").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("image_purpose", sql`${t.purpose} in ('post_photo', 'avatar')`)],
+  (t) => [check("image_purpose", sql`${t.purpose} in ('post_photo', 'avatar', 'message_photo')`)],
 );
 
 export const postPhoto = pgTable(

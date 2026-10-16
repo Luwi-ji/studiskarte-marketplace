@@ -116,6 +116,8 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A student cannot message their own post. A conversation is private to its two participants.
 - A message can include pictures. Pictures are visible only to the two participants.
 - Existing conversations on a post that is closed, withdrawn, expired, or hidden stay readable but accept no new messages. If the owner relists the post, they accept messages again. [Assumed.]
+- A message has text (up to 2,000 characters), up to 4 pictures, or both; never neither. A student can send at most 20 messages a minute. [Chosen 2026-10-16, phase 8; the owner may change the numbers.]
+- A conversation starts with the first message: opening a post and tapping Message writes nothing until the student sends. Sending a message marks the thread read for the sender. The unread count is the other person's messages not yet read. Whether a conversation takes new messages is worked out from the post as it is now, so relisting reactivates it.
 - A student cannot message someone they have blocked, or who blocked them. An existing conversation becomes read-only.
 
 ### Offers and deals
