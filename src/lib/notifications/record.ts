@@ -3,7 +3,7 @@ import { notification, student } from "@/db/schema";
 import type { Executor } from "@/lib/db";
 
 export type NotificationSpec =
-  | { type: "message"; recipientId: string; postId: string; conversationId: string }
+  | { type: "message"; recipientId: string; postId: string | null; conversationId: string }
   | { type: "heart"; recipientId: string; postId: string }
   | { type: "post_expiring" | "post_expired"; recipientId: string; postId: string; onceKey: string }
   | {

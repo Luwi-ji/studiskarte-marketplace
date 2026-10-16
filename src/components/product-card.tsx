@@ -3,10 +3,11 @@ import { formatPrice, STATUS_LABEL } from "@/lib/posts/format";
 import type { PostCard } from "@/lib/messaging/read";
 
 /**
- * The post a conversation is about: photo, title, price, and its state if it is
- * not open. `compact` is the slimmer form that stays in view above a long thread.
+ * A listing: photo, title, price, its own state if it is not open, and where a
+ * transaction on it stands (`state`). Tapping it opens the listing. `compact`
+ * is the slimmer form.
  */
-export function ProductCard({ post, thumbUrl, compact = false }: { post: PostCard; thumbUrl: string; compact?: boolean }) {
+export function ProductCard({ post, thumbUrl, state = null, compact = false }: { post: PostCard; thumbUrl: string; state?: string | null; compact?: boolean }) {
   return (
     <Link
       href={`/posts/${post.id}`}
@@ -19,6 +20,7 @@ export function ProductCard({ post, thumbUrl, compact = false }: { post: PostCar
         <p className={`text-zinc-600 dark:text-zinc-400 ${compact ? "truncate text-xs" : "text-sm"}`}>
           {formatPrice(post.priceKind, post.priceAmount)}
           {post.status !== "open" ? ` · ${STATUS_LABEL[post.status] ?? post.status}` : ""}
+          {state ? ` · ${state}` : ""}
         </p>
       </div>
       <span aria-hidden className="text-xl text-zinc-400">

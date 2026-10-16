@@ -68,7 +68,7 @@ async function Inbox() {
                   <p className={`truncate ${c.unread > 0 ? "font-semibold" : "font-medium"}`}>{name}</p>
                   {c.lastMessage ? <span className="shrink-0 text-xs text-zinc-500">{when(c.lastMessage.at)}</span> : null}
                 </div>
-                <p className="truncate text-xs text-zinc-500">{c.post.title}</p>
+                <p className="truncate text-xs text-zinc-500">{c.listingCount > 1 ? `${c.listingCount} transactions` : c.listingTitle}</p>
                 <p className={`truncate text-sm ${c.unread > 0 ? "font-medium text-zinc-900 dark:text-zinc-50" : "text-zinc-600 dark:text-zinc-400"}`}>{preview}</p>
               </div>
               {c.unread > 0 ? (

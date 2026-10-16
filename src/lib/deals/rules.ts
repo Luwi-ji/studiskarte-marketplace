@@ -100,3 +100,29 @@ export function offerOptions(args: {
 export function offerLabels(postKind: string): { offer: string; reserve: string } {
   return postKind === "wishlist" ? { offer: "Offer a price", reserve: "Supply it" } : { offer: "Make offer", reserve: "Reserve" };
 }
+
+const OFFER_STATE: Record<string, string> = {
+  declined: "Offer declined",
+  withdrawn: "Offer withdrawn",
+  expired: "Offer expired",
+};
+
+/**
+ * Where a listing's transaction stands, from its latest offer in the thread
+ * (and the reservation made from it), or null when there has been no offer.
+ */
+export function transactionLabel(
+  latest: { isReserve: boolean; status: string; expiresAt: Date; dealStatus: string | null } | null,
+  now = new Date(),
+): string | null {
+  if (!latest) return null;
+  if (latest.status === "pending") {
+    if (latest.expiresAt.getTime() <= now.getTime()) return OFFER_STATE.expired;
+    return latest.isReserve ? "Reservation waiting" : "Offer waiting";
+  }
+  if (latest.status === "accepted") {
+    if (latest.dealStatus === "cancelled") return "Reservation cancelled";
+    return latest.dealStatus === "completed" ? "Completed" : "Reserved";
+  }
+  return OFFER_STATE[latest.status] ?? null;
+}

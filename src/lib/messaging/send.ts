@@ -1,10 +1,10 @@
-import { and, eq, notExists } from "drizzle-orm";
+import { and, eq, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, image, message, messageImage, post, student } from "@/db/schema";
+import { conversation, conversationListing, image, message, messageImage, post, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
 import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
-import { MESSAGES_PER_MINUTE, parseMessage, readOnlyReason, type MessageData } from "@/lib/messaging/rules";
+import { listingClosedReason, MESSAGES_PER_MINUTE, orderedPair, parseMessage, readOnlyReason, type MessageData } from "@/lib/messaging/rules";
 
 export type SendResult = { ok: true; conversationId: string } | { ok: false; error: string };
 
@@ -23,10 +23,11 @@ export function isUniqueViolation(error: unknown): boolean {
  * Writes the message and its pictures, moves the conversation to the top of
  * the inbox, and marks everything up to it as read for the sender. The
  * pictures must be the sender's own, uploaded for messages, and not yet used.
+ * `postId` makes it a listing card (an offer's card carries its listing too).
  */
 export async function writeMessage(
   tx: DbTransaction,
-  args: { conversationId: string; senderId: string; isOwner: boolean; data: MessageData; offerId?: string },
+  args: { conversationId: string; senderId: string; data: MessageData; offerId?: string; postId?: string },
 ): Promise<boolean> {
   const { conversationId, senderId, data } = args;
   if (data.imageIds.length > 0) {
@@ -46,42 +47,46 @@ export async function writeMessage(
 
   const [sent] = await tx
     .insert(message)
-    .values({ conversationId, senderId, body: data.body, offerId: args.offerId ?? null })
+    .values({ conversationId, senderId, body: data.body, offerId: args.offerId ?? null, postId: args.postId ?? null })
     .returning({ id: message.id, createdAt: message.createdAt });
   if (data.imageIds.length > 0) {
     await tx.insert(messageImage).values(data.imageIds.map((imageId, position) => ({ messageId: sent.id, imageId, position })));
   }
   await tx
     .update(conversation)
-    .set(
-      args.isOwner
-        ? { lastMessageAt: sent.createdAt, ownerReadUpTo: sent.id }
-        : { lastMessageAt: sent.createdAt, responderReadUpTo: sent.id },
-    )
+    .set({
+      lastMessageAt: sent.createdAt,
+      aReadUpTo: sql`case when ${conversation.participantA} = ${senderId} then ${sent.id}::bigint else ${conversation.aReadUpTo} end`,
+      bReadUpTo: sql`case when ${conversation.participantB} = ${senderId} then ${sent.id}::bigint else ${conversation.bReadUpTo} end`,
+    })
     .where(eq(conversation.id, conversationId));
   return true;
 }
 
-/** The responder's conversation about a post, created if there is none. Two at once make one. */
-export async function getOrCreateConversation(tx: DbTransaction, postId: string, responderId: string): Promise<string> {
-  const [created] = await tx
-    .insert(conversation)
-    .values({ postId, responderId })
-    .onConflictDoNothing()
-    .returning({ id: conversation.id });
-  if (created) return created.id;
-  const [existing] = await tx
-    .select({ id: conversation.id })
-    .from(conversation)
-    .where(and(eq(conversation.postId, postId), eq(conversation.responderId, responderId)));
-  return existing.id;
+/**
+ * The one conversation between the post's owner and another student, created
+ * if there is none, with the post added to its listings. Two at once make one.
+ */
+export async function getOrCreateConversation(tx: DbTransaction, args: { postId: string; ownerId: string; otherId: string }): Promise<string> {
+  const { a, b } = orderedPair(args.ownerId, args.otherId);
+  const [created] = await tx.insert(conversation).values({ participantA: a, participantB: b }).onConflictDoNothing().returning({ id: conversation.id });
+  let id = created?.id;
+  if (!id) {
+    const [existing] = await tx
+      .select({ id: conversation.id })
+      .from(conversation)
+      .where(and(eq(conversation.participantA, a), eq(conversation.participantB, b)));
+    id = existing.id;
+  }
+  await tx.insert(conversationListing).values({ conversationId: id, postId: args.postId }).onConflictDoNothing();
+  return id;
 }
 
 /**
- * Sends the first message about a post, creating the conversation. Another
- * first message from the same student reuses it; first messages from two
- * students make two conversations. Refused for your own post, and for a post
- * that is not open or reserved by the time it is written.
+ * Sends a message about a listing: the listing's card with the text and
+ * pictures, in the conversation between the sender and the owner (created if
+ * this is their first). Refused for your own post, and for a post that is not
+ * open or reserved by the time it is written.
  */
 export async function startConversation(args: { senderId: string; postId: string; input: unknown; alert?: AlertSink; now?: Date }): Promise<SendResult> {
   const parsed = parseMessage(args.input);
@@ -102,7 +107,7 @@ export async function startConversation(args: { senderId: string; postId: string
       const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.senderId));
       if (!target || !me) return { ok: false, error: "That post could not be found." };
       if (target.ownerId === args.senderId) return { ok: false, error: "You can't message your own post." };
-      const blocked = readOnlyReason({
+      const blocked = listingClosedReason({
         postStatus: target.status,
         postExpiresAt: target.expiresAt,
         ownerStatus: target.ownerStatus,
@@ -111,8 +116,8 @@ export async function startConversation(args: { senderId: string; postId: string
       });
       if (blocked) return { ok: false, error: blocked };
 
-      const conversationId = await getOrCreateConversation(tx, args.postId, args.senderId);
-      if (!(await writeMessage(tx, { conversationId, senderId: args.senderId, isOwner: false, data: parsed.data }))) {
+      const conversationId = await getOrCreateConversation(tx, { postId: args.postId, ownerId: target.ownerId, otherId: args.senderId });
+      if (!(await writeMessage(tx, { conversationId, senderId: args.senderId, data: parsed.data, postId: args.postId }))) {
         throw new PhotoMissingError();
       }
       recorded = await recordNotification(tx, { type: "message", recipientId: target.ownerId, postId: args.postId, conversationId });
@@ -128,49 +133,34 @@ export async function startConversation(args: { senderId: string; postId: string
 
 /**
  * Sends a message in a conversation the sender is part of. A stranger gets the
- * same "not found" as for a conversation that does not exist. Refused while
- * the post is closed, withdrawn, expired or hidden.
+ * same "not found" as for a conversation that does not exist. Refused only
+ * when either person's account is closed.
  */
 export async function sendMessage(args: { senderId: string; conversationId: string; input: unknown; alert?: AlertSink; now?: Date }): Promise<SendResult> {
   const parsed = parseMessage(args.input);
   if (!parsed.ok) return parsed;
   if (!(await consume({ action: "message", key: args.senderId, max: MESSAGES_PER_MINUTE, windowSeconds: 60 }))) return TOO_FAST;
 
-  const owner = alias(student, "owner");
-  const responder = alias(student, "responder");
+  const personA = alias(student, "person_a");
+  const personB = alias(student, "person_b");
   let recorded = null as Recorded | null;
   try {
     const result = await getDb().transaction(async (tx): Promise<SendResult> => {
       const [found] = await tx
-        .select({
-          responderId: conversation.responderId,
-          postId: post.id,
-          ownerId: post.ownerId,
-          status: post.status,
-          expiresAt: post.expiresAt,
-          ownerStatus: owner.accountStatus,
-          responderStatus: responder.accountStatus,
-        })
+        .select({ aId: conversation.participantA, bId: conversation.participantB, aStatus: personA.accountStatus, bStatus: personB.accountStatus })
         .from(conversation)
-        .innerJoin(post, eq(post.id, conversation.postId))
-        .innerJoin(owner, eq(owner.id, post.ownerId))
-        .innerJoin(responder, eq(responder.id, conversation.responderId))
+        .innerJoin(personA, eq(personA.id, conversation.participantA))
+        .innerJoin(personB, eq(personB.id, conversation.participantB))
         .where(eq(conversation.id, args.conversationId))
         .for("update", { of: conversation });
-      if (!found || (found.responderId !== args.senderId && found.ownerId !== args.senderId)) return NOT_FOUND;
-      const blocked = readOnlyReason({
-        postStatus: found.status,
-        postExpiresAt: found.expiresAt,
-        ownerStatus: found.ownerStatus,
-        responderStatus: found.responderStatus,
-        now: args.now,
-      });
+      if (!found || (found.aId !== args.senderId && found.bId !== args.senderId)) return NOT_FOUND;
+      const blocked = readOnlyReason({ aStatus: found.aStatus, bStatus: found.bStatus });
       if (blocked) return { ok: false, error: blocked };
-      if (!(await writeMessage(tx, { conversationId: args.conversationId, senderId: args.senderId, isOwner: found.ownerId === args.senderId, data: parsed.data }))) {
+      if (!(await writeMessage(tx, { conversationId: args.conversationId, senderId: args.senderId, data: parsed.data }))) {
         throw new PhotoMissingError();
       }
-      const recipientId = found.ownerId === args.senderId ? found.responderId : found.ownerId;
-      recorded = await recordNotification(tx, { type: "message", recipientId, postId: found.postId, conversationId: args.conversationId });
+      const recipientId = found.aId === args.senderId ? found.bId : found.aId;
+      recorded = await recordNotification(tx, { type: "message", recipientId, postId: null, conversationId: args.conversationId });
       return { ok: true, conversationId: args.conversationId };
     });
     if (result.ok && recorded?.alert) args.alert?.(recorded.id);

@@ -3,13 +3,22 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { markReadAction, sendMessageAction } from "../actions";
-import Link from "next/link";
-import { offerLabels, type OfferOptions } from "@/lib/deals/rules";
+import { ProductCard } from "@/components/product-card";
 import { Composer } from "../composer";
 import { OfferCardView, type OfferCardData } from "./offer-card";
+import type { ListingCardData } from "./transactions";
 
 export type ChatPictureData = { url: string; thumbUrl: string; width: number; height: number };
-export type ChatMessageData = { id: number; mine: boolean; body: string | null; createdAt: string; pictures: ChatPictureData[]; offer: OfferCardData | null };
+export type ChatMessageData = {
+  id: number;
+  mine: boolean;
+  body: string | null;
+  createdAt: string;
+  pictures: ChatPictureData[];
+  /** Set when the message was sent about a listing. */
+  listing: ListingCardData | null;
+  offer: OfferCardData | null;
+};
 
 // New messages appear within this many seconds while the conversation is open.
 const REFRESH_SECONDS = 5;
@@ -38,31 +47,19 @@ export function Chat({
   messages,
   unread,
   readOnlyReason,
-  postId,
-  postKind,
-  viewerIsOwner,
   otherName,
-  offerOptions,
 }: {
   conversationId: string;
   messages: ChatMessageData[];
   unread: number;
   readOnlyReason: string | null;
-  postId: string;
-  postKind: string;
-  viewerIsOwner: boolean;
   otherName: string;
-  offerOptions: OfferOptions;
 }) {
   const router = useRouter();
   const viewer = useRef<HTMLDialogElement>(null);
   const [shown, setShown] = useState<ChatPictureData | null>(null);
   const lastId = messages.at(-1)?.id;
   const lastMine = messages.at(-1)?.mine ?? false;
-  // The responder can offer or reserve when the post takes offers and they have none waiting.
-  const hasPendingOffer = messages.some((m) => m.offer?.status === "pending");
-  const labels = offerLabels(postKind);
-  const canOffer = !viewerIsOwner && !hasPendingOffer && (offerOptions.offer || offerOptions.reserve);
   // Following the newest message: true while the reader is at the bottom.
   const following = useRef(true);
   const newest = useRef(lastId);
@@ -136,9 +133,13 @@ export function Chat({
                     ))}
                   </div>
                 ) : null}
-                {m.offer ? (
-                  <OfferCardView offer={m.offer} viewerIsOwner={viewerIsOwner} responderName={otherName} postKind={postKind} />
+                {m.listing ? (
+                  <div className="w-[85%] rounded-2xl border border-zinc-300 bg-[var(--background)] p-2 dark:border-zinc-700">
+                    <p className="px-1 pb-1 text-xs text-zinc-500">{m.mine ? "You asked about" : "Asked about"}</p>
+                    <ProductCard post={m.listing.post} thumbUrl={m.listing.thumbUrl} state={m.listing.state} compact />
+                  </div>
                 ) : null}
+                {m.offer ? <OfferCardView offer={m.offer} responderName={otherName} /> : null}
                 {m.body ? (
                   <p className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 ${m.mine ? "bg-brand text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>{m.body}</p>
                 ) : null}
@@ -158,20 +159,6 @@ export function Chat({
           >
             New message ↓
           </button>
-        ) : null}
-        {canOffer && !readOnlyReason ? (
-          <div className="mb-2 flex gap-2">
-            {offerOptions.offer ? (
-              <Link href={`/offers/new?post=${postId}&type=offer`} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-                {labels.offer}
-              </Link>
-            ) : null}
-            {offerOptions.reserve ? (
-              <Link href={`/offers/new?post=${postId}&type=reserve`} className="flex h-11 flex-1 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-                {labels.reserve}
-              </Link>
-            ) : null}
-          </div>
         ) : null}
         {readOnlyReason ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">{readOnlyReason}</p>

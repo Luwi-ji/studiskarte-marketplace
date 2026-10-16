@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { conversation, deal, heart, image, offer, post, postPhoto, postView } from "@/db/schema";
+import { deal, heart, image, offer, post, postPhoto, postView } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { unitsTakenSql } from "@/lib/deals/capacity";
 
@@ -43,8 +43,8 @@ export async function listOwnPosts(ownerId: string): Promise<OwnPost[]> {
       heartCount: sql<number>`(select count(*)::int from ${heart} where ${heart.postId} = ${post.id})`,
       quantity: post.quantity,
       unitsTaken: unitsTakenSql(post.id),
-      editLocked: sql<boolean>`(exists (select 1 from ${deal} where ${deal.postId} = ${post.id} and ${deal.status} in ('agreed', 'scheduled')) or exists (select 1 from ${offer} join ${conversation} on ${conversation.id} = ${offer.conversationId} where ${conversation.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now()))`,
-      pendingOffers: sql<number>`(select count(*)::int from ${offer} join ${conversation} on ${conversation.id} = ${offer.conversationId} where ${conversation.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now())`,
+      editLocked: sql<boolean>`(exists (select 1 from ${deal} where ${deal.postId} = ${post.id} and ${deal.status} in ('agreed', 'scheduled')) or exists (select 1 from ${offer} where ${offer.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now()))`,
+      pendingOffers: sql<number>`(select count(*)::int from ${offer} where ${offer.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now())`,
     })
     .from(post)
     .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))

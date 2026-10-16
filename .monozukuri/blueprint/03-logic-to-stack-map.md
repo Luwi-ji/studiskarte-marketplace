@@ -46,7 +46,7 @@ Revision 2. Mapped against stage 1 revision 2 and stage 2 as revised. Every stag
 | `rate_limit_event` | ours | |
 | `reminder_log`, `job_run` | ours | Reminder idempotency and the stale-scheduler warning |
 
-Design choices: Showcase and Wishlist share the `post` table with a `kind` column, so a conversation, offer, or report points at one `post_id`. Counts (followers, sold, granted, bought, rating, views) and the "typically replies within" time are computed by queries in `src/lib/deals/stats.ts`, `src/lib/social/follow.ts`, `src/lib/posts/views.ts` and `src/lib/messaging/response-time.ts`, never stored. If `post_view` grows too large, old rows can be rolled into a total later.
+Design choices: Showcase and Wishlist share the `post` table with a `kind` column, so an offer or report points at one `post_id`, and a conversation lists its posts in `conversation_listing`. Counts (followers, sold, granted, bought, rating, views) and the "typically replies within" time are computed by queries in `src/lib/deals/stats.ts`, `src/lib/social/follow.ts`, `src/lib/posts/views.ts` and `src/lib/messaging/response-time.ts`, never stored. If `post_view` grows too large, old rows can be rolled into a total later.
 
 ## Map
 
@@ -104,7 +104,7 @@ Design choices: Showcase and Wishlist share the `post` table with a `kind` colum
 | Calendar feed link | entity | `student.calendar_token_hash` | Only the hash is stored |
 | Availability window | attribute | `availability_window` table | |
 | Student owns many posts | relationship | `post.owner_id` foreign key | |
-| Post has photos, conversations, offers, one active deal | relationship | Foreign keys to `post.id` | Active deal limited by the partial unique index below |
+| Post has photos, listings in conversations, offers, one active deal | relationship | Foreign keys to `post.id` (`conversation_listing.post_id`, `message.post_id`, `offer.post_id`) | Active deal limited by the partial unique index below |
 | Conversation has many messages | relationship | `message.conversation_id` foreign key | |
 | Deal has up to two reviews | relationship | `review.deal_id` foreign key | |
 
@@ -175,7 +175,7 @@ Design choices: Showcase and Wishlist share the `post` table with a `kind` colum
 
 | Element | Type | Home | Notes |
 | --- | --- | --- | --- |
-| Cannot message own post | rule | `messaging/start.ts` plus a trigger on `conversation` | A CHECK cannot compare across tables |
+| Cannot message own post | rule | `messaging/send.ts`; the pair CHECK (a < b) refuses a conversation with yourself; triggers refuse a listing, a listing card or an offer that does not fit the pair | A CHECK cannot compare across tables |
 | Conversation private | rule | `requireParticipant` | |
 | Message pictures visible only to the two | rule | `images/signed-url.ts` checks participation before signing | |
 | Closed, withdrawn, expired, hidden post means read-only. Relisting reactivates it | rule | `messaging/state.ts`, derived from `post.status`, checked in `send.ts` | |
@@ -277,7 +277,7 @@ Design choices: Showcase and Wishlist share the `post` table with a `kind` colum
 | Element | Type | Home | Notes |
 | --- | --- | --- | --- |
 | Post has one owner, at least one photo, fixed kind | invariant | `post.owner_id` NOT NULL FK, the photo check, the kind trigger | |
-| Conversation: two distinct participants, one post, one per pair | invariant | `conversation` NOT NULL FKs, UNIQUE (`post_id`, `responder_id`), the own-post trigger | |
+| Conversation: two distinct participants, one per pair | invariant | `conversation` NOT NULL FKs, UNIQUE (`participant_a`, `participant_b`), CHECK (`participant_a` < `participant_b` COLLATE "C") | |
 | One pending offer per post and responder. No offer on own post | invariant | The partial UNIQUE and the offer trigger | |
 | One active deal per post. Participants are owner and responder, distinct | invariant | The partial UNIQUE on `deal(post_id)`, and `deal` FKs with a trigger | |
 | Deal completes only after both confirm | invariant | CHECK: status completed requires both confirmation times | |
@@ -330,7 +330,7 @@ Design choices: Showcase and Wishlist share the `post` table with a `kind` colum
 | Message to a post closed in the meantime | `messaging/send.ts` re-checks inside its transaction |
 | Duplicate post | A check in `posts/create.ts` over open posts of the same owner, kind, title, and description |
 | Post expires while a message or offer is being written | `messaging/send.ts` and `deals/offers.ts` re-check status inside their transactions |
-| Relist reactivates conversations. Expired offers stay expired | `messaging/state.ts` is derived. `offer.status` is not touched by relisting. |
+| Relist reopens the post to messages and offers. Expired offers stay expired | `listingClosedReason` is derived from the post. `offer.status` is not touched by relisting. |
 | Reserved post at 30 days | `jobs/expire-posts.ts` skips reserved posts |
 | Many relists | The shared open-count helper |
 | Many opens of one post in a day, owner opens | UNIQUE on `post_view`, and the owner skip |

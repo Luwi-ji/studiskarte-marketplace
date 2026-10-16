@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { conversation, image, message, messageImage, post, rateLimitEvent } from "@/db/schema";
+import { conversation, conversationListing, image, message, messageImage, post, rateLimitEvent } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
 import { cleanupUnusedPhotos } from "@/lib/jobs/cleanup";
 import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
-import { countUnread, findConversationId, getConversation, listConversations, markRead } from "@/lib/messaging/read";
-import { CLOSED_ACCOUNT, CLOSED_POST, MESSAGE_MAX, MESSAGES_PER_MINUTE, parseMessage, readOnlyReason } from "@/lib/messaging/rules";
+import { countUnread, getConversation, listConversations, markRead } from "@/lib/messaging/read";
+import { CLOSED_ACCOUNT, CLOSED_POST, listingClosedReason, MESSAGE_MAX, MESSAGES_PER_MINUTE, orderedPair, parseMessage, readOnlyReason } from "@/lib/messaging/rules";
 import { sendMessage, startConversation } from "@/lib/messaging/send";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
 import { photosOf } from "@/test/photos";
@@ -81,13 +81,26 @@ beforeEach(async () => {
   await db.delete(rateLimitEvent).where(inArray(rateLimitEvent.key, people));
 });
 
+/** The conversations the seller is in. Everyone talks to the seller, so each test starts with none. */
+async function clearThreads() {
+  await db.delete(conversation).where(or(eq(conversation.participantA, seller), eq(conversation.participantB, seller)));
+}
+
+/** The conversations between two people (there is never more than one). */
+async function between(x: string, y: string) {
+  const { a, b } = orderedPair(x, y);
+  return db.select().from(conversation).where(and(eq(conversation.participantA, a), eq(conversation.participantB, b)));
+}
+
 // A seller may have only 20 open posts, and each test makes its own.
 afterEach(async () => {
   await db.delete(post).where(eq(post.ownerId, seller));
+  await clearThreads();
 });
 
 afterAll(async () => {
   await db.delete(post).where(eq(post.ownerId, seller));
+  await clearThreads();
   await db.delete(image).where(inArray(image.ownerId, people));
   await db.delete(rateLimitEvent).where(inArray(rateLimitEvent.key, people));
   for (const id of people) await deleteTestStudent(id);
@@ -117,39 +130,48 @@ describe("what a message may contain", () => {
 });
 
 describe("when a conversation takes messages", () => {
+  it("is closed only when either person is suspended or deleted", () => {
+    expect(readOnlyReason({ aStatus: "active", bStatus: "active" })).toBeNull();
+    expect(readOnlyReason({ aStatus: "suspended", bStatus: "active" })).toBe(CLOSED_ACCOUNT);
+    expect(readOnlyReason({ aStatus: "active", bStatus: "deleted" })).toBe(CLOSED_ACCOUNT);
+  });
+});
+
+describe("when something new can be started about a listing", () => {
   const future = new Date(Date.now() + 86_400_000);
   const base = { postStatus: "open", postExpiresAt: future, ownerStatus: "active", responderStatus: "active" };
-  it("is active for an open or reserved post, and read-only otherwise", () => {
-    expect(readOnlyReason(base)).toBeNull();
-    expect(readOnlyReason({ ...base, postStatus: "reserved" })).toBeNull();
+  it("is possible for an open or reserved listing, and not otherwise", () => {
+    expect(listingClosedReason(base)).toBeNull();
+    expect(listingClosedReason({ ...base, postStatus: "reserved" })).toBeNull();
     for (const status of ["withdrawn", "expired", "fulfilled", "hidden", "removed"]) {
-      expect(readOnlyReason({ ...base, postStatus: status })).toBe(CLOSED_POST);
+      expect(listingClosedReason({ ...base, postStatus: status })).toBe(CLOSED_POST);
     }
-    expect(readOnlyReason({ ...base, postExpiresAt: new Date(Date.now() - 1000) })).toBe(CLOSED_POST);
+    expect(listingClosedReason({ ...base, postExpiresAt: new Date(Date.now() - 1000) })).toBe(CLOSED_POST);
   });
   it("is closed when either person is suspended or deleted", () => {
-    expect(readOnlyReason({ ...base, ownerStatus: "suspended" })).toBe(CLOSED_ACCOUNT);
-    expect(readOnlyReason({ ...base, responderStatus: "deleted" })).toBe(CLOSED_ACCOUNT);
+    expect(listingClosedReason({ ...base, ownerStatus: "suspended" })).toBe(CLOSED_ACCOUNT);
+    expect(listingClosedReason({ ...base, responderStatus: "deleted" })).toBe(CLOSED_ACCOUNT);
   });
 });
 
 describe("starting a conversation", () => {
-  it("creates the conversation with the first message, and later messages join it", async () => {
+  it("creates the conversation with the first message, and later messages about the post join it", async () => {
     const { postId, conversationId } = await started();
-    expect(await findConversationId(ana, postId)).toBe(conversationId);
     const again = await startConversation({ senderId: ana, postId, input: say("Second") });
     expect(again).toEqual({ ok: true, conversationId });
     const view = await getConversation(ana, conversationId);
     expect(view?.messages.map((m) => [m.body, m.mine])).toEqual([["Is this still available?", true], ["Second", true]]);
-    expect(await db.select().from(conversation).where(eq(conversation.postId, postId))).toHaveLength(1);
+    expect(view?.messages.every((m) => m.listing?.post.id === postId)).toBe(true);
+    expect(view?.listings.map((l) => l.post.id)).toEqual([postId]);
+    expect(await between(ana, seller)).toHaveLength(1);
   });
 
-  it("refuses messaging your own post, in code and in the database", async () => {
+  it("refuses messaging your own post, and a conversation with yourself or in the wrong order, in the database", async () => {
     const postId = await newPost();
     expect(await startConversation({ senderId: seller, postId, input: say("Hi me") })).toEqual({ ok: false, error: "You can't message your own post." });
-    await expect(db.insert(conversation).values({ postId, responderId: seller })).rejects.toMatchObject({
-      cause: { code: "23514" },
-    });
+    await expect(db.insert(conversation).values({ participantA: seller, participantB: seller })).rejects.toMatchObject({ cause: { code: "23514" } });
+    const { a, b } = orderedPair(ana, seller);
+    await expect(db.insert(conversation).values({ participantA: b, participantB: a })).rejects.toMatchObject({ cause: { code: "23514" } });
   });
 
   it("gives two students who message the same post at the same moment a conversation each", async () => {
@@ -169,8 +191,8 @@ describe("starting a conversation", () => {
     const postId = await newPost();
     const results = await Promise.all([1, 2, 3].map((n) => startConversation({ senderId: ana, postId, input: say(`Twice ${n}`) })));
     expect(results.every((r) => r.ok)).toBe(true);
-    expect(await db.select().from(conversation).where(eq(conversation.postId, postId))).toHaveLength(1);
-    expect(await db.select().from(message).innerJoin(conversation, eq(conversation.id, message.conversationId)).where(eq(conversation.postId, postId))).toHaveLength(3);
+    expect(await between(ana, seller)).toHaveLength(1);
+    expect(await db.select().from(message).innerJoin(conversation, eq(conversation.id, message.conversationId)).where(eq(message.postId, postId))).toHaveLength(3);
   });
 
   it("is refused for a post that is withdrawn, expired, or unknown", async () => {
@@ -183,14 +205,81 @@ describe("starting a conversation", () => {
     expect(await startConversation({ senderId: ana, postId: lapsed, input: say("Hi") })).toEqual({ ok: false, error: CLOSED_POST });
 
     expect(await startConversation({ senderId: ana, postId: randomUUID(), input: say("Hi") })).toMatchObject({ ok: false });
-    expect(await db.select().from(conversation).where(inArray(conversation.postId, [withdrawn, lapsed]))).toHaveLength(0);
+    expect(await between(ana, seller)).toHaveLength(0);
+    expect(await db.select().from(conversationListing).where(inArray(conversationListing.postId, [withdrawn, lapsed]))).toHaveLength(0);
   });
 
   it("leaves nothing behind when the message is refused", async () => {
     const postId = await newPost();
     const result = await startConversation({ senderId: ana, postId, input: say("Hi", [randomUUID()]) });
     expect(result).toMatchObject({ ok: false });
-    expect(await db.select().from(conversation).where(eq(conversation.postId, postId))).toHaveLength(0);
+    expect(await between(ana, seller)).toHaveLength(0);
+    expect(await db.select().from(conversationListing).where(eq(conversationListing.postId, postId))).toHaveLength(0);
+  });
+});
+
+describe("one conversation for a pair, however many listings", () => {
+  it("puts messages about two listings in the same thread, each with its own listing card", async () => {
+    const first = await started();
+    const second = await started();
+    expect(second.conversationId).toBe(first.conversationId);
+    expect(await sendMessage({ senderId: seller, conversationId: first.conversationId, input: say("Yes, both are free.") })).toMatchObject({ ok: true });
+
+    const view = await getConversation(ana, first.conversationId);
+    expect(view?.messages.map((m) => m.listing?.post.id ?? null)).toEqual([first.postId, second.postId, null]);
+    // The listing with the newest message comes first.
+    expect(view?.listings.map((l) => l.post.id)).toEqual([second.postId, first.postId]);
+    expect(view?.listings.every((l) => !l.viewerIsOwner)).toBe(true);
+    expect((await getConversation(seller, first.conversationId))?.listings.every((l) => l.viewerIsOwner)).toBe(true);
+    expect(await between(ana, seller)).toHaveLength(1);
+  });
+
+  it("shows the inbox the listing's title when there is one, and the number of listings when there are more", async () => {
+    const first = await started();
+    const [row] = await db.select({ title: post.title }).from(post).where(eq(post.id, first.postId));
+    expect((await listConversations(ana)).find((c) => c.id === first.conversationId)).toMatchObject({ listingCount: 1, listingTitle: row.title });
+    await started();
+    expect((await listConversations(ana)).find((c) => c.id === first.conversationId)).toMatchObject({ listingCount: 2, listingTitle: null });
+    expect((await listConversations(seller)).find((c) => c.id === first.conversationId)).toMatchObject({ listingCount: 2 });
+  });
+
+  it("refuses in the database a listing card or a listing for a post that belongs to neither person", async () => {
+    const { conversationId } = await started();
+    const [elsewhere] = await db.insert(image).values({ ownerId: ben, purpose: "post_photo", key: `t/${randomUUID()}`, thumbKey: `t/${randomUUID()}`, width: 1, height: 1, bytes: 1 }).returning({ id: image.id });
+    const created = await createPost({
+      ownerId: ben,
+      input: {
+        kind: "showcase", title: `Ben's post ${run}`, description: "Not theirs.", categoryId: "other", condition: null, priceKind: "free", priceAmount: "",
+        exchangeMeetup: true, exchangeDelivery: false, meetupLocation: "Gate", deliveryArea: "",
+        availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }], photos: photosOf([elsewhere.id]),
+      },
+    });
+    if (!created.ok) throw new Error(JSON.stringify(created.errors));
+    try {
+      await expect(db.insert(conversationListing).values({ conversationId, postId: created.id })).rejects.toMatchObject({ cause: { code: "23514" } });
+      await expect(db.insert(message).values({ conversationId, senderId: ana, body: "see this", postId: created.id })).rejects.toMatchObject({ cause: { code: "23514" } });
+    } finally {
+      await db.delete(post).where(eq(post.id, created.id));
+    }
+  });
+
+  it("keeps each side's read position when the pair is stored the other way round", async () => {
+    // Ana and Ben both talk to the seller: one of the two pairs is stored seller-first and the other buyer-first.
+    const a = await started(ana);
+    const b = await started(ben);
+    await sendMessage({ senderId: seller, conversationId: a.conversationId, input: say("To Ana") });
+    await sendMessage({ senderId: seller, conversationId: b.conversationId, input: say("To Ben") });
+    expect((await getConversation(ana, a.conversationId))?.unread).toBe(1);
+    expect((await getConversation(ben, b.conversationId))?.unread).toBe(1);
+    expect(await markRead(ana, a.conversationId)).toBe(true);
+    expect(await markRead(ben, b.conversationId)).toBe(true);
+    expect((await getConversation(ana, a.conversationId))?.unread).toBe(0);
+    expect((await getConversation(ben, b.conversationId))?.unread).toBe(0);
+    // Replying read the seller's side. A new message from Ben counts for the seller in Ben's thread only.
+    await sendMessage({ senderId: ben, conversationId: b.conversationId, input: say("Ben again") });
+    const unread = new Map((await listConversations(seller)).map((c) => [c.id, c.unread]));
+    expect(unread.get(a.conversationId)).toBe(0);
+    expect(unread.get(b.conversationId)).toBe(1);
   });
 });
 
@@ -284,34 +373,37 @@ describe("pictures", () => {
 });
 
 describe("closed posts and relisting", () => {
-  it("keeps a conversation readable but refuses new messages once the post is closed, then accepts them after a relist", async () => {
+  it("keeps the conversation open when a listing closes, but nothing new can be started about that listing until it is relisted", async () => {
     const { postId, conversationId } = await started();
     await db.update(post).set({ status: "withdrawn" }).where(eq(post.id, postId));
-    expect(await sendMessage({ senderId: ana, conversationId, input: say("Still there?") })).toEqual({ ok: false, error: CLOSED_POST });
-    expect(await sendMessage({ senderId: seller, conversationId, input: say("Sorry") })).toEqual({ ok: false, error: CLOSED_POST });
+    expect(await sendMessage({ senderId: ana, conversationId, input: say("Still there?") })).toEqual({ ok: true, conversationId });
+    expect(await sendMessage({ senderId: seller, conversationId, input: say("Sorry, it is gone") })).toEqual({ ok: true, conversationId });
+    expect(await startConversation({ senderId: ana, postId, input: say("What about now?") })).toEqual({ ok: false, error: CLOSED_POST });
     const readable = await getConversation(ana, conversationId);
-    expect(readable?.readOnlyReason).toBe(CLOSED_POST);
-    expect(readable?.messages).toHaveLength(1);
+    expect(readable?.readOnlyReason).toBeNull();
+    expect(readable?.messages).toHaveLength(3);
+    expect(readable?.listings[0].post.status).toBe("withdrawn");
 
     // An expired post, then the owner relists it.
     await db.update(post).set({ status: "expired" }).where(eq(post.id, postId));
-    expect((await getConversation(ana, conversationId))?.readOnlyReason).toBe(CLOSED_POST);
+    expect(await startConversation({ senderId: ana, postId, input: say("Hello?") })).toEqual({ ok: false, error: CLOSED_POST });
     await db
       .update(post)
       .set({ status: "open", listedAt: sql`now()`, expiresAt: sql`now() + interval '30 days'` })
       .where(eq(post.id, postId));
-    expect((await getConversation(ana, conversationId))?.readOnlyReason).toBeNull();
-    expect((await sendMessage({ senderId: ana, conversationId, input: say("Back again") })).ok).toBe(true);
+    expect((await startConversation({ senderId: ana, postId, input: say("Back again") })).ok).toBe(true);
   });
 
   it("stays active for a reserved post and closes when someone is suspended", async () => {
     const { postId, conversationId } = await started(ben);
     await db.update(post).set({ status: "reserved" }).where(eq(post.id, postId));
     expect((await sendMessage({ senderId: ben, conversationId, input: say("Reserved ok") })).ok).toBe(true);
+    expect((await startConversation({ senderId: ben, postId, input: say("Another question") })).ok).toBe(true);
     await db.update(post).set({ status: "open" }).where(eq(post.id, postId));
     await db.execute(sql`update student set account_status = 'suspended' where id = ${ben}`);
     try {
       expect(await sendMessage({ senderId: seller, conversationId, input: say("Hello?") })).toEqual({ ok: false, error: CLOSED_ACCOUNT });
+      expect((await getConversation(seller, conversationId))?.readOnlyReason).toBe(CLOSED_ACCOUNT);
     } finally {
       await db.execute(sql`update student set account_status = 'active' where id = ${ben}`);
     }
@@ -347,13 +439,13 @@ describe("unread", () => {
   });
 
   it("lists the most recently active conversation first, with its last message", async () => {
-    const first = await started();
-    const second = await started();
+    const first = await started(ana);
+    const second = await started(ben);
     await sendMessage({ senderId: ana, conversationId: first.conversationId, input: say("", [await messagePhoto(ana)]) });
-    const list = await listConversations(ana);
+    const list = await listConversations(seller);
     const ids = list.map((c) => c.id);
     expect(ids.indexOf(first.conversationId)).toBeLessThan(ids.indexOf(second.conversationId));
-    expect(list[ids.indexOf(first.conversationId)].lastMessage).toMatchObject({ body: null, hasPictures: true, fromMe: true });
+    expect(list[ids.indexOf(first.conversationId)].lastMessage).toMatchObject({ body: null, hasPictures: true, fromMe: false });
     expect(list[ids.indexOf(second.conversationId)].lastMessage).toMatchObject({ body: "Is this still available?", hasPictures: false });
   });
 });

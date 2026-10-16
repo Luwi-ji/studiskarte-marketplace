@@ -63,7 +63,7 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
       <PageHeader title={kind === "reserve" ? labels.reserve : labels.offer} back={`/posts/${detail.id}`} />
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-3 py-3">
         <ProductCard
-          post={{ id: detail.id, title: detail.title, priceKind: detail.priceKind, priceAmount: detail.priceAmount, status: detail.status, thumbKey: detail.photos[0].key }}
+          post={{ id: detail.id, title: detail.title, priceKind: detail.priceKind, priceAmount: detail.priceAmount, status: detail.status, thumbKey: detail.photos[0].key, kind: detail.kind }}
           thumbUrl={thumbUrl}
         />
         {allowed ? (

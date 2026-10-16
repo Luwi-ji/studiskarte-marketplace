@@ -189,34 +189,53 @@ export const heart = pgTable(
   (t) => [primaryKey({ columns: [t.studentId, t.postId] }), index("heart_post_idx").on(t.postId)],
 );
 
-// A private thread between a post's owner and one responder about that post.
-// The database refuses the owner as responder (trigger) and a second thread for
-// the same (post, responder). Whether it accepts new messages is worked out
-// from the post's state when it is read, so relisting reactivates it.
+// One private thread per pair of students, however many listings they deal
+// about (owner, 2026-10-17). The two are stored in a fixed order (a before b,
+// by id), so there is exactly one row per pair. Each side has its own read
+// pointer. The listings the two have dealt about are in conversation_listing.
 export const conversation = pgTable(
   "conversation",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    postId: uuid("post_id")
+    participantA: text("participant_a")
       .notNull()
-      .references(() => post.id, { onDelete: "cascade" }),
-    responderId: text("responder_id")
+      .references(() => student.id),
+    participantB: text("participant_b")
       .notNull()
       .references(() => student.id),
     // The newest message, for ordering the inbox.
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
     // Each side has read every message up to this number (0: none yet).
-    ownerReadUpTo: bigint("owner_read_up_to", { mode: "number" }).notNull().default(0),
-    responderReadUpTo: bigint("responder_read_up_to", { mode: "number" }).notNull().default(0),
+    aReadUpTo: bigint("a_read_up_to", { mode: "number" }).notNull().default(0),
+    bReadUpTo: bigint("b_read_up_to", { mode: "number" }).notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    unique("conversation_post_responder").on(t.postId, t.responderId),
-    index("conversation_responder_idx").on(t.responderId, t.lastMessageAt.desc()),
+    check("conversation_ordered_pair", sql`${t.participantA} < ${t.participantB} collate "C"`),
+    unique("conversation_pair").on(t.participantA, t.participantB),
+    index("conversation_a_idx").on(t.participantA, t.lastMessageAt.desc()),
+    index("conversation_b_idx").on(t.participantB, t.lastMessageAt.desc()),
   ],
 );
 
-// Text, pictures, an offer card, or any mix (a trigger refuses a message with none).
+// The listings a thread is about: its "transactions". A listing joins when
+// someone messages about it or makes an offer on it. The listing's owner is
+// one of the thread's two people (a trigger).
+export const conversationListing = pgTable(
+  "conversation_listing",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversation.id, { onDelete: "cascade" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.conversationId, t.postId] }), index("conversation_listing_post_idx").on(t.postId)],
+);
+
+// Text, pictures, a listing card, an offer card, or any mix (a trigger refuses a message with none).
 export const message = pgTable(
   "message",
   {
@@ -229,6 +248,9 @@ export const message = pgTable(
       .notNull()
       .references(() => student.id),
     body: text("body"),
+    // The listing this message pertains to: set on a listing card (sent when someone
+    // messages about a listing) and on an offer card.
+    postId: uuid("post_id").references(() => post.id, { onDelete: "cascade" }),
     // Set when this message is an offer card (the responder's offer, with an optional note in the body).
     offerId: uuid("offer_id")
       .references((): AnyPgColumn => offer.id, { onDelete: "cascade" })
@@ -241,9 +263,9 @@ export const message = pgTable(
   ],
 );
 
-// The responder's proposal inside their conversation about a post: an amount,
-// or a "reserve" at the asking price. One pending offer per conversation, so
-// one per responder per post. The status is the offer's whole lifecycle.
+// The responder's proposal on a post: an amount, or a "reserve" at the asking
+// price. It appears as a card in the thread between the two. One pending offer
+// per responder per post (the index). The status is the offer's whole lifecycle.
 export const offer = pgTable(
   "offer",
   {
@@ -251,6 +273,13 @@ export const offer = pgTable(
     conversationId: uuid("conversation_id")
       .notNull()
       .references(() => conversation.id, { onDelete: "cascade" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    // The one making the offer: never the post's owner (a trigger).
+    responderId: text("responder_id")
+      .notNull()
+      .references(() => student.id),
     // Whole pesos. A reserve of a free post is 0.
     amount: integer("amount").notNull(),
     isReserve: boolean("is_reserve").notNull().default(false),
@@ -269,8 +298,9 @@ export const offer = pgTable(
     ),
     check("offer_quantity", sql`${t.quantity} between 1 and 1000`),
     check("offer_decided", sql`(${t.status} = 'pending') = (${t.decidedAt} is null)`),
-    uniqueIndex("offer_one_pending_idx").on(t.conversationId).where(sql`${t.status} = 'pending'`),
+    uniqueIndex("offer_one_pending_idx").on(t.postId, t.responderId).where(sql`${t.status} = 'pending'`),
     index("offer_conversation_idx").on(t.conversationId, t.createdAt),
+    index("offer_post_idx").on(t.postId, t.status),
   ],
 );
 

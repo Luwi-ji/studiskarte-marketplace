@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { image, notification, post, pushSubscription, rateLimitEvent, student } from "@/db/schema";
+import { conversation, image, notification, post, pushSubscription, rateLimitEvent, student } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import { expirePosts } from "@/lib/jobs/expire-posts";
 import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
@@ -75,6 +75,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await db.delete(post).where(eq(post.ownerId, seller));
+  // Everyone talks to the seller, so each test starts without conversations.
+  await db.delete(conversation).where(or(eq(conversation.participantA, seller), eq(conversation.participantB, seller)));
   await db.delete(notification).where(inArray(notification.recipientId, people));
   await db.delete(pushSubscription).where(inArray(pushSubscription.studentId, people));
 });

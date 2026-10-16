@@ -35,7 +35,7 @@ Next.js App Router. Pages render on the server. Mutations (post, close, message,
 ## Data
 PostgreSQL. Constraints carry the stage 1 invariants:
 - unique school email per student;
-- unique (post, responder) per conversation;
+- unique (participant a, participant b) per conversation, stored in fixed order (a before b in byte order, a CHECK);
 - check price and budget ≥ 0;
 - a post's kind is fixed after creation;
 - foreign keys from posts to students, and from messages to conversations.

@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { conversation, deal, image, message, notification, offer, post, rateLimitEvent, student } from "@/db/schema";
+import { conversation, conversationListing, deal, image, message, notification, offer, post, rateLimitEvent, student } from "@/db/schema";
 import { acceptOffer } from "@/lib/deals/accept";
 import { declineOffer, makeOffer, OFFER_CLOSED, OFFER_NOT_FOUND, withdrawOffer } from "@/lib/deals/offers";
 import { OFFER_DAYS, offerLabels, offerOptions, parseOffer, RESERVED_POST } from "@/lib/deals/rules";
 import { getDb, getPool } from "@/lib/db";
 import { expireOffers } from "@/lib/jobs/expire-offers";
 import { CLOSED_POST } from "@/lib/messaging/rules";
+import { getConversation } from "@/lib/messaging/read";
 import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
@@ -83,6 +84,8 @@ beforeEach(async () => {
 // A seller may have only 20 open posts, and each test makes its own.
 afterEach(async () => {
   await db.delete(post).where(eq(post.ownerId, seller));
+  // Everyone deals with the seller, so each test starts without conversations.
+  await db.delete(conversation).where(or(eq(conversation.participantA, seller), eq(conversation.participantB, seller)));
   await db.delete(notification).where(inArray(notification.recipientId, people));
 });
 
@@ -154,6 +157,19 @@ describe("making an offer", () => {
     expect(await noticesFor(ana)).toEqual([]);
   });
 
+  it("puts offers on two listings in the one conversation between the two, each card with its listing", async () => {
+    const first = await newPost();
+    const second = await newPost();
+    const a = await offered(ana, first, 450);
+    const b = await offered(ana, second, 300);
+    expect(b.conversationId).toBe(a.conversationId);
+    const cards = await db.select({ postId: message.postId, offerId: message.offerId }).from(message).where(eq(message.conversationId, a.conversationId)).orderBy(message.id);
+    expect(cards).toEqual([{ postId: first, offerId: a.offerId }, { postId: second, offerId: b.offerId }]);
+    expect((await db.select().from(conversationListing).where(eq(conversationListing.conversationId, a.conversationId))).map((l) => l.postId).sort()).toEqual([first, second].sort());
+    // A waiting offer on one listing does not block an offer on the other.
+    expect((await getConversation(ana, a.conversationId))?.listings.map((l) => l.state)).toEqual(["Offer waiting", "Offer waiting"]);
+  });
+
   it("reserves at the asking price: a priced post at its price, a free post at 0", async () => {
     const priced = await newPost({ kind: "amount", amount: 725 });
     const free = await newPost({ kind: "free" });
@@ -169,7 +185,7 @@ describe("making an offer", () => {
     const free = await newPost({ kind: "free" });
     expect(await makeOffer({ responderId: ana, postId: negotiable, input: reserveInput() })).toMatchObject({ ok: false, error: expect.stringContaining("Make an offer") });
     expect(await makeOffer({ responderId: ana, postId: free, input: offerInput(100) })).toMatchObject({ ok: false, error: expect.stringContaining("free") });
-    expect(await db.select().from(conversation).where(inArray(conversation.postId, [negotiable, free]))).toHaveLength(0);
+    expect(await db.select().from(conversationListing).where(inArray(conversationListing.postId, [negotiable, free]))).toHaveLength(0);
     // An offer on a negotiable post is fine.
     expect((await makeOffer({ responderId: ana, postId: negotiable, input: offerInput(300) })).ok).toBe(true);
   });
@@ -191,7 +207,7 @@ describe("making an offer", () => {
     const lapsed = await newPost();
     await db.update(post).set({ expiresAt: sql`now() - interval '1 minute'`, listedAt: sql`now() - interval '31 days'` }).where(eq(post.id, lapsed));
     expect(await makeOffer({ responderId: ana, postId: lapsed, input: offerInput(100) })).toEqual({ ok: false, error: CLOSED_POST });
-    expect(await db.select().from(conversation).where(inArray(conversation.postId, [reserved, withdrawn, lapsed]))).toHaveLength(0);
+    expect(await db.select().from(conversationListing).where(inArray(conversationListing.postId, [reserved, withdrawn, lapsed]))).toHaveLength(0);
   });
 
   it("allows one pending offer per responder per post, and a new one after the old is withdrawn or declined", async () => {
@@ -210,7 +226,7 @@ describe("making an offer", () => {
     const postId = await newPost();
     const results = await Promise.all([1, 2, 3].map((n) => makeOffer({ responderId: ana, postId, input: offerInput(300 + n) })));
     expect(results.filter((r) => r.ok)).toHaveLength(1);
-    expect(await db.select().from(offer).innerJoin(conversation, eq(conversation.id, offer.conversationId)).where(and(eq(conversation.postId, postId), eq(offer.status, "pending")))).toHaveLength(1);
+    expect(await db.select().from(offer).where(and(eq(offer.postId, postId), eq(offer.status, "pending")))).toHaveLength(1);
   });
 
   it("does not let an offer whose time has run out block a new one", async () => {
@@ -376,15 +392,16 @@ describe("expiry", () => {
 });
 
 describe("rules the database keeps", () => {
-  it("refuses a second pending offer in one conversation, and amounts out of range", async () => {
+  it("refuses a second pending offer by one buyer on one post, and amounts out of range", async () => {
     const postId = await newPost();
     const a = await offered(ana, postId);
     const expiresAt = new Date(Date.now() + DAY);
-    await expect(db.insert(offer).values({ conversationId: a.conversationId, amount: 10, expiresAt })).rejects.toMatchObject({ cause: { code: "23505" } });
+    const mine = { conversationId: a.conversationId, postId, responderId: ana, expiresAt };
+    await expect(db.insert(offer).values({ ...mine, amount: 10 })).rejects.toMatchObject({ cause: { code: "23505" } });
     await db.update(offer).set({ status: "withdrawn", decidedAt: new Date() }).where(eq(offer.id, a.offerId));
-    await expect(db.insert(offer).values({ conversationId: a.conversationId, amount: 0, isReserve: false, expiresAt })).rejects.toMatchObject({ cause: { code: "23514" } });
-    await expect(db.insert(offer).values({ conversationId: a.conversationId, amount: 1_000_001, expiresAt })).rejects.toMatchObject({ cause: { code: "23514" } });
-    await expect(db.insert(offer).values({ conversationId: a.conversationId, amount: 5, status: "accepted", expiresAt })).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.insert(offer).values({ ...mine, amount: 0, isReserve: false })).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.insert(offer).values({ ...mine, amount: 1_000_001 })).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.insert(offer).values({ ...mine, amount: 5, status: "accepted" })).rejects.toMatchObject({ cause: { code: "23514" } });
   });
 
   it("refuses in the database a deal for more units than the post has, and a deal between the wrong people", async () => {
@@ -406,10 +423,15 @@ describe("rules the database keeps", () => {
     const a = await offered(ana, postId);
     const b = await offered(ben, postId);
     await db.update(offer).set({ status: "withdrawn", decidedAt: new Date() }).where(eq(offer.id, a.offerId));
-    const [fresh] = await db.insert(offer).values({ conversationId: a.conversationId, amount: 77, expiresAt: new Date(Date.now() + DAY) }).returning({ id: offer.id });
-    await expect(db.insert(message).values({ conversationId: a.conversationId, senderId: seller, offerId: fresh.id })).rejects.toMatchObject({ cause: { code: "23514" } });
-    await expect(db.insert(message).values({ conversationId: b.conversationId, senderId: ben, offerId: fresh.id })).rejects.toMatchObject({ cause: { code: "23514" } });
-    await expect(db.insert(message).values({ conversationId: a.conversationId, senderId: ana, offerId: fresh.id })).resolves.toBeDefined();
+    const [fresh] = await db.insert(offer).values({ conversationId: a.conversationId, postId, responderId: ana, amount: 77, expiresAt: new Date(Date.now() + DAY) }).returning({ id: offer.id });
+    await expect(db.insert(message).values({ conversationId: a.conversationId, senderId: seller, offerId: fresh.id, postId })).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.insert(message).values({ conversationId: b.conversationId, senderId: ben, offerId: fresh.id, postId })).rejects.toMatchObject({ cause: { code: "23514" } });
+    // The card must name the listing the offer is on.
+    await expect(db.insert(message).values({ conversationId: a.conversationId, senderId: ana, offerId: fresh.id })).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.insert(message).values({ conversationId: a.conversationId, senderId: ana, offerId: fresh.id, postId })).resolves.toBeDefined();
+    // An offer by the post's owner, or in a conversation of other people, is refused too.
+    await expect(db.insert(offer).values({ conversationId: a.conversationId, postId, responderId: seller, amount: 5, expiresAt: new Date(Date.now() + DAY) })).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.insert(offer).values({ conversationId: b.conversationId, postId, responderId: ana, amount: 5, expiresAt: new Date(Date.now() + DAY) })).rejects.toMatchObject({ cause: { code: "23514" } });
     // A message with no text, picture or offer is still refused.
     await expect(db.insert(message).values({ conversationId: a.conversationId, senderId: ana, body: null })).rejects.toMatchObject({ cause: { code: "23514" } });
   });

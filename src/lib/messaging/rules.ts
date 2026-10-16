@@ -31,16 +31,30 @@ export function parseMessage(input: unknown): ParsedMessage {
   return { ok: true, data: { body: body === "" ? null : body, imageIds: parsed.data.imageIds } };
 }
 
+/** The two people of a conversation in its stored order (a before b, plain byte order: the database checks it). */
+export function orderedPair(x: string, y: string): { a: string; b: string } {
+  return x < y ? { a: x, b: y } : { a: y, b: x };
+}
+
 export const CLOSED_POST = "This post is no longer available, so no new messages can be sent.";
 export const CLOSED_ACCOUNT = "This conversation is closed.";
 
 /**
- * Why a conversation takes no new messages, or null when it does. A post that
- * is closed, withdrawn, expired or hidden makes it read-only; relisting makes
- * it active again, because this is worked out from the post as it is now.
- * A suspended or deleted student on either side closes it too.
+ * Why a conversation takes no new messages, or null when it does. The thread
+ * belongs to the two people, not to any one listing, so a closed listing does
+ * not close it. A suspended or deleted student on either side does.
  */
-export function readOnlyReason(args: {
+export function readOnlyReason(args: { aStatus: string; bStatus: string }): string | null {
+  return args.aStatus === "active" && args.bStatus === "active" ? null : CLOSED_ACCOUNT;
+}
+
+/**
+ * Why nothing new can be started about a listing (a message or an offer on
+ * it), or null. A listing that is closed, withdrawn, expired or hidden takes
+ * none; a fully reserved one still takes messages. Relisting opens it again,
+ * because this is worked out from the post as it is now.
+ */
+export function listingClosedReason(args: {
   postStatus: string;
   postExpiresAt: Date;
   ownerStatus: string;

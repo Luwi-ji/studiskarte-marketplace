@@ -1,6 +1,6 @@
 import { and, count, eq, gt, inArray, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, deal, offer, post, student } from "@/db/schema";
+import { deal, offer, post, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
 import { isUniqueViolation, getOrCreateConversation, writeMessage } from "@/lib/messaging/send";
 import { MESSAGES_PER_MINUTE } from "@/lib/messaging/rules";
@@ -21,8 +21,7 @@ async function hasPendingOfferIn(tx: DbTransaction, postId: string, responderId:
   const [row] = await tx
     .select({ n: count() })
     .from(offer)
-    .innerJoin(conversation, eq(conversation.id, offer.conversationId))
-    .where(and(eq(conversation.postId, postId), eq(conversation.responderId, responderId), eq(offer.status, "pending"), gt(offer.expiresAt, now)));
+    .where(and(eq(offer.postId, postId), eq(offer.responderId, responderId), eq(offer.status, "pending"), gt(offer.expiresAt, now)));
   return row.n > 0;
 }
 
@@ -30,8 +29,9 @@ const TOO_FAST = "You are sending messages too fast. Wait a moment and try again
 
 /**
  * The responder makes an offer on a post, or reserves it at the asking price.
- * The offer appears as a card in their conversation with the owner, which is
- * created if this is their first contact. Refused for your own post, for a
+ * The offer appears as a card in the one conversation between the two of
+ * them, which is created if this is their first contact, and the post joins
+ * its listings. Refused for your own post, for a
  * post that is reserved, closed, expired or hidden, for a "reserve" of a
  * negotiable post, and for an offer on a free one. One pending offer per post.
  */
@@ -96,17 +96,19 @@ export async function makeOffer(args: {
         return { ok: false, error: options.maxQuantity === 1 ? "Only 1 is left." : `Only ${options.maxQuantity} left.`, field: "quantity" };
       }
 
-      const conversationId = await getOrCreateConversation(tx, args.postId, args.responderId);
+      const conversationId = await getOrCreateConversation(tx, { postId: args.postId, ownerId: target.ownerId, otherId: args.responderId });
       // An offer whose time has run out must not block a new one while the job has not yet swept it.
       await tx
         .update(offer)
         .set({ status: "expired", decidedAt: now })
-        .where(and(eq(offer.conversationId, conversationId), eq(offer.status, "pending"), lte(offer.expiresAt, now)));
+        .where(and(eq(offer.postId, args.postId), eq(offer.responderId, args.responderId), eq(offer.status, "pending"), lte(offer.expiresAt, now)));
 
       const [created] = await tx
         .insert(offer)
         .values({
           conversationId,
+          postId: args.postId,
+          responderId: args.responderId,
           amount: data.kind === "reserve" ? (target.priceAmount ?? 0) : (data.amount ?? 0),
           isReserve: data.kind === "reserve",
           quantity: data.quantity,
@@ -116,9 +118,9 @@ export async function makeOffer(args: {
       await writeMessage(tx, {
         conversationId,
         senderId: args.responderId,
-        isOwner: false,
         data: { body: data.note, imageIds: [] },
         offerId: created.id,
+        postId: args.postId,
       });
       recorded = await recordNotification(tx, {
         type: "offer_received",
@@ -142,9 +144,8 @@ export async function withdrawOffer(args: { responderId: string; offerId: string
   const now = args.now ?? new Date();
   return getDb().transaction(async (tx): Promise<DecisionResult> => {
     const [found] = await tx
-      .select({ conversationId: offer.conversationId, responderId: conversation.responderId, status: offer.status })
+      .select({ conversationId: offer.conversationId, responderId: offer.responderId, status: offer.status })
       .from(offer)
-      .innerJoin(conversation, eq(conversation.id, offer.conversationId))
       .where(eq(offer.id, args.offerId))
       .for("update", { of: offer });
     if (!found || found.responderId !== args.responderId) return { ok: false, error: OFFER_NOT_FOUND };
@@ -164,12 +165,11 @@ export async function declineOffer(args: { ownerId: string; offerId: string; ale
         conversationId: offer.conversationId,
         postId: post.id,
         ownerId: post.ownerId,
-        responderId: conversation.responderId,
+        responderId: offer.responderId,
         status: offer.status,
       })
       .from(offer)
-      .innerJoin(conversation, eq(conversation.id, offer.conversationId))
-      .innerJoin(post, eq(post.id, conversation.postId))
+      .innerJoin(post, eq(post.id, offer.postId))
       .where(eq(offer.id, args.offerId))
       .for("update", { of: offer });
     if (!found || found.ownerId !== args.ownerId) return { ok: false, error: OFFER_NOT_FOUND };

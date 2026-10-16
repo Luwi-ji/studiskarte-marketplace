@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { deal, image, notification, offer, post, rateLimitEvent } from "@/db/schema";
+import { conversation, deal, image, notification, offer, post, rateLimitEvent } from "@/db/schema";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_CLOSED, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { unitsLeft, unitsTaken } from "@/lib/deals/capacity";
@@ -96,6 +96,8 @@ beforeEach(async () => {
 // A seller may have only 20 open posts, and each test makes its own.
 afterEach(async () => {
   await db.delete(post).where(eq(post.ownerId, seller));
+  // Everyone deals with the seller, so each test starts without conversations.
+  await db.delete(conversation).where(or(eq(conversation.participantA, seller), eq(conversation.participantB, seller)));
   await db.delete(notification).where(inArray(notification.recipientId, people));
 });
 
@@ -236,7 +238,7 @@ describe("several reservations on one listing", () => {
 });
 
 describe("a buyer who already has an offer waiting", () => {
-  it("is not offered Reserve or Make offer again, on the post or in the thread, until that offer is settled", async () => {
+  it("is not offered Reserve or Make offer again, on the post, until that offer is settled", async () => {
     const postId = await newPost(5);
     const a = await ask(ana, postId, reserve(1));
     // The post page data says so, and a second try is refused with the reason.
@@ -245,16 +247,16 @@ describe("a buyer who already has an offer waiting", () => {
     expect((await getPostDetail(seller, postId))?.myTransaction).toBeNull();
     expect(await makeOffer({ responderId: ana, postId, input: reserve(1) })).toEqual({ ok: false, error: PENDING_OFFER });
     expect(await makeOffer({ responderId: ana, postId, input: bid(50) })).toEqual({ ok: false, error: PENDING_OFFER });
-    const view = await getConversation(ana, a.conversationId);
-    expect(view?.offerOptions).toMatchObject({ offer: false, reserve: false, reason: PENDING_OFFER });
+    // The thread shows where it stands, to each side.
+    expect((await getConversation(ana, a.conversationId))?.listings).toMatchObject([{ state: "Reservation waiting", viewerIsOwner: false }]);
+    expect((await getConversation(seller, a.conversationId))?.listings).toMatchObject([{ state: "Reservation waiting", viewerIsOwner: true }]);
     // Another buyer is unaffected.
-    expect((await getConversation(seller, a.conversationId))?.viewerIsOwner).toBe(true);
     expect((await makeOffer({ responderId: ben, postId, input: reserve(1) })).ok).toBe(true);
 
     // Once the offer is withdrawn the buttons come back.
     await withdrawOffer({ responderId: ana, offerId: a.offerId });
     expect((await getPostDetail(ana, postId))?.myTransaction).toBeNull();
-    expect((await getConversation(ana, a.conversationId))?.offerOptions).toMatchObject({ offer: true, reserve: true });
+    expect((await getConversation(ana, a.conversationId))?.listings[0].state).toBe("Offer withdrawn");
     expect((await makeOffer({ responderId: ana, postId, input: reserve(1) })).ok).toBe(true);
   });
 
@@ -263,7 +265,8 @@ describe("a buyer who already has an offer waiting", () => {
     const a = await ask(ana, postId, reserve(1));
     await db.update(offer).set({ expiresAt: sql`now() - interval '1 minute'` }).where(eq(offer.id, a.offerId));
     expect((await getPostDetail(ana, postId))?.myTransaction).toBeNull();
-    expect((await getConversation(ana, a.conversationId))?.offerOptions).toMatchObject({ offer: true });
+    expect((await getConversation(ana, a.conversationId))?.listings[0].state).toBe("Offer expired");
+    expect((await getConversation(ana, a.conversationId))?.messages[0].offer?.status).toBe("expired");
   });
 });
 
@@ -467,7 +470,7 @@ describe("rules the database keeps", () => {
     // A second offer row for Ana (written directly, as the app would refuse it) cannot become a second active deal.
     const [second] = await db
       .insert(offer)
-      .values({ conversationId: a.conversationId, amount: 100, quantity: 1, status: "declined", decidedAt: new Date(), expiresAt: new Date(Date.now() + DAY) })
+      .values({ conversationId: a.conversationId, postId, responderId: ana, amount: 100, quantity: 1, status: "declined", decidedAt: new Date(), expiresAt: new Date(Date.now() + DAY) })
       .returning({ id: offer.id });
     await expect(
       db.insert(deal).values({ postId, offerId: second.id, ownerId: seller, responderId: ana, amount: 100 }),

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { conversation, deal, offer, post } from "@/db/schema";
+import { deal, offer, post } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { ACTIVE_STATUSES, syncAvailability } from "@/lib/deals/capacity";
 import type { DecisionResult } from "@/lib/deals/offers";
@@ -33,7 +33,6 @@ export async function cancelDeal(args: { actorId: string; dealId: string; alert?
       })
       .from(deal)
       .innerJoin(offer, eq(offer.id, deal.offerId))
-      .innerJoin(conversation, eq(conversation.id, offer.conversationId))
       .where(eq(deal.id, args.dealId))
       .for("update", { of: deal });
     if (!found || (found.ownerId !== args.actorId && found.responderId !== args.actorId)) return { ok: false, error: DEAL_NOT_FOUND };

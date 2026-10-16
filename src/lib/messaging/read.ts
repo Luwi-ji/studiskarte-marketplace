@@ -1,9 +1,8 @@
 import { and, count, desc, eq, gt, inArray, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, deal, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
-import { unitsLeft, unitsTakenSql } from "@/lib/deals/capacity";
+import { conversation, conversationListing, deal, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
-import { offerOptions, type OfferOptions } from "@/lib/deals/rules";
+import { transactionLabel } from "@/lib/deals/rules";
 import { readOnlyReason } from "@/lib/messaging/rules";
 
 /** Messages shown in a conversation: the latest this many. */
@@ -12,6 +11,7 @@ const INBOX_MAX = 100;
 
 export type Person = { handle: string | null; displayName: string; avatarThumbKey: string | null };
 
+/** A listing as shown in a thread: on a card, in an offer, in the Transactions list. */
 export type PostCard = {
   id: string;
   title: string;
@@ -19,12 +19,25 @@ export type PostCard = {
   priceAmount: number | null;
   status: string;
   thumbKey: string;
+  kind: string;
+};
+
+/** A listing in a thread, from the viewer's side. */
+export type ThreadListing = {
+  post: PostCard;
+  /** The listing is the viewer's own. */
+  viewerIsOwner: boolean;
+  /** Where the offer or reservation on it stands, if there is one. */
+  state: string | null;
 };
 
 export type ConversationSummary = {
   id: string;
   other: Person;
-  post: PostCard;
+  /** How many listings (transactions) the two have dealt about. */
+  listingCount: number;
+  /** The listing's title when there is just one; null otherwise. */
+  listingTitle: string | null;
   lastMessage: { body: string | null; hasPictures: boolean; offer: { amount: number; quantity: number; isReserve: boolean } | null; fromMe: boolean; at: Date } | null;
   unread: number;
 };
@@ -40,6 +53,10 @@ export type OfferCard = {
   expiresAt: Date;
   /** The reservation made from this offer when it was accepted, with its own state. */
   deal: { id: string; status: string } | null;
+  /** The listing it is on. */
+  post: PostCard;
+  /** The viewer owns that listing, so the offer is theirs to decide. */
+  viewerIsOwner: boolean;
 };
 
 export type ChatMessage = {
@@ -48,122 +65,87 @@ export type ChatMessage = {
   body: string | null;
   createdAt: Date;
   pictures: { key: string; thumbKey: string; width: number; height: number }[];
+  /** Set on a message sent about a listing (an offer card shows its own). */
+  listing: ThreadListing | null;
   offer: OfferCard | null;
 };
 
 export type ConversationView = {
   id: string;
   other: Person;
-  post: PostCard;
   messages: ChatMessage[];
+  /** Every listing the two have dealt about, the one with the newest message first. */
+  listings: ThreadListing[];
   /** Null when the conversation takes new messages; otherwise why not. */
   readOnlyReason: string | null;
   unread: number;
-  viewerIsOwner: boolean;
-  postKind: string;
-  /** What the viewer may do about the post: only meaningful for the responder, with no offer pending. */
-  offerOptions: OfferOptions;
 };
 
-const owner = alias(student, "owner");
-const responder = alias(student, "responder");
-const ownerAvatar = alias(image, "owner_avatar");
-const responderAvatar = alias(image, "responder_avatar");
+const personA = alias(student, "person_a");
+const personB = alias(student, "person_b");
+const avatarA = alias(image, "avatar_a");
+const avatarB = alias(image, "avatar_b");
 const cover = alias(image, "cover");
 
-/** The two people, post and state of conversations, as columns. Only participants are ever selected by callers. */
-function conversationColumns() {
-  return {
-    id: conversation.id,
-    responderId: conversation.responderId,
-    ownerId: post.ownerId,
-    ownerReadUpTo: conversation.ownerReadUpTo,
-    responderReadUpTo: conversation.responderReadUpTo,
-    postId: post.id,
-    postTitle: post.title,
-    postPriceKind: post.priceKind,
-    postPriceAmount: post.priceAmount,
-    postStatus: post.status,
-    postExpiresAt: post.expiresAt,
-    postKind: post.kind,
-    postQuantity: post.quantity,
-    unitsTaken: unitsTakenSql(post.id),
-    hasActiveDeal: sql<boolean>`exists (select 1 from ${deal} where ${deal.postId} = ${post.id} and ${deal.responderId} = ${conversation.responderId} and ${deal.status} in ('agreed', 'scheduled'))`,
-    hasPendingOffer: sql<boolean>`exists (select 1 from ${offer} where ${offer.conversationId} = ${conversation.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now())`,
-    thumbKey: cover.thumbKey,
-    ownerHandle: owner.handle,
-    ownerName: owner.name,
-    ownerStatus: owner.accountStatus,
-    ownerAvatarThumbKey: ownerAvatar.thumbKey,
-    responderHandle: responder.handle,
-    responderName: responder.name,
-    responderStatus: responder.accountStatus,
-    responderAvatarThumbKey: responderAvatar.thumbKey,
-  };
-}
-
-function conversationQuery() {
-  return getDb()
-    .select(conversationColumns())
-    .from(conversation)
-    .innerJoin(post, eq(post.id, conversation.postId))
-    .innerJoin(owner, eq(owner.id, post.ownerId))
-    .innerJoin(responder, eq(responder.id, conversation.responderId))
-    .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
-    .innerJoin(cover, eq(cover.id, postPhoto.imageId))
-    .leftJoin(ownerAvatar, eq(ownerAvatar.id, owner.avatarImageId))
-    .leftJoin(responderAvatar, eq(responderAvatar.id, responder.avatarImageId));
-}
-
-/** One conversation as selected by conversationQuery. */
 type Row = {
   id: string;
-  responderId: string;
-  ownerId: string;
-  ownerReadUpTo: number;
-  responderReadUpTo: number;
-  postId: string;
-  postTitle: string;
-  postPriceKind: string;
-  postPriceAmount: number | null;
-  postStatus: string;
-  postExpiresAt: Date;
-  postKind: string;
-  postQuantity: number | null;
-  unitsTaken: number;
-  hasActiveDeal: boolean;
-  hasPendingOffer: boolean;
-  thumbKey: string;
-  ownerHandle: string | null;
-  ownerName: string;
-  ownerStatus: string;
-  ownerAvatarThumbKey: string | null;
-  responderHandle: string | null;
-  responderName: string;
-  responderStatus: string;
-  responderAvatarThumbKey: string | null;
+  aId: string;
+  bId: string;
+  aReadUpTo: number;
+  bReadUpTo: number;
+  aHandle: string | null;
+  aName: string;
+  aStatus: string;
+  aAvatarThumbKey: string | null;
+  bHandle: string | null;
+  bName: string;
+  bStatus: string;
+  bAvatarThumbKey: string | null;
 };
 
-function participantWhere(viewerId: string) {
-  return or(eq(conversation.responderId, viewerId), eq(post.ownerId, viewerId));
+/** The two people of conversations, as columns. Only participants are ever selected by callers. */
+function conversationQuery() {
+  return getDb()
+    .select({
+      id: conversation.id,
+      aId: conversation.participantA,
+      bId: conversation.participantB,
+      aReadUpTo: conversation.aReadUpTo,
+      bReadUpTo: conversation.bReadUpTo,
+      aHandle: personA.handle,
+      aName: personA.name,
+      aStatus: personA.accountStatus,
+      aAvatarThumbKey: avatarA.thumbKey,
+      bHandle: personB.handle,
+      bName: personB.name,
+      bStatus: personB.accountStatus,
+      bAvatarThumbKey: avatarB.thumbKey,
+    })
+    .from(conversation)
+    .innerJoin(personA, eq(personA.id, conversation.participantA))
+    .innerJoin(personB, eq(personB.id, conversation.participantB))
+    .leftJoin(avatarA, eq(avatarA.id, personA.avatarImageId))
+    .leftJoin(avatarB, eq(avatarB.id, personB.avatarImageId));
 }
 
-function split(row: Row, viewerId: string): { other: Person; post: PostCard; readUpTo: number } {
-  const viewerIsOwner = row.ownerId === viewerId;
+function participantWhere(viewerId: string) {
+  return or(eq(conversation.participantA, viewerId), eq(conversation.participantB, viewerId));
+}
+
+/** The other person, and how far the viewer has read. */
+function split(row: Row, viewerId: string): { other: Person; readUpTo: number } {
+  const viewerIsA = row.aId === viewerId;
   return {
-    other: viewerIsOwner
-      ? { handle: row.responderHandle, displayName: row.responderName, avatarThumbKey: row.responderAvatarThumbKey }
-      : { handle: row.ownerHandle, displayName: row.ownerName, avatarThumbKey: row.ownerAvatarThumbKey },
-    post: {
-      id: row.postId,
-      title: row.postTitle,
-      priceKind: row.postPriceKind,
-      priceAmount: row.postPriceAmount,
-      status: row.postStatus,
-      thumbKey: row.thumbKey,
-    },
-    readUpTo: viewerIsOwner ? row.ownerReadUpTo : row.responderReadUpTo,
+    other: viewerIsA
+      ? { handle: row.bHandle, displayName: row.bName, avatarThumbKey: row.bAvatarThumbKey }
+      : { handle: row.aHandle, displayName: row.aName, avatarThumbKey: row.aAvatarThumbKey },
+    readUpTo: viewerIsA ? row.aReadUpTo : row.bReadUpTo,
   };
+}
+
+/** How far the viewer has read, as SQL, for a query over conversation. */
+function readUpToSql(viewerId: string) {
+  return sql<number>`case when ${conversation.participantA} = ${viewerId} then ${conversation.aReadUpTo} else ${conversation.bReadUpTo} end`;
 }
 
 /** Messages from the other person that this viewer has not read, per conversation. */
@@ -173,17 +155,7 @@ async function unreadByConversation(viewerId: string, ids: string[]): Promise<Ma
     .select({ id: message.conversationId, n: count() })
     .from(message)
     .innerJoin(conversation, eq(conversation.id, message.conversationId))
-    .innerJoin(post, eq(post.id, conversation.postId))
-    .where(
-      and(
-        inArray(message.conversationId, ids),
-        ne(message.senderId, viewerId),
-        or(
-          and(eq(conversation.responderId, viewerId), gt(message.id, conversation.responderReadUpTo)),
-          and(eq(post.ownerId, viewerId), gt(message.id, conversation.ownerReadUpTo)),
-        ),
-      ),
-    )
+    .where(and(inArray(message.conversationId, ids), ne(message.senderId, viewerId), participantWhere(viewerId), gt(message.id, readUpToSql(viewerId))))
     .groupBy(message.conversationId);
   return new Map(rows.map((row) => [row.id, row.n]));
 }
@@ -194,7 +166,7 @@ export async function listConversations(viewerId: string): Promise<ConversationS
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.id);
 
-  const [unread, lasts] = await Promise.all([
+  const [unread, lasts, listings] = await Promise.all([
     unreadByConversation(viewerId, ids),
     getDb()
       .selectDistinctOn([message.conversationId], {
@@ -211,16 +183,24 @@ export async function listConversations(viewerId: string): Promise<ConversationS
       .leftJoin(offer, eq(offer.id, message.offerId))
       .where(inArray(message.conversationId, ids))
       .orderBy(message.conversationId, desc(message.id)),
+    getDb()
+      .select({ conversationId: conversationListing.conversationId, title: post.title })
+      .from(conversationListing)
+      .innerJoin(post, eq(post.id, conversationListing.postId))
+      .where(inArray(conversationListing.conversationId, ids)),
   ]);
   const lastById = new Map(lasts.map((last) => [last.conversationId, last]));
+  const titlesById = new Map<string, string[]>();
+  for (const l of listings) titlesById.set(l.conversationId, [...(titlesById.get(l.conversationId) ?? []), l.title]);
 
   return rows.map((row) => {
     const last = lastById.get(row.id);
-    const { other, post: card } = split(row, viewerId);
+    const titles = titlesById.get(row.id) ?? [];
     return {
       id: row.id,
-      other,
-      post: card,
+      other: split(row, viewerId).other,
+      listingCount: titles.length,
+      listingTitle: titles.length === 1 ? titles[0] : null,
       lastMessage: last
         ? {
             body: last.body,
@@ -235,6 +215,49 @@ export async function listConversations(viewerId: string): Promise<ConversationS
   });
 }
 
+/** The listings a thread is about, the one with the newest message first, as cards. */
+async function threadListings(viewerId: string, conversationId: string): Promise<ThreadListing[]> {
+  const newestMessage = sql`(select max(${message.id}) from ${message} where ${message.conversationId} = ${conversationId} and ${message.postId} = ${post.id})`;
+  const rows = await getDb()
+    .select({
+      id: post.id,
+      title: post.title,
+      priceKind: post.priceKind,
+      priceAmount: post.priceAmount,
+      status: post.status,
+      kind: post.kind,
+      ownerId: post.ownerId,
+      thumbKey: cover.thumbKey,
+    })
+    .from(conversationListing)
+    .innerJoin(post, eq(post.id, conversationListing.postId))
+    .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
+    .innerJoin(cover, eq(cover.id, postPhoto.imageId))
+    .where(eq(conversationListing.conversationId, conversationId))
+    .orderBy(sql`${newestMessage} desc nulls last`, desc(conversationListing.createdAt));
+  if (rows.length === 0) return [];
+
+  // The latest offer on each listing in this thread: the state of that transaction.
+  const offers = await getDb()
+    .selectDistinctOn([offer.postId], {
+      postId: offer.postId,
+      isReserve: offer.isReserve,
+      status: offer.status,
+      expiresAt: offer.expiresAt,
+      dealStatus: deal.status,
+    })
+    .from(offer)
+    .leftJoin(deal, eq(deal.offerId, offer.id))
+    .where(eq(offer.conversationId, conversationId))
+    .orderBy(offer.postId, desc(offer.createdAt));
+  const offerByPost = new Map(offers.map((o) => [o.postId, o]));
+  return rows.map((row) => ({
+    viewerIsOwner: row.ownerId === viewerId,
+    state: transactionLabel(offerByPost.get(row.id) ?? null),
+    post: { id: row.id, title: row.title, priceKind: row.priceKind, priceAmount: row.priceAmount, status: row.status, thumbKey: row.thumbKey, kind: row.kind },
+  }));
+}
+
 /**
  * One conversation with its latest messages, or null unless the viewer is one
  * of its two participants. Picture keys are only ever returned here, so only a
@@ -245,21 +268,24 @@ export async function getConversation(viewerId: string, conversationId: string):
   if (!row) return null;
 
   const newest = await getDb()
-    .select({ id: message.id, senderId: message.senderId, body: message.body, createdAt: message.createdAt, offerId: message.offerId })
+    .select({ id: message.id, senderId: message.senderId, body: message.body, createdAt: message.createdAt, offerId: message.offerId, postId: message.postId })
     .from(message)
     .where(eq(message.conversationId, conversationId))
     .orderBy(desc(message.id))
     .limit(MESSAGES_SHOWN);
   const ids = newest.map((m) => m.id);
-  const pictures =
+  const [pictures, listings] = await Promise.all([
     ids.length === 0
       ? []
-      : await getDb()
+      : getDb()
           .select({ messageId: messageImage.messageId, key: image.key, thumbKey: image.thumbKey, width: image.width, height: image.height })
           .from(messageImage)
           .innerJoin(image, eq(image.id, messageImage.imageId))
           .where(inArray(messageImage.messageId, ids))
-          .orderBy(messageImage.messageId, messageImage.position);
+          .orderBy(messageImage.messageId, messageImage.position),
+    threadListings(viewerId, conversationId),
+  ]);
+  const listingById = new Map(listings.map((l) => [l.post.id, l]));
 
   const offerIds = newest.flatMap((m) => (m.offerId ? [m.offerId] : []));
   const offers =
@@ -268,6 +294,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       : await getDb()
           .select({
             id: offer.id,
+            postId: offer.postId,
             amount: offer.amount,
             quantity: offer.quantity,
             isReserve: offer.isReserve,
@@ -279,69 +306,45 @@ export async function getConversation(viewerId: string, conversationId: string):
           .from(offer)
           .leftJoin(deal, eq(deal.offerId, offer.id))
           .where(inArray(offer.id, offerIds));
-  const offerById = new Map(
-    offers.map((o): [string, OfferCard] => [
-      o.id,
-      {
-        id: o.id,
-        amount: o.amount,
-        quantity: o.quantity,
-        isReserve: o.isReserve,
-        status: o.status,
-        expiresAt: o.expiresAt,
-        deal: o.dealId && o.dealStatus ? { id: o.dealId, status: o.dealStatus } : null,
-      },
-    ]),
-  );
   // A pending offer past its time is shown as expired even before the job has swept it.
   const now = Date.now();
-  const shown = (o: OfferCard): OfferCard => (o.status === "pending" && o.expiresAt.getTime() <= now ? { ...o, status: "expired" } : o);
-  const cardFor = (id: string | null): OfferCard | null => {
-    const found = id ? offerById.get(id) : undefined;
-    return found ? shown(found) : null;
-  };
-  const { other, post: card, readUpTo } = split(row, viewerId);
+  const offerById = new Map<string, OfferCard>();
+  for (const o of offers) {
+    const listing = listingById.get(o.postId);
+    if (!listing) continue;
+    offerById.set(o.id, {
+      id: o.id,
+      amount: o.amount,
+      quantity: o.quantity,
+      isReserve: o.isReserve,
+      status: o.status === "pending" && o.expiresAt.getTime() <= now ? "expired" : o.status,
+      expiresAt: o.expiresAt,
+      deal: o.dealId && o.dealStatus ? { id: o.dealId, status: o.dealStatus } : null,
+      post: listing.post,
+      viewerIsOwner: listing.viewerIsOwner,
+    });
+  }
+
+  const { other, readUpTo } = split(row, viewerId);
   return {
     id: row.id,
     other,
-    post: card,
-    messages: newest.reverse().map((m) => ({
-      id: m.id,
-      mine: m.senderId === viewerId,
-      body: m.body,
-      createdAt: m.createdAt,
-      pictures: pictures.filter((p) => p.messageId === m.id).map((p) => ({ key: p.key, thumbKey: p.thumbKey, width: p.width, height: p.height })),
-      offer: cardFor(m.offerId),
-    })),
-    readOnlyReason: readOnlyReason({
-      postStatus: row.postStatus,
-      postExpiresAt: row.postExpiresAt,
-      ownerStatus: row.ownerStatus,
-      responderStatus: row.responderStatus,
+    messages: newest.reverse().map((m) => {
+      const listing = !m.offerId && m.postId ? listingById.get(m.postId) : undefined;
+      return {
+        id: m.id,
+        mine: m.senderId === viewerId,
+        body: m.body,
+        createdAt: m.createdAt,
+        pictures: pictures.filter((p) => p.messageId === m.id).map((p) => ({ key: p.key, thumbKey: p.thumbKey, width: p.width, height: p.height })),
+        listing: listing ?? null,
+        offer: (m.offerId && offerById.get(m.offerId)) || null,
+      };
     }),
+    listings,
+    readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
-    viewerIsOwner: row.ownerId === viewerId,
-    postKind: row.postKind,
-    offerOptions: offerOptions({
-      priceKind: row.postPriceKind,
-      postStatus: row.postStatus,
-      postExpiresAt: row.postExpiresAt,
-      ownerStatus: row.ownerStatus,
-      responderStatus: row.responderStatus,
-      unitsLeft: unitsLeft(row.postQuantity, row.unitsTaken),
-      hasActiveDeal: row.hasActiveDeal,
-      hasPendingOffer: row.hasPendingOffer,
-    }),
   };
-}
-
-/** The viewer's existing conversation about a post, if they have one. */
-export async function findConversationId(viewerId: string, postId: string): Promise<string | null> {
-  const [row] = await getDb()
-    .select({ id: conversation.id })
-    .from(conversation)
-    .where(and(eq(conversation.postId, postId), eq(conversation.responderId, viewerId)));
-  return row?.id ?? null;
 }
 
 /**
@@ -353,23 +356,17 @@ export async function markRead(viewerId: string, conversationId: string): Promis
     const [latest] = await tx.select({ id: max(message.id) }).from(message).where(eq(message.conversationId, conversationId));
     const upTo = latest?.id ?? 0;
     if (upTo === 0) return false;
-    const asResponder = await tx
+    const asA = await tx
       .update(conversation)
-      .set({ responderReadUpTo: upTo })
-      .where(and(eq(conversation.id, conversationId), eq(conversation.responderId, viewerId), sql`${conversation.responderReadUpTo} < ${upTo}`))
+      .set({ aReadUpTo: upTo })
+      .where(and(eq(conversation.id, conversationId), eq(conversation.participantA, viewerId), sql`${conversation.aReadUpTo} < ${upTo}`))
       .returning({ id: conversation.id });
-    const asOwner = await tx
+    const asB = await tx
       .update(conversation)
-      .set({ ownerReadUpTo: upTo })
-      .where(
-        and(
-          eq(conversation.id, conversationId),
-          sql`${conversation.ownerReadUpTo} < ${upTo}`,
-          sql`exists (select 1 from ${post} where ${post.id} = ${conversation.postId} and ${post.ownerId} = ${viewerId})`,
-        ),
-      )
+      .set({ bReadUpTo: upTo })
+      .where(and(eq(conversation.id, conversationId), eq(conversation.participantB, viewerId), sql`${conversation.bReadUpTo} < ${upTo}`))
       .returning({ id: conversation.id });
-    return asResponder.length + asOwner.length > 0;
+    return asA.length + asB.length > 0;
   });
 }
 
@@ -379,15 +376,6 @@ export async function countUnread(viewerId: string): Promise<number> {
     .select({ n: count() })
     .from(message)
     .innerJoin(conversation, eq(conversation.id, message.conversationId))
-    .innerJoin(post, eq(post.id, conversation.postId))
-    .where(
-      and(
-        ne(message.senderId, viewerId),
-        or(
-          and(eq(conversation.responderId, viewerId), gt(message.id, conversation.responderReadUpTo)),
-          and(eq(post.ownerId, viewerId), gt(message.id, conversation.ownerReadUpTo)),
-        ),
-      ),
-    );
+    .where(and(ne(message.senderId, viewerId), participantWhere(viewerId), gt(message.id, readUpToSql(viewerId))));
   return row.n;
 }

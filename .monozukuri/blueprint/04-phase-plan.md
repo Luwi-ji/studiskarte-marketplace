@@ -72,7 +72,7 @@ Sizes: S one concern, M one module or boundary, L several modules or a data mode
 - prereqs: 2, 3
 - playbook: feature
 - risk: high
-- exit: only the two participants can read a message or open a picture; a student cannot message their own post; two simultaneous first messages give two conversations; a closed or expired post makes the conversation read-only and relisting reactivates it.
+- exit: only the two participants can read a message or open a picture; a student cannot message their own post; two simultaneous first messages from two students give two conversations; a closed or expired post takes no new message about it and relisting reopens it. [Changed 2026-10-17: one conversation per pair; a closed post no longer closes the conversation.]
 
 ## Phase 9: Notifications, alerts, and the offline page (M)
 - id: 9

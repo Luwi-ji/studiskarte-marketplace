@@ -1,8 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { acceptOfferAction, cancelDealAction, declineOfferAction, withdrawOfferAction } from "@/app/deals/actions";
+import { ProductCard } from "@/components/product-card";
 import { formatPrice } from "@/lib/posts/format";
+import type { PostCardData } from "./transactions";
 
 export type OfferCardData = {
   id: string;
@@ -14,6 +17,10 @@ export type OfferCardData = {
   expiresAt: string;
   /** The reservation made when this offer was accepted. */
   deal: { id: string; status: string } | null;
+  /** The listing it is on. */
+  listing: PostCardData;
+  /** The viewer is the listing's owner (decides the offer); otherwise they made it. */
+  viewerIsOwner: boolean;
 };
 
 /** "in 3 days", "in 5 hours", or "soon". Days are rounded to the nearest, so a fresh 3-day offer reads "in 3 days". */
@@ -30,19 +37,20 @@ function timeLeft(expiresAt: string, now = Date.now()): string {
 
 type Props = {
   offer: OfferCardData;
-  /** The viewer is the post's owner (decides the offer); otherwise they made it. */
-  viewerIsOwner: boolean;
   /** Who made it, as the viewer should read it. */
   responderName: string;
-  postKind: string;
 };
 
 /**
- * An offer inside the conversation. Its state is always the current one. The
- * owner can accept (after a confirming tap) or decline a pending offer; the
- * one who made it can withdraw it.
+/**
+ * An offer inside the conversation, with the listing it is on (tap it to open
+ * the listing). Its state is always the current one. The owner can accept
+ * (after a confirming tap) or decline a pending offer; the one who made it can
+ * withdraw it.
  */
-export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }: Props) {
+export function OfferCardView({ offer, responderName }: Props) {
+  const { viewerIsOwner } = offer;
+  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [busy, setBusy] = useState<"accept" | "decline" | "withdraw" | "cancel" | null>(null);
@@ -62,8 +70,12 @@ export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }:
           ? await cancelDealAction(offer.deal?.id)
           : await (kind === "accept" ? acceptOfferAction : kind === "decline" ? declineOfferAction : withdrawOfferAction)(offer.id);
       if (!result.ok) setError(result.error);
-      else if (kind === "cancel") setDealDone("cancelled");
-      else setDone(kind === "accept" ? "accepted" : kind === "decline" ? "declined" : "withdrawn");
+      else {
+        if (kind === "cancel") setDealDone("cancelled");
+        else setDone(kind === "accept" ? "accepted" : kind === "decline" ? "declined" : "withdrawn");
+        // The Transactions bar and the other cards read the new state now, not at the next refresh.
+        router.refresh();
+      }
       setConfirming(false);
       setConfirmingCancel(false);
     } catch {
@@ -78,7 +90,7 @@ export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }:
   const free = offer.isReserve && offer.amount === 0;
   const each = formatPrice("amount", offer.amount);
   const total = formatPrice("amount", offer.amount * qty);
-  const supply = postKind === "wishlist";
+  const supply = offer.listing.post.kind === "wishlist";
   let title: string;
   if (offer.isReserve) {
     if (free) title = supply ? `Offers to supply ${many ? qty : "it"}` : many ? `Reserve ${qty}` : "Reserve request";
@@ -109,6 +121,9 @@ export function OfferCardView({ offer, viewerIsOwner, responderName, postKind }:
   return (
     <div className={`w-[85%] rounded-2xl border p-3 ${status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
       <p className="text-xs text-zinc-500">{who}</p>
+      <div className="mb-1">
+        <ProductCard post={offer.listing.post} thumbUrl={offer.listing.thumbUrl} compact />
+      </div>
       <p className="text-lg font-semibold">{title}</p>
       <p className={`text-sm ${(settled && status !== "accepted") || cancelled ? "text-zinc-500" : ""}`}>{cancelled ? "Reservation cancelled. The units went back to the post." : (statusText[status] ?? "")}</p>
 

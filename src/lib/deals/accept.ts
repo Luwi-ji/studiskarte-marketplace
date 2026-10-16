@@ -1,6 +1,6 @@
 import { and, count, eq, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, deal, offer, post, student } from "@/db/schema";
+import { deal, offer, post, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { ACTIVE_STATUSES, syncAvailability, unitsLeft, unitsTaken } from "@/lib/deals/capacity";
 import { OFFER_CLOSED, OFFER_NOT_FOUND, type DecisionResult } from "@/lib/deals/offers";
@@ -32,9 +32,8 @@ export async function acceptOffer(args: { ownerId: string; offerId: string; aler
   try {
     const result = await getDb().transaction(async (tx): Promise<DecisionResult> => {
       const [ref] = await tx
-        .select({ postId: conversation.postId })
+        .select({ postId: offer.postId })
         .from(offer)
-        .innerJoin(conversation, eq(conversation.id, offer.conversationId))
         .where(eq(offer.id, args.offerId));
       if (!ref) return { ok: false, error: OFFER_NOT_FOUND };
 
@@ -56,7 +55,7 @@ export async function acceptOffer(args: { ownerId: string; offerId: string; aler
       const [found] = await tx
         .select({
           conversationId: offer.conversationId,
-          responderId: conversation.responderId,
+          responderId: offer.responderId,
           status: offer.status,
           expiresAt: offer.expiresAt,
           amount: offer.amount,
@@ -64,8 +63,7 @@ export async function acceptOffer(args: { ownerId: string; offerId: string; aler
           responderStatus: responder.accountStatus,
         })
         .from(offer)
-        .innerJoin(conversation, eq(conversation.id, offer.conversationId))
-        .innerJoin(responder, eq(responder.id, conversation.responderId))
+        .innerJoin(responder, eq(responder.id, offer.responderId))
         .where(eq(offer.id, args.offerId))
         .for("update", { of: offer });
       if (!found) return { ok: false, error: OFFER_NOT_FOUND };
@@ -110,24 +108,10 @@ export async function acceptOffer(args: { ownerId: string; offerId: string; aler
         const declined = await tx
           .update(offer)
           .set({ status: "declined", decidedAt: now })
-          .where(
-            and(
-              eq(offer.status, "pending"),
-              ne(offer.id, args.offerId),
-              inArray(offer.conversationId, tx.select({ id: conversation.id }).from(conversation).where(eq(conversation.postId, ref.postId))),
-            ),
-          )
-          .returning({ id: offer.id, conversationId: offer.conversationId });
-        if (declined.length > 0) {
-          const people = await tx
-            .select({ id: conversation.id, responderId: conversation.responderId })
-            .from(conversation)
-            .where(inArray(conversation.id, declined.map((d) => d.conversationId)));
-          const responderOf = new Map(people.map((p) => [p.id, p.responderId]));
-          for (const d of declined) {
-            const recipientId = responderOf.get(d.conversationId);
-            if (recipientId) told.push({ recipientId, conversationId: d.conversationId, offerId: d.id, type: "offer_declined" });
-          }
+          .where(and(eq(offer.status, "pending"), ne(offer.id, args.offerId), eq(offer.postId, ref.postId)))
+          .returning({ id: offer.id, conversationId: offer.conversationId, responderId: offer.responderId });
+        for (const d of declined) {
+          told.push({ recipientId: d.responderId, conversationId: d.conversationId, offerId: d.id, type: "offer_declined" });
         }
       }
       return { ok: true, conversationId: found.conversationId };

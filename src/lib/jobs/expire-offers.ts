@@ -1,5 +1,5 @@
 import { and, eq, inArray, lte, ne, or } from "drizzle-orm";
-import { conversation, offer, post } from "@/db/schema";
+import { offer, post } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { offerKey, recordNotification, type AlertSink } from "@/lib/notifications/record";
 
@@ -12,10 +12,9 @@ import { offerKey, recordNotification, type AlertSink } from "@/lib/notification
 export async function expireOffers(now = new Date(), alert?: AlertSink): Promise<number> {
   const db = getDb();
   const stale = await db
-    .select({ id: offer.id, conversationId: offer.conversationId, postId: post.id, responderId: conversation.responderId })
+    .select({ id: offer.id, conversationId: offer.conversationId, postId: post.id, responderId: offer.responderId })
     .from(offer)
-    .innerJoin(conversation, eq(conversation.id, offer.conversationId))
-    .innerJoin(post, eq(post.id, conversation.postId))
+    .innerJoin(post, eq(post.id, offer.postId))
     .where(and(eq(offer.status, "pending"), or(lte(offer.expiresAt, now), ne(post.status, "open"), lte(post.expiresAt, now))));
   if (stale.length === 0) return 0;
 

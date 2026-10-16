@@ -29,7 +29,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - **Profile and social**: public profile, handle, followers, hearts, ratings.
 - **Posts**: Showcase and Wishlist content.
 - **Discovery**: the feed, filters, sorting, search.
-- **Messaging**: private conversations about one post, with pictures.
+- **Messaging**: one private conversation per pair of students, about any listings between them, with pictures.
 - **Offers and deals**: offers, reserving, scheduling, handover, completion, reviews.
 - **Notifications**: device alerts and the in-app notification list.
 - **Calendar**: meet-up reminders and calendar export.
@@ -45,7 +45,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - **Heart**: a student's saved mark on a post.
 - **Post view**: a record that a student opened a post on a given day. It is used only to count views.
 - **Follow**: one student following another.
-- **Conversation**: a thread between exactly two students about exactly one post. Shows the post as a product card at the top.
+- **Conversation**: the one thread between a pair of students, however many listings they deal about. [Changed 2026-10-17 by the owner: it was one thread per post and responder.] A listing joins the thread when someone messages about it or makes an offer on it; the listings of a thread are its **transactions**, shown from a Transactions bar under the header, each with where its offer or reservation stands. A message sent from a listing carries that listing's card. An offer card names its listing, links to it, and shows its picture, title and price. The inbox shows the other person's name and, under it, the listing's title when there is one listing, or "N transactions" when there are more.
 - **Message**: sender, text, optional pictures, sent time.
 - **Offer**: made by the responder on a post. Attributes: amount, status, whether it is a reserve at the asking price, created time.
 - **Deal**: created when the post owner accepts an offer. Attributes: the post, the two students, the agreed amount, handover method (meet-up or delivery), agreed time and place, status.
@@ -56,7 +56,7 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - **Report**: a student's report of a post or another student. Attributes: reporter, target, reason, status, handler.
 - **Block**: one student blocking another.
 - **Calendar feed link**: a private, revocable link that lists a student's scheduled deals for calendar apps.
-- A Student owns many posts. A post has many photos, many conversations (at most one per responder), many offers, and at most one active deal. A conversation has many messages. A deal has up to two reviews.
+- A Student owns many posts. A post has many photos, many offers, many listings in conversations (a listing is in at most one thread per buyer), and at most one active deal. A conversation has many messages. A deal has up to two reviews.
 
 ## Business rules
 
@@ -113,11 +113,11 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A post's detail page shows the poster's star rating and review count, and links to their reviews. [Assumed.]
 
 ### Messaging
-- A student cannot message their own post. A conversation is private to its two participants.
+- A student cannot message their own post, or themselves. A conversation is private to its two participants.
 - A message can include pictures. Pictures are visible only to the two participants.
-- Existing conversations on a post that is closed, withdrawn, expired, or hidden stay readable but accept no new messages. If the owner relists the post, they accept messages again. [Assumed.]
+- A closed, withdrawn, expired, or hidden post takes no new message or offer about it, but the conversation stays open: the two can still talk, for instance to arrange a handover. A fully reserved post still takes messages. Relisting makes the post takable again. [Changed 2026-10-17: a conversation used to go read-only with its post.]
 - A message has text (up to 2,000 characters), up to 4 pictures, or both; never neither. A student can send at most 20 messages a minute. [Chosen 2026-10-16, phase 8; the owner may change the numbers.]
-- A conversation starts with the first message: opening a post and tapping Message writes nothing until the student sends. Sending a message marks the thread read for the sender. The unread count is the other person's messages not yet read. Whether a conversation takes new messages is worked out from the post as it is now, so relisting reactivates it.
+- A conversation starts with the first message: opening a post and tapping Message writes nothing until the student sends. Sending a message marks the thread read for the sender. The unread count is the other person's messages not yet read. A conversation takes new messages unless either person's account is closed; whether something new can be started about a listing is worked out from the post as it is now, so relisting reactivates it.
 - A student cannot message someone they have blocked, or who blocked them. An existing conversation becomes read-only.
 
 ### Offers and deals
@@ -193,14 +193,14 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - **Post**: open --offer accepted--> reserved; reserved --deal cancelled--> open; reserved --deal completes--> fulfilled; open --owner withdraws--> withdrawn; open --30 days pass--> expired; expired --owner relists--> open (new 30 days); open or reserved --third distinct report, or admin hides--> hidden; hidden --admin restores--> the status it had before; hidden --admin removes--> removed. Fulfilled, withdrawn, and removed are final. A reserved post does not expire.
 - **Offer**: pending --owner accepts--> accepted; pending --owner declines--> declined; pending --responder withdraws--> withdrawn; pending --time passes or the post expires--> expired; pending --another offer accepted--> declined.
 - **Deal**: agreed --time and place agreed--> scheduled; agreed --7 days without a schedule--> cancelled; scheduled --7 days after the scheduled time without both confirming--> cancelled; agreed or scheduled --either cancels--> cancelled; scheduled --both confirm handover--> completed. Completed and cancelled are final.
-- **Conversation**: active --post closes, expires, or is hidden, or a block is made--> read-only; read-only --owner relists the post--> active (unless blocked).
+- **Conversation**: active --either person's account is closed, or a block is made--> read-only; read-only --the account is restored, or the block is lifted--> active.
 - **Report**: open --admin dismisses--> dismissed; open --admin acts--> actioned. Reports about a post that was auto-hidden stay open until the admin decides.
 - **Verification code**, **Notification subscription**, **Session**: as in earlier revisions. Code: pending -> used, expired, cancelled, locked. Subscription: active -> removed. Session: active -> expired or ended.
 - **Notification**: unread --student opens it--> read.
 
 ## Invariants
 - Every post has exactly one owner, at least one photo, and a kind that never changes.
-- Every conversation has exactly two distinct participants and exactly one post, and at most one conversation exists per (post, responder).
+- Every conversation has exactly two distinct participants, and exactly one conversation exists per pair of students. Its listings each belong to one of the two. An offer is made by someone other than the post's owner, in the thread between the two.
 - A student has at most one pending offer per post, and never offers on their own post.
 - At most one active deal exists per post and buyer, and the units of a post's active and completed deals never exceed its quantity. A deal's two participants are the post owner and the responder of the accepted offer, and they are distinct.
 - A deal completes only after both participants confirm.
@@ -246,11 +246,11 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A student on an iPhone has not installed the app -> alerts are unavailable. The student is told how to enable them, and still sees everything in the app.
 - A student's verification is revoked while they own open posts -> the posts are hidden from the feed, and their conversations become read-only. They return if verification is restored. [Assumed.]
 - Mixed case or spaces in an address -> treated as the normalized address.
-- Two students message the same post at the same moment -> each gets their own conversation.
+- Two students message the same post at the same moment -> each gets their own conversation (they are different pairs). The same student's first messages arriving together make one conversation.
 - A message to a post closed in the meantime -> rejected, with a reason.
 - Duplicate post (same owner, kind, title and description, while open) -> rejected. [Assumed.]
 - A post expires while a student is writing a message or an offer -> rejected, with a reason. The owner can relist it.
-- An owner relists a post -> its conversations accept messages again. Offers that expired stay expired, and the responder can offer again.
+- An owner relists a post -> it takes messages and offers again. Offers that expired stay expired, and the responder can offer again.
 - A reserved post reaches 30 days with an active deal -> it does not expire. If the deal is cancelled, it returns to open with at least 7 days left.
 - A student relists many posts -> each counts against the open post limit.
 - A student opens the same post many times in a day -> one view. The owner's own views do not count.
@@ -280,7 +280,7 @@ A post chooses one category. Categories marked "no condition" do not ask for a c
 - **Other** (no condition): items or services that fit nowhere else.
 
 ## Later work (recorded, not designed)
-These are large separate systems. Each gets its own questions when its phase starts. They must not weaken the rules above. In particular, a Conversation stays a thread between exactly two students.
+These are large separate systems. Each gets its own questions when its phase starts. They must not weaken the rules above. In particular, a Conversation stays a thread between exactly two students (one per pair).
 
 - **Societies**: group chats, like for a student organization. Open: what a society is (official school organization or any student group), who creates it, how members join, and how it is moderated. Because the admin is the owner alone, moderating group chats may be unworkable without more people.
 - **Events**: events appear in the notification list and the calendar. Open: who posts events, whether they are campus events or student-run, and whether they are tied to societies.
