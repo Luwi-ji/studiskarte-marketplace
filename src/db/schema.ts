@@ -148,6 +148,32 @@ export const rateLimitEvent = pgTable(
   (t) => [index("rate_limit_event_lookup_idx").on(t.action, t.key, t.createdAt)],
 );
 
+// One row per (post, viewer, Manila day). Views are counted from these rows,
+// never stored as a counter. The owner's own opens are never inserted.
+export const postView = pgTable(
+  "post_view",
+  {
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    viewerId: text("viewer_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    day: date("day", { mode: "string" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.viewerId, t.day] })],
+);
+
+// When each scheduled job last ran; lets us notice a scheduler that stopped.
+export const jobRun = pgTable("job_run", {
+  name: text("name").primaryKey(),
+  lastStartedAt: timestamp("last_started_at", { withTimezone: true }).notNull(),
+  lastFinishedAt: timestamp("last_finished_at", { withTimezone: true }),
+  // "ok" or "failed"; detail is a short human-readable result or error.
+  lastStatus: text("last_status").notNull(),
+  lastDetail: text("last_detail"),
+});
+
 // One level (owner, 2026-10-16: no subcategories). Seeded by migration.
 export const category = pgTable(
   "category",
@@ -229,6 +255,8 @@ export const post = pgTable(
     ),
     index("post_owner_idx").on(t.ownerId, t.status),
     index("post_feed_idx").on(t.status, t.listedAt.desc()),
+    // The expiry job looks for open posts whose time has passed.
+    index("post_expiry_idx").on(t.status, t.expiresAt),
     // The same post twice while open is refused (business logic edge case).
     uniqueIndex("post_open_duplicate")
       .on(t.ownerId, t.kind, sql`lower(btrim(${t.title}))`, sql`md5(btrim(${t.description}))`)

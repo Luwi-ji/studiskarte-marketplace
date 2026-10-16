@@ -7,6 +7,7 @@ import { getObjectStore } from "@/lib/images/store";
 import { createPost, type SaveResult } from "@/lib/posts/create";
 import { withdrawPost } from "@/lib/posts/transitions";
 import { updatePost } from "@/lib/posts/update";
+import { recordView } from "@/lib/posts/views";
 
 const postIdSchema = z.uuid();
 const NOT_FOUND: SaveResult = { ok: false, errors: { form: "Only your own open posts can be edited." } };
@@ -37,4 +38,21 @@ export async function withdrawPostAction(postId: unknown): Promise<{ ok: boolean
   const ok = await withdrawPost(me.id, id.data);
   if (ok) refresh();
   return { ok };
+}
+
+/** Saves an expired post's details and lists it again for 30 days. */
+export async function relistPostAction(postId: unknown, input: unknown): Promise<SaveResult> {
+  const me = await requireActiveStudent();
+  const id = postIdSchema.safeParse(postId);
+  if (!id.success) return { ok: false, errors: { form: "Only your own expired posts can be relisted." } };
+  const result = await updatePost({ ownerId: me.id, postId: id.data, input, store: getObjectStore(), relist: true });
+  if (result.ok) refresh();
+  return result;
+}
+
+/** Counts one view for the signed-in student. Called from the post page after it is shown. */
+export async function recordViewAction(postId: unknown): Promise<void> {
+  const me = await requireActiveStudent();
+  const id = postIdSchema.safeParse(postId);
+  if (id.success) await recordView(me.id, id.data);
 }

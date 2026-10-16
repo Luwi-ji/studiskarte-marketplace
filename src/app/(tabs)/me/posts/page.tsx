@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
-import { formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
+import { expiryNotice, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
 import { listOwnPosts } from "@/lib/posts/mine";
 import { OPEN_POSTS_MAX } from "@/lib/posts/schema";
 import { WithdrawButton } from "./withdraw-button";
@@ -23,6 +23,15 @@ export default function MyPostsPage() {
         </Suspense>
       </main>
     </>
+  );
+}
+
+function ExpiryLine({ expiresAt, views }: { expiresAt: Date; views: number }) {
+  const notice = expiryNotice(expiresAt);
+  return (
+    <p className={`text-xs ${notice.warn ? "font-medium text-amber-700 dark:text-amber-400" : "text-zinc-500"}`}>
+      {notice.text} · {views} {views === 1 ? "view" : "views"}
+    </p>
   );
 }
 
@@ -62,9 +71,15 @@ async function Posts() {
                 <p className="text-sm text-zinc-500">
                   {kindLabel(p.kind)} · {STATUS_LABEL[p.status] ?? p.status}
                 </p>
-                {p.status === "open" ? <p className="text-xs text-zinc-500">Expires {dateFormat.format(p.expiresAt)}</p> : null}
+                {p.status === "open" ? <ExpiryLine expiresAt={p.expiresAt} views={p.viewCount} /> : null}
+                {p.status === "expired" ? <p className="text-xs text-amber-700 dark:text-amber-400">Expired {dateFormat.format(p.expiresAt)}</p> : null}
               </div>
             </Link>
+            {p.status === "expired" ? (
+              <Link href={`/posts/${p.id}/edit`} className="mt-2 flex h-11 items-center justify-center rounded-lg bg-brand text-sm font-medium text-white">
+                Relist for 30 days
+              </Link>
+            ) : null}
             {p.status === "open" ? (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <Link href={`/posts/${p.id}/edit`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">

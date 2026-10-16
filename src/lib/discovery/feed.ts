@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { liveForOthers } from "@/lib/posts/visibility";
 
 export type FeedItem = {
   id: string;
@@ -41,7 +42,7 @@ export async function listFeed(limit = FEED_PAGE_SIZE): Promise<FeedItem[]> {
     .innerJoin(school, eq(school.domain, student.schoolDomain))
     .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
     .innerJoin(image, eq(image.id, postPhoto.imageId))
-    .where(and(inArray(post.status, ["open", "reserved"]), eq(student.accountStatus, "active")))
+    .where(and(liveForOthers(), eq(student.accountStatus, "active")))
     .orderBy(desc(post.listedAt), asc(post.id))
     .limit(limit);
 }

@@ -32,12 +32,13 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
   if (!id.success) notFound();
   const editable = await getEditablePost(me.id, id.data);
   if (!editable) notFound();
-  const { post, photos, availability } = editable;
+  const { post, photos, availability, relist } = editable;
   const store = getObjectStore();
 
   return (
     <PostForm
       mode="edit"
+      relist={relist}
       categories={await listCategories()}
       postId={post.id}
       kind={post.kind === "wishlist" ? "wishlist" : "showcase"}

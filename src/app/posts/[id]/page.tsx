@@ -6,9 +6,10 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
-import { formatAvailability, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
+import { expiryNotice, formatAvailability, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
+import { ViewTracker } from "./view-tracker";
 
 export const metadata = { title: "Post · Studiskarte Marketplace" };
 
@@ -53,9 +54,15 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
+      {detail.isOwner ? null : <ViewTracker postId={detail.id} />}
       <PhotoCarousel photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))} title={detail.title} />
 
       <div className="flex flex-col px-4">
+        {detail.isOwner && detail.status === "open" && expiryNotice(detail.expiresAt).warn ? (
+          <p className="mt-4 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            {expiryNotice(detail.expiresAt).text}. Then it leaves the feed, and you can relist it from My posts.
+          </p>
+        ) : null}
         {detail.status !== "open" ? (
           <p className="mt-4 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             {STATUS_LABEL[detail.status] ?? detail.status}
@@ -150,6 +157,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
         <p className="border-t border-zinc-200 py-4 text-xs text-zinc-500 dark:border-zinc-800">
           Listed {dateFormat.format(detail.listedAt)}
           {detail.status === "open" ? ` · Expires ${dateFormat.format(detail.expiresAt)}` : ""}
+          {detail.viewCount !== null ? ` · ${detail.viewCount} ${detail.viewCount === 1 ? "view" : "views"}` : ""}
         </p>
       </div>
 
@@ -159,9 +167,9 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             <Link href="/me/posts" className="flex h-12 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
               My posts
             </Link>
-            {detail.status === "open" ? (
+            {detail.status === "open" || detail.status === "expired" ? (
               <Link href={`/posts/${detail.id}/edit`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white">
-                Edit
+                {detail.status === "expired" ? "Relist" : "Edit"}
               </Link>
             ) : (
               <span className="flex h-12 items-center justify-center rounded-lg border border-zinc-200 text-sm text-zinc-500 dark:border-zinc-800">

@@ -31,8 +31,8 @@ Sizes: S one concern, M one module or boundary, L several modules or a data mode
 
 ## Phase 4: Listing lifecycle (S-M)
 - id: 4
-- intent: Posts expire after 30 days, owners are warned, and an owner relists an expired post. The owner also sees views, hearts, messages and offers on their posts.
-- affected: `post.expires_at`, `jobs/expire-posts.ts`, `jobs/expiry-warnings.ts`, `jobs/cleanup.ts` (delete post photos uploaded but never attached to a post, older than 24 hours, from R2 and the database; they come from abandoned or refused post forms since Phase 3), `jobs/job-run.ts`, `src/app/api/jobs/`, Vercel cron, the GitHub Actions scheduled workflow, `posts/views.ts`, `post_view`, the owner insights view
+- intent: Posts expire after 30 days, owners are warned, and an owner relists an expired post. The owner also sees views on their posts. Hearts, messages and offers counts arrive with their own phases (5, 8, 10). The warning is shown in the app until notifications exist (Phase 9).
+- affected: `post.expires_at`, `jobs/expire-posts.ts`, `jobs/cleanup.ts` (delete post photos uploaded but never attached to a post, older than 24 hours, from R2 and the database; they come from abandoned or refused post forms since Phase 3), `jobs/job-run.ts`, `src/app/api/jobs/`, Vercel cron, the GitHub Actions scheduled workflow, `posts/views.ts`, `post_view`, the owner insights view
 - prereqs: 3
 - playbook: feature
 - risk: medium
@@ -77,7 +77,7 @@ Sizes: S one concern, M one module or boundary, L several modules or a data mode
 ## Phase 9: Notifications, alerts, and the offline page (M)
 - id: 9
 - intent: A student sees an in-app notification list with unread counts, turns alerts on per device, gets an alert for a new message, and sees a static page when offline.
-- affected: `notification`, `push_subscription`, `notifications/`, `notifications/push/`, `public/sw.js` (add push and notificationclick; the offline page part shipped in Phase 1), alerts toggle, install help, VAPID keys
+- affected: expiry warning 3 days before and at expiry (a notification, once per post per listing; Phase 4 only shows the warning in the app), `notification`, `push_subscription`, `notifications/`, `notifications/push/`, `public/sw.js` (add push and notificationclick; the offline page part shipped in Phase 1), alerts toggle, install help, VAPID keys
 - prereqs: 8; external: generated VAPID keys, a real iPhone and an Android phone for testing
 - playbook: feature
 - risk: high

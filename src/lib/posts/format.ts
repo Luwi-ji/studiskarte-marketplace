@@ -35,3 +35,14 @@ export function formatAvailability(entry: Availability): { day: string; time: st
   const day = entry.kind === "weekly" ? `Every ${WEEKDAY_LABEL[entry.weekday]}` : DATE.format(new Date(`${entry.date}T00:00:00Z`));
   return { day, time: `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` };
 }
+
+/** Owners are warned in the last 3 days of a listing (business logic, "Posts"). */
+export const EXPIRY_WARNING_DAYS = 3;
+
+/** How a listing's remaining time reads, and whether it deserves a warning. */
+export function expiryNotice(expiresAt: Date, now = new Date()): { text: string; warn: boolean } {
+  const days = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return { text: "Expires today", warn: true };
+  if (days === 1) return { text: "Expires tomorrow", warn: true };
+  return { text: `Expires in ${days} days`, warn: days <= EXPIRY_WARNING_DAYS };
+}

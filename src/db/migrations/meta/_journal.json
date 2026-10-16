@@ -64,6 +64,13 @@
       "when": 1792109601663,
       "tag": "0008_flat_categories_photo_captions",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792118767989,
+      "tag": "0009_post_views_job_runs",
+      "breakpoints": true
     }
   ]
 }

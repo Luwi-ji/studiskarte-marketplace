@@ -1,9 +1,9 @@
-import { and, eq, notInArray } from "drizzle-orm";
-import { availabilityWindow, image, post, postPhoto } from "@/db/schema";
-import { loadAvailability } from "@/lib/posts/availability";
+import { and, count, eq, notInArray } from "drizzle-orm";
+import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
 import { discardImage } from "@/lib/images/upload";
+import { loadAvailability } from "@/lib/posts/availability";
 import { categoryLookup, listCategories } from "@/lib/posts/categories";
 import {
   checkPhotos,
@@ -13,35 +13,53 @@ import {
   writeDetails,
   type SaveResult,
 } from "@/lib/posts/create";
-import { parsePostEdit, type Availability } from "@/lib/posts/schema";
+import { manilaToday, OPEN_POSTS_MAX, parsePostEdit, type Availability } from "@/lib/posts/schema";
+
+/** A listing lasts 30 days from when it is listed (or relisted). */
+export const LISTING_DAYS = 30;
 
 const NOT_EDITABLE: SaveResult = { ok: false, errors: { form: "Only your own open posts can be edited." } };
+const NOT_RELISTABLE: SaveResult = { ok: false, errors: { form: "Only your own expired posts can be relisted." } };
 
 /**
- * Edits an open post the student owns. Photos and availability are replaced
- * as given. Photos taken off the post are deleted from storage after the edit
- * is saved. The kind never changes.
+ * Edits an open post the student owns, or (relist: true) relists an expired
+ * one. Photos and availability are replaced as given; photos taken off the post
+ * are deleted from storage after the change is saved. The kind never changes.
+ * Relisting also starts a new 30 days and a new listed date, and counts
+ * against the open-post limit like a new post.
  */
 export async function updatePost(args: {
   ownerId: string;
   postId: string;
   input: unknown;
   store: ObjectStore;
+  relist?: boolean;
   now?: Date;
 }): Promise<SaveResult> {
-  const parsed = parsePostEdit(args.input, categoryLookup(await listCategories()), args.now);
+  const now = args.now ?? new Date();
+  const parsed = parsePostEdit(args.input, categoryLookup(await listCategories()), now);
   if (!parsed.ok) return parsed;
   const data = parsed.data;
+  const relist = args.relist === true;
 
   let removed: { id: string; key: string; thumbKey: string }[];
   try {
     const outcome = await getDb().transaction(async (tx) => {
+      // Relisting adds an open post, so serialize with other creates and relists of this student.
+      if (relist) await tx.select({ id: student.id }).from(student).where(eq(student.id, args.ownerId)).for("update");
       const [current] = await tx
         .select({ id: post.id })
         .from(post)
-        .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), eq(post.status, "open")))
+        .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), eq(post.status, relist ? "expired" : "open")))
         .for("update");
       if (!current) return null;
+      if (relist) {
+        const [{ open }] = await tx
+          .select({ open: count() })
+          .from(post)
+          .where(and(eq(post.ownerId, args.ownerId), eq(post.status, "open")));
+        if (open >= OPEN_POSTS_MAX) return "limit" as const;
+      }
       const photoIds = data.photos.map((p) => p.id);
       if (!(await checkPhotos(tx, args.ownerId, photoIds, args.postId))) return "photos" as const;
 
@@ -53,7 +71,17 @@ export async function updatePost(args: {
 
       await tx
         .update(post)
-        .set({ ...postColumns(data), updatedAt: new Date() })
+        .set({
+          ...postColumns(data),
+          updatedAt: now,
+          ...(relist
+            ? {
+                status: "open",
+                listedAt: now,
+                expiresAt: new Date(now.getTime() + LISTING_DAYS * 24 * 60 * 60 * 1000),
+              }
+            : {}),
+        })
         .where(eq(post.id, args.postId));
       // Replace photos and times; the "at least one" triggers check at commit.
       await tx.delete(postPhoto).where(eq(postPhoto.postId, args.postId));
@@ -61,15 +89,18 @@ export async function updatePost(args: {
       await writeDetails(tx, args.postId, data);
       return dropped;
     });
-    if (outcome === null) return NOT_EDITABLE;
+    if (outcome === null) return relist ? NOT_RELISTABLE : NOT_EDITABLE;
     if (outcome === "photos") return { ok: false, errors: { photos: "A photo is missing. Upload it again." } };
+    if (outcome === "limit") {
+      return { ok: false, errors: { form: `You can have at most ${OPEN_POSTS_MAX} open posts. Withdraw one first.` } };
+    }
     removed = outcome;
   } catch (error) {
     if (isDuplicatePost(error)) return DUPLICATE_POST;
     throw error;
   }
 
-  // The edit is saved; a failed cleanup only leaves unused files behind.
+  // The change is saved; a failed cleanup only leaves unused files behind.
   for (const photo of removed) {
     await discardImage({ id: photo.id, keys: [photo.key, photo.thumbKey] }, args.store).catch((error) => {
       console.error("could not remove a photo taken off a post", error);
@@ -83,21 +114,30 @@ export type EditablePost = {
   post: typeof post.$inferSelect;
   photos: { id: string; thumbKey: string; caption: string | null }[];
   availability: Availability[];
+  /** True for an expired post: saving relists it. */
+  relist: boolean;
 };
 
-/** The data an owner needs to edit a post, or null if it is not theirs or not open. */
-export async function getEditablePost(ownerId: string, postId: string): Promise<EditablePost | null> {
+/**
+ * The data an owner needs to edit an open post or relist an expired one, or
+ * null if it is not theirs or in neither state. For an expired post, dates
+ * that have passed are left out so the form starts valid.
+ */
+export async function getEditablePost(ownerId: string, postId: string, now = new Date()): Promise<EditablePost | null> {
   const db = getDb();
   const [row] = await db
     .select()
     .from(post)
-    .where(and(eq(post.id, postId), eq(post.ownerId, ownerId), eq(post.status, "open")));
-  if (!row) return null;
+    .where(and(eq(post.id, postId), eq(post.ownerId, ownerId)));
+  if (!row || (row.status !== "open" && row.status !== "expired")) return null;
   const photos = await db
     .select({ id: image.id, thumbKey: image.thumbKey, caption: postPhoto.caption })
     .from(postPhoto)
     .innerJoin(image, eq(image.id, postPhoto.imageId))
     .where(eq(postPhoto.postId, postId))
     .orderBy(postPhoto.position);
-  return { post: row, photos, availability: await loadAvailability(postId) };
+  const relist = row.status === "expired";
+  const today = manilaToday(now);
+  const availability = (await loadAvailability(postId)).filter((a) => !relist || a.kind === "weekly" || a.date >= today);
+  return { post: row, photos, availability, relist };
 }

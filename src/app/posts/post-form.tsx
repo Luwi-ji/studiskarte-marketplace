@@ -19,7 +19,7 @@ import {
   type PostKind,
   type PriceKind,
 } from "@/lib/posts/schema";
-import { createPostAction, updatePostAction } from "./actions";
+import { createPostAction, relistPostAction, updatePostAction } from "./actions";
 import { AvailabilityPicker } from "./availability-picker";
 
 export type FormPhoto = { id: string; thumbUrl: string; caption: string };
@@ -71,7 +71,7 @@ function FieldError({ message }: { message?: string }) {
 
 type Props =
   | { mode: "create"; categories: Category[] }
-  | { mode: "edit"; categories: Category[]; postId: string; kind: PostKind; initial: PostFormValues };
+  | { mode: "edit"; categories: Category[]; postId: string; kind: PostKind; initial: PostFormValues; relist: boolean };
 
 export function PostForm(props: Props) {
   const router = useRouter();
@@ -155,7 +155,9 @@ export function PostForm(props: Props) {
       result =
         props.mode === "create"
           ? await createPostAction({ ...input, kind })
-          : await updatePostAction(props.postId, input);
+          : props.relist
+            ? await relistPostAction(props.postId, input)
+            : await updatePostAction(props.postId, input);
     } catch {
       setSaving(false);
       setErrors({ form: "Could not reach the server. Check your connection and try again." });
@@ -176,6 +178,11 @@ export function PostForm(props: Props) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
+      {props.mode === "edit" && props.relist ? (
+        <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          This post expired. Check the details, then relist it for another 30 days.
+        </p>
+      ) : null}
       {props.mode === "create" ? (
         <fieldset className="flex flex-col gap-2">
           <legend className={label}>Type</legend>
@@ -424,7 +431,7 @@ export function PostForm(props: Props) {
           disabled={saving || uploading > 0}
           className="h-12 rounded-lg bg-brand px-3 text-base font-medium text-white disabled:opacity-60"
         >
-          {uploading > 0 ? "Waiting for photos…" : saving ? "Saving…" : props.mode === "create" ? "Post" : "Save changes"}
+          {uploading > 0 ? "Waiting for photos…" : saving ? "Saving…" : props.mode === "create" ? "Post" : props.relist ? "Relist for 30 days" : "Save changes"}
         </button>
       </div>
     </form>

@@ -1,8 +1,10 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { category, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { loadAvailability } from "@/lib/posts/availability";
+import { countViews } from "@/lib/posts/views";
+import { liveForOthers } from "@/lib/posts/visibility";
 import type { Availability } from "@/lib/posts/schema";
 
 /** Everything the post page shows. The seller's email is never selected. */
@@ -24,6 +26,8 @@ export type PostDetail = {
   listedAt: Date;
   expiresAt: Date;
   isOwner: boolean;
+  /** Distinct student-days that opened the post. Null unless the viewer is the owner. */
+  viewCount: number | null;
   seller: { handle: string | null; displayName: string; school: string; avatarThumbKey: string | null };
   photos: { key: string; width: number; height: number; caption: string | null }[];
   availability: Availability[];
@@ -73,7 +77,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
         eq(post.id, postId),
         or(
           eq(post.ownerId, viewerId),
-          and(inArray(post.status, ["open", "reserved"]), eq(student.accountStatus, "active")),
+          and(liveForOthers(), eq(student.accountStatus, "active")),
         ),
       ),
     );
@@ -107,6 +111,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     listedAt: row.listedAt,
     expiresAt: row.expiresAt,
     isOwner: row.ownerId === viewerId,
+    viewCount: row.ownerId === viewerId ? await countViews(postId) : null,
     seller: {
       handle: row.sellerHandle,
       displayName: row.sellerName,
