@@ -13,6 +13,7 @@ import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
+import { BuyerShortcuts } from "./buyer-shortcuts";
 import { ViewTracker } from "./view-tracker";
 
 export const metadata = { title: "Post · Studiskarte Marketplace" };
@@ -58,7 +59,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   // Students can message about a post while it is open or reserved (never their own).
   const canMessage = !detail.isOwner && (detail.status === "open" || detail.status === "reserved");
   // What they may do about the price: offer, reserve, both, or neither (a reserved post takes no offers).
-  const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active", unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken), hasActiveDeal: detail.hasReservation, hasPendingOffer: detail.pendingOffer !== null });
+  const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active", unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken), hasActiveDeal: detail.hasReservation, hasPendingOffer: detail.myTransaction?.state === "pending" });
   const howMany = quantityLine(detail.kind, detail.quantity, detail.unitsTaken);
   const labels = offerLabels(detail.kind);
 
@@ -197,26 +198,25 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
 
       {canMessage ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
-          <div className="mx-auto flex max-w-md gap-2">
-            <Link href={`/messages/new?post=${detail.id}`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.offer || options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
-              Message
-            </Link>
-            {detail.pendingOffer ? (
-              <Link href={`/messages/${detail.pendingOffer.conversationId}`} className="flex h-12 flex-1 items-center justify-center rounded-lg bg-brand font-medium text-white">
-                View your offer
+          {detail.myTransaction ? (
+            <BuyerShortcuts transaction={detail.myTransaction} />
+          ) : (
+            <div className="mx-auto flex max-w-md gap-2">
+              <Link href={`/messages/new?post=${detail.id}`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.offer || options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
+                Message
               </Link>
-            ) : null}
-            {options.offer ? (
-              <Link href={`/offers/new?post=${detail.id}&type=offer`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
-                {labels.offer}
-              </Link>
-            ) : null}
-            {options.reserve ? (
-              <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center rounded-lg bg-brand font-medium text-white">
-                {labels.reserve}
-              </Link>
-            ) : null}
-          </div>
+              {options.offer ? (
+                <Link href={`/offers/new?post=${detail.id}&type=offer`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
+                  {labels.offer}
+                </Link>
+              ) : null}
+              {options.reserve ? (
+                <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center rounded-lg bg-brand font-medium text-white">
+                  {labels.reserve}
+                </Link>
+              ) : null}
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -226,7 +226,12 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             <Link href="/me/posts" className="flex h-12 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
               My posts
             </Link>
-            {detail.status === "open" || detail.status === "expired" ? (
+            {detail.editLocked ? (
+              <span className="flex h-12 flex-col items-center justify-center rounded-lg border border-zinc-200 text-sm leading-tight text-zinc-500 dark:border-zinc-800">
+                Edit locked
+                <span className="text-[10px]">offers or reservations open</span>
+              </span>
+            ) : detail.status === "open" || detail.status === "expired" ? (
               <Link href={`/posts/${detail.id}/edit`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white">
                 {detail.status === "expired" ? "Relist" : "Edit"}
               </Link>

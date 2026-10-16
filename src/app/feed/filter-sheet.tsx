@@ -20,6 +20,13 @@ type Props = {
 };
 
 const FILTER_KEYS = ["kind", "category", "condition", "min", "max", "school", "listed", "sort"];
+// These can have several choices; they travel in the address as one comma-separated list.
+const MULTI_KEYS = ["category", "condition", "school"];
+
+/** The choices already made, from the page's address. */
+function chosen(values: Record<string, string>, key: string): Set<string> {
+  return new Set((values[key] ?? "").split(",").filter(Boolean));
+}
 const field =
   "h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 const legend = "text-sm font-medium";
@@ -40,7 +47,7 @@ export function FilterSheet({ action, categories, schools, values, keep, activeC
     const data = new FormData(event.currentTarget);
     const params = new URLSearchParams(keep);
     for (const key of FILTER_KEYS) {
-      const value = data.get(key);
+      const value = MULTI_KEYS.includes(key) ? data.getAll(key).filter((v) => typeof v === "string" && v !== "").join(",") : data.get(key);
       if (typeof value === "string" && value !== "" && !(key === "sort" && value === "newest")) params.set(key, value);
     }
     go(params);
@@ -98,29 +105,31 @@ export function FilterSheet({ action, categories, schools, values, keep, activeC
               ))}
             </fieldset>
 
-            <label className="flex flex-col gap-1">
-              <span className={legend}>Category</span>
-              <select name="category" defaultValue={values.category ?? ""} className={field}>
-                <option value="">All categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+            <fieldset className="flex flex-col">
+              <legend className={legend}>Category</legend>
+              <p className="text-xs text-zinc-500">Choose one or more. None chosen means all.</p>
+              <div className="max-h-56 overflow-y-auto">
+                {categories.map((item) => (
+                  <label key={item.id} className="flex min-h-11 items-center gap-3">
+                    <input className="h-5 w-5 shrink-0" type="checkbox" name="category" value={item.id} defaultChecked={chosen(values, "category").has(item.id)} />
+                    {item.name}
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+            </fieldset>
 
-            <label className="flex flex-col gap-1">
-              <span className={legend}>Condition</span>
-              <select name="condition" defaultValue={values.condition ?? ""} className={field}>
-                <option value="">Any condition</option>
-                {CONDITIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {CONDITION_LABEL[c]}
-                  </option>
+            <fieldset className="flex flex-col">
+              <legend className={legend}>Condition</legend>
+              <p className="text-xs text-zinc-500">Choose one or more. None chosen means any.</p>
+              <div className="max-h-56 overflow-y-auto">
+                {CONDITIONS.map((c) => ({ id: c, name: CONDITION_LABEL[c] })).map((item) => (
+                  <label key={item.id} className="flex min-h-11 items-center gap-3">
+                    <input className="h-5 w-5 shrink-0" type="checkbox" name="condition" value={item.id} defaultChecked={chosen(values, "condition").has(item.id)} />
+                    {item.name}
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+            </fieldset>
 
             <fieldset className="flex flex-col gap-1">
               <legend className={legend}>Price (₱)</legend>
@@ -132,17 +141,18 @@ export function FilterSheet({ action, categories, schools, values, keep, activeC
               <p className="text-xs text-zinc-500">Free posts count as ₱0. Posts with a negotiable price do not match a price range.</p>
             </fieldset>
 
-            <label className="flex flex-col gap-1">
-              <span className={legend}>School</span>
-              <select name="school" defaultValue={values.school ?? ""} className={field}>
-                <option value="">All schools</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
+            <fieldset className="flex flex-col">
+              <legend className={legend}>School</legend>
+              <p className="text-xs text-zinc-500">Choose one or more. None chosen means all.</p>
+              <div className="max-h-56 overflow-y-auto">
+                {schools.map((item) => (
+                  <label key={item.id} className="flex min-h-11 items-center gap-3">
+                    <input className="h-5 w-5 shrink-0" type="checkbox" name="school" value={item.id} defaultChecked={chosen(values, "school").has(item.id)} />
+                    {item.name}
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+            </fieldset>
 
             <label className="flex flex-col gap-1">
               <span className={legend}>Listed</span>

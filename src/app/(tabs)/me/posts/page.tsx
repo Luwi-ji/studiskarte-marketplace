@@ -83,9 +83,16 @@ async function Posts() {
             ) : null}
             {p.status === "open" ? (
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <Link href={`/posts/${p.id}/edit`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-                  Edit
-                </Link>
+                {p.editLocked ? (
+                  <span title="Decline or cancel the offers and reservations first" className="flex h-11 flex-col items-center justify-center rounded-lg border border-zinc-200 text-sm font-medium leading-tight text-zinc-400 dark:border-zinc-800">
+                    Edit locked
+                    <span className="text-[10px] font-normal">has offers or reservations</span>
+                  </span>
+                ) : (
+                  <Link href={`/posts/${p.id}/edit`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+                    Edit
+                  </Link>
+                )}
                 <WithdrawButton postId={p.id} title={p.title} />
               </div>
             ) : null}

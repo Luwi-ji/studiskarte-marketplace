@@ -22,8 +22,9 @@ export function deviceSupport(): DeviceSupport {
 /** This device's push subscription, if it has one. */
 export async function currentSubscription(): Promise<PushSubscription | null> {
   if (deviceSupport() !== "ready") return null;
-  const registration = await navigator.serviceWorker.ready;
-  return registration.pushManager.getSubscription();
+  // getRegistration answers at once (with nothing when there is none); `ready` would wait for ever.
+  const registration = await navigator.serviceWorker.getRegistration();
+  return registration ? registration.pushManager.getSubscription() : null;
 }
 
 /** The server key arrives as URL-safe base64; the browser wants bytes. */

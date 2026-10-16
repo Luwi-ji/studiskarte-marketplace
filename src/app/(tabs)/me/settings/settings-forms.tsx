@@ -153,6 +153,9 @@ export function AvatarForm({ pictureUrl }: { pictureUrl: string | null }) {
   );
 }
 
+// Dropping the device is a courtesy: signing out never waits longer than this for it.
+const SIGN_OUT_WAIT_MS = 3000;
+
 /** Removes this device's alert subscription (here and at the push service). */
 async function dropThisDevice(): Promise<void> {
   const sub = await currentSubscription();
@@ -177,7 +180,7 @@ export function SignOutButton() {
         try {
           // Alerts for this device stop with the session, while we can still say so as this student.
           // Signing out never waits on this: a failure here must not leave the student signed in.
-          await dropThisDevice().catch(() => {});
+          await Promise.race([dropThisDevice().catch(() => {}), new Promise((resolve) => setTimeout(resolve, SIGN_OUT_WAIT_MS))]);
           await signOut();
         } finally {
           // A full reload on purpose: client navigation would keep signed-in pages in memory.

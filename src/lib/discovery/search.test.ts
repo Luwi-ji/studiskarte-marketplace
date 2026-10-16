@@ -132,6 +132,14 @@ describe("filters", () => {
     expect(names(await feed({ category: "electronics", condition: "used_good", min: "600" }))).toEqual([]);
   });
 
+  it("matches any of several categories, conditions or schools, and still needs every kind of filter to match", async () => {
+    expect(names(await feed({ category: "textbooks,services" })).sort()).toEqual(["book", "notes", "tutor"]);
+    expect(names(await feed({ category: "electronics,services", condition: "used_good" })).sort()).toEqual(["calc", "laptop"]);
+    expect(names(await feed({ condition: "used_fair,new" }))).toEqual(["book"]);
+    expect(names(await feed({ school: `${domain},${other}` }))).toEqual(expect.arrayContaining(["calc", "faraway"]));
+    expect(names(await feed({ school: other, category: "textbooks,services" }))).toEqual([]);
+  });
+
   it("filters by price: free counts as 0, negotiable matches no price bound", async () => {
     expect(names(await feed({ max: "300" })).sort()).toEqual(["book", "notes", "tutor"]);
     expect(names(await feed({ min: "1", max: "300" })).sort()).toEqual(["book", "tutor"]);

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
@@ -32,7 +33,17 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
   if (!id.success) notFound();
   const editable = await getEditablePost(me.id, id.data);
   if (!editable) notFound();
-  const { post, photos, availability, relist } = editable;
+  const { post, photos, availability, relist, lockedReason } = editable;
+  if (lockedReason) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 py-8 text-center">
+        <p className="text-zinc-700 dark:text-zinc-300">{lockedReason}</p>
+        <Link href={`/posts/${post.id}`} className="mx-auto flex h-12 items-center rounded-lg border border-zinc-300 px-6 font-medium dark:border-zinc-700">
+          Back to the post
+        </Link>
+      </div>
+    );
+  }
   const store = getObjectStore();
 
   return (

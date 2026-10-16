@@ -1,4 +1,4 @@
-import { and, eq, gte, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { post, student } from "@/db/schema";
 import { CONDITIONS, PRICE_MAX } from "@/lib/posts/schema";
@@ -28,10 +28,13 @@ const TERMS_MAX = 5;
 const TERM_MIN = 2;
 
 export type Filters = {
-  school?: string;
-  category?: string;
+  /** Any of these schools (domains). A post matches if its owner is at one of them. */
+  school?: string[];
+  /** Any of these categories. */
+  category?: string[];
   kind?: "showcase" | "wishlist";
-  condition?: (typeof CONDITIONS)[number];
+  /** Any of these conditions. */
+  condition?: (typeof CONDITIONS)[number][];
   /** Whole pesos. A post with no price (negotiable) never matches a price bound; free counts as ₱0. */
   priceMin?: number;
   priceMax?: number;
@@ -46,14 +49,29 @@ export type Filters = {
 export const DEFAULT_FILTERS: Filters = { sort: "newest", terms: [] };
 
 // An unreadable value is ignored, so a mistyped link still opens the feed.
-const slug = z.string().regex(/^[a-z0-9._-]{1,60}$/).optional().catch(undefined);
+const SLUG = /^[a-z0-9._-]{1,60}$/;
+const LIST_MAX = 20;
+
+/** A comma-separated list in the address, e.g. "textbooks,supplies": each readable item once, unreadable ones dropped. */
+function list<T extends string>(valid: (item: string) => item is T) {
+  return z
+    .string()
+    .max(1000)
+    .transform((text) => [...new Set(text.split(",").map((item) => item.trim()).filter(valid))].slice(0, LIST_MAX))
+    .transform((items) => (items.length > 0 ? items : undefined))
+    .optional()
+    .catch(undefined);
+}
+
+const isSlug = (item: string): item is string => SLUG.test(item);
+const isCondition = (item: string): item is (typeof CONDITIONS)[number] => CONDITIONS.some((c) => c === item);
 const peso = z.string().regex(/^\d{1,7}$/).transform(Number).pipe(z.number().max(PRICE_MAX)).optional().catch(undefined);
 
 const paramsSchema = z.object({
-  school: slug,
-  category: slug,
+  school: list(isSlug),
+  category: list(isSlug),
   kind: z.enum(["showcase", "wishlist"]).optional().catch(undefined),
-  condition: z.enum(CONDITIONS).optional().catch(undefined),
+  condition: list(isCondition),
   min: peso,
   max: peso,
   listed: z.enum(LISTED).optional().catch(undefined),
@@ -96,7 +114,7 @@ export function parseFilters(raw: RawParams): Filters {
   };
 }
 
-/** How many filters (not the sort, not the search words) are switched on. */
+/** How many filters (not the sort, not the search words) are switched on. A choice of several categories is one filter. */
 export function activeFilterCount(f: Filters): number {
   return [f.school, f.category, f.kind, f.condition, f.priceMin, f.priceMax, f.listed].filter((v) => v !== undefined).length;
 }
@@ -119,10 +137,10 @@ export function escapeLike(text: string): string {
  */
 export function filterConditions(f: Filters): SQL[] {
   const conditions: SQL[] = [];
-  if (f.school) conditions.push(eq(student.schoolDomain, f.school));
-  if (f.category) conditions.push(eq(post.categoryId, f.category));
+  if (f.school) conditions.push(inArray(student.schoolDomain, f.school));
+  if (f.category) conditions.push(inArray(post.categoryId, f.category));
   if (f.kind) conditions.push(eq(post.kind, f.kind));
-  if (f.condition) conditions.push(eq(post.condition, f.condition));
+  if (f.condition) conditions.push(inArray(post.condition, f.condition));
   if (f.priceMin !== undefined) conditions.push(sql`${priceKey} >= ${f.priceMin}`);
   if (f.priceMax !== undefined) conditions.push(sql`${priceKey} <= ${f.priceMax}`);
   if (f.listed) conditions.push(gte(post.listedAt, sql`now() - ${LISTED_INTERVAL[f.listed]}::interval`));

@@ -15,10 +15,10 @@ describe("parseFilters", () => {
       q: "  Casio   calculator ",
     });
     expect(f).toEqual({
-      school: "up.edu.ph",
-      category: "electronics",
+      school: ["up.edu.ph"],
+      category: ["electronics"],
       kind: "wishlist",
-      condition: "used_good",
+      condition: ["used_good"],
       priceMin: 100,
       priceMax: 900,
       listed: "week",
@@ -38,6 +38,16 @@ describe("parseFilters", () => {
   it("treats empty values as not chosen and a repeated parameter as its first value", () => {
     expect(parseFilters({ kind: "", min: "", q: "" })).toMatchObject({ kind: undefined, priceMin: undefined, query: undefined });
     expect(parseFilters({ kind: ["showcase", "wishlist"] })).toMatchObject({ kind: "showcase" });
+  });
+
+  it("takes several categories, conditions and schools as a comma-separated list, each once, dropping unreadable ones", () => {
+    const f = parseFilters({ category: "textbooks, supplies,textbooks,BAD CAT", condition: "new,used_good,mint", school: "a.edu.ph,b.edu.ph,x;y" });
+    expect(f.category).toEqual(["textbooks", "supplies"]);
+    expect(f.condition).toEqual(["new", "used_good"]);
+    expect(f.school).toEqual(["a.edu.ph", "b.edu.ph"]);
+    expect(parseFilters({ category: ",," }).category).toBeUndefined();
+    expect(parseFilters({ condition: "mint" }).condition).toBeUndefined();
+    expect(activeFilterCount(f)).toBe(3); // each group is one filter, however many it holds
   });
 
   it("puts a price range the right way round", () => {

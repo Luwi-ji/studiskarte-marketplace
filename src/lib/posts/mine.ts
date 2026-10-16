@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { conversation, heart, image, offer, post, postPhoto, postView } from "@/db/schema";
+import { conversation, deal, heart, image, offer, post, postPhoto, postView } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { unitsTakenSql } from "@/lib/deals/capacity";
 
@@ -22,6 +22,8 @@ export type OwnPost = {
   unitsTaken: number;
   /** Offers waiting for the owner to accept or decline. */
   pendingOffers: number;
+  /** Offers or reservations are open, so the post cannot be edited. */
+  editLocked: boolean;
 };
 
 /** A student's own posts, newest first, with the cover photo. */
@@ -41,6 +43,7 @@ export async function listOwnPosts(ownerId: string): Promise<OwnPost[]> {
       heartCount: sql<number>`(select count(*)::int from ${heart} where ${heart.postId} = ${post.id})`,
       quantity: post.quantity,
       unitsTaken: unitsTakenSql(post.id),
+      editLocked: sql<boolean>`(exists (select 1 from ${deal} where ${deal.postId} = ${post.id} and ${deal.status} in ('agreed', 'scheduled')) or exists (select 1 from ${offer} join ${conversation} on ${conversation.id} = ${offer.conversationId} where ${conversation.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now()))`,
       pendingOffers: sql<number>`(select count(*)::int from ${offer} join ${conversation} on ${conversation.id} = ${offer.conversationId} where ${conversation.postId} = ${post.id} and ${offer.status} = 'pending' and ${offer.expiresAt} > now())`,
     })
     .from(post)

@@ -2,6 +2,7 @@ import { and, count, eq, inArray, notInArray } from "drizzle-orm";
 import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability, unitsTaken } from "@/lib/deals/capacity";
+import { EDIT_LOCKED, editLockReason } from "@/lib/deals/count";
 import type { ObjectStore } from "@/lib/images/store";
 import { discardImage } from "@/lib/images/upload";
 import { loadAvailability } from "@/lib/posts/availability";
@@ -55,6 +56,8 @@ export async function updatePost(args: {
         .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), inArray(post.status, relist ? ["expired"] : ["open", "reserved"])))
         .for("update");
       if (!current) return null;
+      // A change under someone's offer or reservation would surprise them: decline or cancel first.
+      if (!relist && (await editLockReason(args.postId))) return "locked" as const;
       if (relist) {
         const [{ open }] = await tx
           .select({ open: count() })
@@ -100,6 +103,7 @@ export async function updatePost(args: {
       return dropped;
     });
     if (outcome === null) return relist ? NOT_RELISTABLE : NOT_EDITABLE;
+    if (outcome === "locked") return { ok: false, errors: { form: EDIT_LOCKED } };
     if (outcome === "photos") return { ok: false, errors: { photos: "A photo is missing. Upload it again." } };
     if (outcome === "quantity") {
       return { ok: false, errors: { quantity: `${takenUnits} already reserved, so the quantity cannot go below ${takenUnits}.` } };
@@ -129,6 +133,8 @@ export type EditablePost = {
   availability: Availability[];
   /** True for an expired post: saving relists it. */
   relist: boolean;
+  /** Why it cannot be edited now (offers or reservations), or null. */
+  lockedReason: string | null;
 };
 
 /**
@@ -152,5 +158,5 @@ export async function getEditablePost(ownerId: string, postId: string, now = new
   const relist = row.status === "expired";
   const today = manilaToday(now);
   const availability = (await loadAvailability(postId)).filter((a) => !relist || a.kind === "weekly" || a.date >= today);
-  return { post: row, photos, availability, relist };
+  return { post: row, photos, availability, relist, lockedReason: relist ? null : await editLockReason(postId) };
 }

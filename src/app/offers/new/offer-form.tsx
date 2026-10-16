@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { makeOfferAction } from "@/app/deals/actions";
 import type { OfferKind } from "@/lib/deals/rules";
 import { MESSAGE_MAX } from "@/lib/messaging/rules";
@@ -35,6 +35,17 @@ export function OfferForm({
   const [error, setError] = useState<{ field: "amount" | "quantity" | "note" | "form"; message: string } | null>(null);
   const [sending, setSending] = useState(false);
 
+  function clear() {
+    setAmount("");
+    setQuantity("1");
+    setNote("");
+    setError(null);
+  }
+
+  // Pages the app has visited stay alive in the background. Leave nothing typed behind: the form
+  // starts empty each time it is opened, and is emptied when it is left.
+  useEffect(() => clear, []);
+
   // The total, when there is more than one and a price to multiply: the amount is per unit.
   const count = Number(quantity);
   const each = kind === "offer" ? Number(amount) : (unitPrice ?? 0);
@@ -48,6 +59,7 @@ export function OfferForm({
     try {
       const result = await makeOfferAction(postId, { kind, amount, quantity, note });
       if (result.ok) {
+        clear();
         router.replace(`/messages/${result.conversationId}`);
         return;
       }

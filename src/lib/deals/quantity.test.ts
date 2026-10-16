@@ -5,7 +5,7 @@ import { deal, image, notification, offer, post, rateLimitEvent } from "@/db/sch
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_CLOSED, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { unitsLeft, unitsTaken } from "@/lib/deals/capacity";
-import { makeOffer, withdrawOffer } from "@/lib/deals/offers";
+import { declineOffer, makeOffer, withdrawOffer } from "@/lib/deals/offers";
 import { HAS_RESERVATION, offerOptions, parseOffer, PENDING_OFFER, RESERVED_POST } from "@/lib/deals/rules";
 import { getDb, getPool } from "@/lib/db";
 import { expirePosts } from "@/lib/jobs/expire-posts";
@@ -240,9 +240,9 @@ describe("a buyer who already has an offer waiting", () => {
     const postId = await newPost(5);
     const a = await ask(ana, postId, reserve(1));
     // The post page data says so, and a second try is refused with the reason.
-    expect((await getPostDetail(ana, postId))?.pendingOffer).toEqual({ conversationId: a.conversationId });
-    expect((await getPostDetail(ben, postId))?.pendingOffer).toBeNull();
-    expect((await getPostDetail(seller, postId))?.pendingOffer).toBeNull();
+    expect((await getPostDetail(ana, postId))?.myTransaction).toEqual({ conversationId: a.conversationId, offerId: a.offerId, isReserve: true, state: "pending", dealId: null });
+    expect((await getPostDetail(ben, postId))?.myTransaction).toBeNull();
+    expect((await getPostDetail(seller, postId))?.myTransaction).toBeNull();
     expect(await makeOffer({ responderId: ana, postId, input: reserve(1) })).toEqual({ ok: false, error: PENDING_OFFER });
     expect(await makeOffer({ responderId: ana, postId, input: bid(50) })).toEqual({ ok: false, error: PENDING_OFFER });
     const view = await getConversation(ana, a.conversationId);
@@ -253,7 +253,7 @@ describe("a buyer who already has an offer waiting", () => {
 
     // Once the offer is withdrawn the buttons come back.
     await withdrawOffer({ responderId: ana, offerId: a.offerId });
-    expect((await getPostDetail(ana, postId))?.pendingOffer).toBeNull();
+    expect((await getPostDetail(ana, postId))?.myTransaction).toBeNull();
     expect((await getConversation(ana, a.conversationId))?.offerOptions).toMatchObject({ offer: true, reserve: true });
     expect((await makeOffer({ responderId: ana, postId, input: reserve(1) })).ok).toBe(true);
   });
@@ -262,8 +262,24 @@ describe("a buyer who already has an offer waiting", () => {
     const postId = await newPost(5);
     const a = await ask(ana, postId, reserve(1));
     await db.update(offer).set({ expiresAt: sql`now() - interval '1 minute'` }).where(eq(offer.id, a.offerId));
-    expect((await getPostDetail(ana, postId))?.pendingOffer).toBeNull();
+    expect((await getPostDetail(ana, postId))?.myTransaction).toBeNull();
     expect((await getConversation(ana, a.conversationId))?.offerOptions).toMatchObject({ offer: true });
+  });
+});
+
+describe("a buyer's offer or reservation on the post page", () => {
+  it("is waiting, then accepted with its reservation, then gone once cancelled", async () => {
+    const postId = await newPost(3);
+    const a = await ask(ana, postId, reserve(1));
+    expect((await getPostDetail(ana, postId))?.myTransaction).toMatchObject({ state: "pending", isReserve: true });
+    await acceptOffer({ ownerId: seller, offerId: a.offerId });
+    const dealId = (await dealOf(a.offerId)).id;
+    expect((await getPostDetail(ana, postId))?.myTransaction).toEqual({ conversationId: a.conversationId, offerId: a.offerId, isReserve: true, state: "accepted", dealId });
+    await cancelDeal({ actorId: ana, dealId });
+    expect((await getPostDetail(ana, postId))?.myTransaction).toBeNull();
+
+    const b = await ask(ben, postId, bid(90));
+    expect((await getPostDetail(ben, postId))?.myTransaction).toMatchObject({ state: "pending", isReserve: false, offerId: b.offerId });
   });
 });
 
@@ -369,23 +385,19 @@ describe("a post with reservations", () => {
     expect(await withdrawPost(seller, postId)).toBe("ok");
   });
 
-  it("can be edited while fully reserved: raising the quantity makes it Active again, lowering it below what is reserved is refused", async () => {
+  it("cannot be edited while an offer is waiting or a reservation is in progress, and can be once they are settled", async () => {
     const postId = await newPost(2);
-    const a = await ask(ana, postId, reserve(2));
-    await acceptOffer({ ownerId: seller, offerId: a.offerId });
-    expect(await statusOf(postId)).toBe("reserved");
-
     const editable = await getEditablePost(seller, postId);
-    expect(editable?.post.quantity).toBe(2);
-    const fields = (quantity: string, unlimited = false) => ({
-      title: editable!.post.title,
+    expect(editable?.lockedReason).toBeNull();
+    const fields = (title: string, quantity = "2") => ({
+      title,
       description: editable!.post.description,
       categoryId: editable!.post.categoryId,
       condition: null,
       priceKind: "amount" as const,
       priceAmount: "100",
       quantity,
-      unlimited,
+      unlimited: false,
       exchangeMeetup: true,
       exchangeDelivery: false,
       meetupLocation: "Gate",
@@ -393,20 +405,41 @@ describe("a post with reservations", () => {
       availability: [{ kind: "weekly" as const, weekday: 1, startTime: "09:00", endTime: "10:00" }],
       photos: editable!.photos.map((p) => ({ id: p.id, caption: "" })),
     });
+    const edit = (title: string, quantity?: string) => updatePost({ ownerId: seller, postId, store: noStore, input: fields(title, quantity) });
 
-    expect(await updatePost({ ownerId: seller, postId, store: noStore, input: fields("1") })).toEqual({
-      ok: false,
-      errors: { quantity: "2 already reserved, so the quantity cannot go below 2." },
-    });
-    expect(await statusOf(postId)).toBe("reserved");
-    expect((await updatePost({ ownerId: seller, postId, store: noStore, input: fields("5") })).ok).toBe(true);
-    expect(await statusOf(postId)).toBe("open");
-    expect((await postRow(postId)).quantity).toBe(5);
-    // Ongoing is allowed too, and lowering back to exactly what is reserved fills it again.
-    expect((await updatePost({ ownerId: seller, postId, store: noStore, input: fields("", true) })).ok).toBe(true);
-    expect((await postRow(postId)).quantity).toBeNull();
-    expect((await updatePost({ ownerId: seller, postId, store: noStore, input: fields("2") })).ok).toBe(true);
-    expect(await statusOf(postId)).toBe("reserved");
+    // An offer is waiting.
+    const a = await ask(ana, postId, reserve(1));
+    expect((await getEditablePost(seller, postId))?.lockedReason).toEqual(expect.stringContaining("offers or reservations"));
+    expect(await edit("Changed while an offer waits")).toEqual({ ok: false, errors: { form: expect.stringContaining("offers or reservations") } });
+    expect((await listOwnPosts(seller)).find((p) => p.id === postId)?.editLocked).toBe(true);
+    expect((await getPostDetail(seller, postId))?.editLocked).toBe(true);
+    expect((await getPostDetail(ana, postId))?.editLocked).toBe(false);
+
+    // Accepted: a reservation is in progress, still locked.
+    await acceptOffer({ ownerId: seller, offerId: a.offerId });
+    expect(await edit("Changed during a reservation")).toMatchObject({ ok: false });
+    expect((await postRow(postId)).title).not.toContain("Changed");
+
+    // Cancelled: nothing is open, so it can be edited, even to more units.
+    await cancelDeal({ actorId: seller, dealId: (await dealOf(a.offerId)).id });
+    expect((await getEditablePost(seller, postId))?.lockedReason).toBeNull();
+    expect((await edit("Edited after cancelling", "4")).ok).toBe(true);
+    expect((await postRow(postId)).quantity).toBe(4);
+    expect((await listOwnPosts(seller)).find((p) => p.id === postId)?.editLocked).toBe(false);
+  });
+
+  it("is unlocked when the offer is declined, withdrawn or runs out of time", async () => {
+    const postId = await newPost(2);
+    const a = await ask(ana, postId, reserve(1));
+    expect((await getEditablePost(seller, postId))?.lockedReason).not.toBeNull();
+    await declineOffer({ ownerId: seller, offerId: a.offerId });
+    expect((await getEditablePost(seller, postId))?.lockedReason).toBeNull();
+    const b = await ask(ben, postId, reserve(1));
+    await withdrawOffer({ responderId: ben, offerId: b.offerId });
+    expect((await getEditablePost(seller, postId))?.lockedReason).toBeNull();
+    const c = await ask(cy, postId, reserve(1));
+    await db.update(offer).set({ expiresAt: sql`now() - interval '1 minute'` }).where(eq(offer.id, c.offerId));
+    expect((await getEditablePost(seller, postId))?.lockedReason).toBeNull();
   });
 });
 
