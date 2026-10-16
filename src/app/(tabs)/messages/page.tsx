@@ -49,7 +49,9 @@ async function Inbox() {
     <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
       {conversations.map((c, index) => {
         const name = c.other.displayName || (c.other.handle ? `@${c.other.handle}` : "Student");
-        const preview = c.lastMessage ? `${c.lastMessage.fromMe ? "You: " : ""}${c.lastMessage.body ?? "Sent a picture"}` : "";
+        const last = c.lastMessage;
+        const what = last?.offer ? (last.offer.isReserve ? "Reserve request" : `Offer: ₱${last.offer.amount.toLocaleString("en-PH")}`) : (last?.body ?? "Sent a picture");
+        const preview = last ? `${last.fromMe ? "You: " : ""}${what}` : "";
         return (
           <li key={c.id}>
             <Link href={`/messages/${c.id}`} className="flex min-h-[4.5rem] items-center gap-3 px-3 py-2 active:bg-zinc-100 dark:active:bg-zinc-900">

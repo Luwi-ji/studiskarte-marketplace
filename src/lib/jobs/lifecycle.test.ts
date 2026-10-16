@@ -318,16 +318,17 @@ describe("job runs and the scheduler check", () => {
     try {
       await db.delete(jobRun);
       expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual(
-        expect.arrayContaining([["expire-posts", "never_ran"], ["expiry-warnings", "never_ran"], ["cleanup", "never_ran"]]),
+        expect.arrayContaining([["expire-posts", "never_ran"], ["expiry-warnings", "never_ran"], ["expire-offers", "never_ran"], ["cleanup", "never_ran"]]),
       );
 
       await runJob("expire-posts", async () => "ok");
       await runJob("expiry-warnings", async () => "ok");
+      await runJob("expire-offers", async () => "ok");
       await runJob("cleanup", async () => "ok");
       expect(await staleJobs()).toEqual([]);
 
       const later = new Date(Date.now() + (JOBS["expire-posts"].maxAgeMinutes + 5) * 60_000);
-      expect((await staleJobs(later)).map((j) => [j.name, j.reason])).toEqual([["expire-posts", "too_old"], ["expiry-warnings", "too_old"]]);
+      expect((await staleJobs(later)).map((j) => [j.name, j.reason])).toEqual([["expire-posts", "too_old"], ["expiry-warnings", "too_old"], ["expire-offers", "too_old"]]);
 
       await expect(runJob("cleanup", async () => Promise.reject(new Error("boom")))).rejects.toThrow();
       expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual([["cleanup", "last_failed"]]);

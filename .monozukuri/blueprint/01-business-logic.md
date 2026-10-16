@@ -125,7 +125,9 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - **Make offer**: the responder proposes an amount.
 - **Reserve** (the "buy now" button): an offer at the post's stated price. It is available only when the post has a price amount, not for "negotiable". When the owner accepts, the item is reserved and handed over in person. No money moves in the system.
 - A responder has at most one pending offer on a post at a time. They can withdraw it.
-- A pending offer expires after a limited time. [Assumed. Duration open.]
+- A pending offer expires after 3 days. [Chosen 2026-10-16, phase 10; the owner may change it.]
+- Which buttons a post shows: a post with an amount takes both Make offer and Reserve; a free post takes only Reserve (there is no price to bargain over); a negotiable post takes only Make offer (there is no asking price to reserve at). A reserve of a free post is at ₱0. Offers are whole pesos from ₱1 to ₱1,000,000. The offer shows as a card in the conversation, with an optional note. [Chosen 2026-10-16, phase 10.]
+- The owner sees how many offers are waiting on each post. An offer keeps the amount it was made at, even if the owner changes the price. Pending offers also expire when their post is no longer open; offers that expired stay expired after a relist.
 - Accepting an offer creates a Deal, reserves the post, and declines all other pending offers on that post. Only one deal can be active on a post at a time.
 - After acceptance the two students agree the handover: the responder proposes a time inside the post's availability, and the owner confirms or suggests another. [Assumed.] The deal is "scheduled" once both agree a time and place.
 - Either participant can cancel a deal before it completes. The post then returns to open. [Assumed.]

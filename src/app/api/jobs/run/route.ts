@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cleanupUnusedPhotos } from "@/lib/jobs/cleanup";
+import { expireOffers } from "@/lib/jobs/expire-offers";
 import { expirePosts } from "@/lib/jobs/expire-posts";
 import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
 import { deliverAlert } from "@/lib/notifications/push/notify";
@@ -32,6 +33,13 @@ async function runNamed(name: JobName): Promise<string> {
       return `expired ${n} posts`;
     });
   }
+  if (name === "expire-offers") {
+    return runJob(name, async () => {
+      const n = await expireOffers(new Date(), alert);
+      await Promise.all(alerts);
+      return `expired ${n} offers`;
+    });
+  }
   if (name === "expiry-warnings") {
     return runJob(name, async () => {
       const n = await warnExpiringPosts(new Date(), alert);
@@ -43,7 +51,7 @@ async function runNamed(name: JobName): Promise<string> {
 }
 
 /**
- * ?job=expire-posts,expiry-warnings,cleanup (any, comma-separated) | all (default). Also reports jobs that have
+ * ?job=expire-posts,expire-offers,expiry-warnings,cleanup (any, comma-separated) | all (default). Also reports jobs that have
  * stopped running, so a dead scheduler shows up in the response.
  */
 export async function GET(request: Request) {

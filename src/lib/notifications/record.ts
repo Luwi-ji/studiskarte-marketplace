@@ -5,7 +5,14 @@ import type { Executor } from "@/lib/db";
 export type NotificationSpec =
   | { type: "message"; recipientId: string; postId: string; conversationId: string }
   | { type: "heart"; recipientId: string; postId: string }
-  | { type: "post_expiring" | "post_expired"; recipientId: string; postId: string; onceKey: string };
+  | { type: "post_expiring" | "post_expired"; recipientId: string; postId: string; onceKey: string }
+  | {
+      type: "offer_received" | "offer_accepted" | "offer_declined" | "offer_expired";
+      recipientId: string;
+      postId: string;
+      conversationId: string;
+      onceKey: string;
+    };
 
 /** The entry that was written, and whether a device alert should go with it. */
 export type Recorded = { id: string; alert: boolean };
@@ -25,10 +32,16 @@ export async function recordNotification(db: Executor, spec: NotificationSpec): 
   const [recipient] = await db.select({ status: student.accountStatus }).from(student).where(eq(student.id, spec.recipientId));
   if (!recipient || recipient.status !== "active") return null;
 
-  if (spec.type === "post_expiring" || spec.type === "post_expired") {
+  if (spec.type !== "message" && spec.type !== "heart") {
     const [row] = await db
       .insert(notification)
-      .values({ recipientId: spec.recipientId, type: spec.type, postId: spec.postId, onceKey: spec.onceKey })
+      .values({
+        recipientId: spec.recipientId,
+        type: spec.type,
+        postId: spec.postId,
+        conversationId: "conversationId" in spec ? spec.conversationId : null,
+        onceKey: spec.onceKey,
+      })
       .onConflictDoNothing()
       .returning({ id: notification.id });
     return row ? { id: row.id, alert: true } : null;
@@ -53,7 +66,12 @@ export async function recordNotification(db: Executor, spec: NotificationSpec): 
   return { id: row.id, alert: spec.type === "message" || row.inserted };
 }
 
-/** Marks a post's expiry notices as the listing they belong to: a relist is a new listing. */
+/** One notice per offer and outcome, however many times a job runs. */
+export function offerKey(offerId: string, outcome: "received" | "accepted" | "declined" | "expired"): string {
+  return `offer:${offerId}:${outcome}`;
+}
+
+/** Keys an expiry notice to the listing it belongs to: a relist is a new listing. */
 export function expiryKey(kind: "expiring" | "expired", postId: string, listedAt: Date): string {
   return `${kind}:${postId}:${listedAt.getTime()}`;
 }

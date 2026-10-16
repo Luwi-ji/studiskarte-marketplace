@@ -1,7 +1,8 @@
 import { and, count, desc, eq, gt, inArray, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, image, message, messageImage, post, postPhoto, student } from "@/db/schema";
+import { conversation, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { offerOptions, type OfferOptions } from "@/lib/deals/rules";
 import { readOnlyReason } from "@/lib/messaging/rules";
 
 /** Messages shown in a conversation: the latest this many. */
@@ -23,8 +24,17 @@ export type ConversationSummary = {
   id: string;
   other: Person;
   post: PostCard;
-  lastMessage: { body: string | null; hasPictures: boolean; fromMe: boolean; at: Date } | null;
+  lastMessage: { body: string | null; hasPictures: boolean; offer: { amount: number; isReserve: boolean } | null; fromMe: boolean; at: Date } | null;
   unread: number;
+};
+
+/** An offer as it stands now, shown as a card in the thread. */
+export type OfferCard = {
+  id: string;
+  amount: number;
+  isReserve: boolean;
+  status: string;
+  expiresAt: Date;
 };
 
 export type ChatMessage = {
@@ -33,6 +43,7 @@ export type ChatMessage = {
   body: string | null;
   createdAt: Date;
   pictures: { key: string; thumbKey: string; width: number; height: number }[];
+  offer: OfferCard | null;
 };
 
 export type ConversationView = {
@@ -43,6 +54,10 @@ export type ConversationView = {
   /** Null when the conversation takes new messages; otherwise why not. */
   readOnlyReason: string | null;
   unread: number;
+  viewerIsOwner: boolean;
+  postKind: string;
+  /** What the viewer may do about the post: only meaningful for the responder, with no offer pending. */
+  offerOptions: OfferOptions;
 };
 
 const owner = alias(student, "owner");
@@ -65,6 +80,7 @@ function conversationColumns() {
     postPriceAmount: post.priceAmount,
     postStatus: post.status,
     postExpiresAt: post.expiresAt,
+    postKind: post.kind,
     thumbKey: cover.thumbKey,
     ownerHandle: owner.handle,
     ownerName: owner.name,
@@ -103,6 +119,7 @@ type Row = {
   postPriceAmount: number | null;
   postStatus: string;
   postExpiresAt: Date;
+  postKind: string;
   thumbKey: string;
   ownerHandle: string | null;
   ownerName: string;
@@ -173,8 +190,11 @@ export async function listConversations(viewerId: string): Promise<ConversationS
         body: message.body,
         createdAt: message.createdAt,
         hasPictures: sql<boolean>`exists (select 1 from ${messageImage} where ${messageImage.messageId} = ${message.id})`,
+        offerAmount: offer.amount,
+        offerIsReserve: offer.isReserve,
       })
       .from(message)
+      .leftJoin(offer, eq(offer.id, message.offerId))
       .where(inArray(message.conversationId, ids))
       .orderBy(message.conversationId, desc(message.id)),
   ]);
@@ -187,7 +207,15 @@ export async function listConversations(viewerId: string): Promise<ConversationS
       id: row.id,
       other,
       post: card,
-      lastMessage: last ? { body: last.body, hasPictures: last.hasPictures, fromMe: last.senderId === viewerId, at: last.createdAt } : null,
+      lastMessage: last
+        ? {
+            body: last.body,
+            hasPictures: last.hasPictures,
+            offer: last.offerAmount === null ? null : { amount: last.offerAmount, isReserve: last.offerIsReserve ?? false },
+            fromMe: last.senderId === viewerId,
+            at: last.createdAt,
+          }
+        : null,
       unread: unread.get(row.id) ?? 0,
     };
   });
@@ -203,7 +231,7 @@ export async function getConversation(viewerId: string, conversationId: string):
   if (!row) return null;
 
   const newest = await getDb()
-    .select({ id: message.id, senderId: message.senderId, body: message.body, createdAt: message.createdAt })
+    .select({ id: message.id, senderId: message.senderId, body: message.body, createdAt: message.createdAt, offerId: message.offerId })
     .from(message)
     .where(eq(message.conversationId, conversationId))
     .orderBy(desc(message.id))
@@ -219,6 +247,22 @@ export async function getConversation(viewerId: string, conversationId: string):
           .where(inArray(messageImage.messageId, ids))
           .orderBy(messageImage.messageId, messageImage.position);
 
+  const offerIds = newest.flatMap((m) => (m.offerId ? [m.offerId] : []));
+  const offers =
+    offerIds.length === 0
+      ? []
+      : await getDb()
+          .select({ id: offer.id, amount: offer.amount, isReserve: offer.isReserve, status: offer.status, expiresAt: offer.expiresAt })
+          .from(offer)
+          .where(inArray(offer.id, offerIds));
+  const offerById = new Map(offers.map((o) => [o.id, o]));
+  // A pending offer past its time is shown as expired even before the job has swept it.
+  const now = Date.now();
+  const shown = (o: OfferCard): OfferCard => (o.status === "pending" && o.expiresAt.getTime() <= now ? { ...o, status: "expired" } : o);
+  const cardFor = (id: string | null): OfferCard | null => {
+    const found = id ? offerById.get(id) : undefined;
+    return found ? shown(found) : null;
+  };
   const { other, post: card, readUpTo } = split(row, viewerId);
   return {
     id: row.id,
@@ -230,6 +274,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       body: m.body,
       createdAt: m.createdAt,
       pictures: pictures.filter((p) => p.messageId === m.id).map((p) => ({ key: p.key, thumbKey: p.thumbKey, width: p.width, height: p.height })),
+      offer: cardFor(m.offerId),
     })),
     readOnlyReason: readOnlyReason({
       postStatus: row.postStatus,
@@ -238,6 +283,15 @@ export async function getConversation(viewerId: string, conversationId: string):
       responderStatus: row.responderStatus,
     }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
+    viewerIsOwner: row.ownerId === viewerId,
+    postKind: row.postKind,
+    offerOptions: offerOptions({
+      priceKind: row.postPriceKind,
+      postStatus: row.postStatus,
+      postExpiresAt: row.postExpiresAt,
+      ownerStatus: row.ownerStatus,
+      responderStatus: row.responderStatus,
+    }),
   };
 }
 

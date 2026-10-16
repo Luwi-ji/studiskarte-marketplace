@@ -13,9 +13,9 @@ const NOT_FOUND: SendResult = { ok: false, error: "That conversation could not b
 const PHOTO_MISSING: SendResult = { ok: false, error: "A photo is missing. Add it again." };
 
 /** Thrown inside the transaction, so nothing from the refused message is kept. */
-class PhotoMissingError extends Error {}
+export class PhotoMissingError extends Error {}
 
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   return error instanceof Error && typeof error.cause === "object" && error.cause !== null && "code" in error.cause && error.cause.code === "23505";
 }
 
@@ -24,7 +24,10 @@ function isUniqueViolation(error: unknown): boolean {
  * the inbox, and marks everything up to it as read for the sender. The
  * pictures must be the sender's own, uploaded for messages, and not yet used.
  */
-async function writeMessage(tx: DbTransaction, args: { conversationId: string; senderId: string; isOwner: boolean; data: MessageData }): Promise<boolean> {
+export async function writeMessage(
+  tx: DbTransaction,
+  args: { conversationId: string; senderId: string; isOwner: boolean; data: MessageData; offerId?: string },
+): Promise<boolean> {
   const { conversationId, senderId, data } = args;
   if (data.imageIds.length > 0) {
     const usable = await tx
@@ -43,7 +46,7 @@ async function writeMessage(tx: DbTransaction, args: { conversationId: string; s
 
   const [sent] = await tx
     .insert(message)
-    .values({ conversationId, senderId, body: data.body })
+    .values({ conversationId, senderId, body: data.body, offerId: args.offerId ?? null })
     .returning({ id: message.id, createdAt: message.createdAt });
   if (data.imageIds.length > 0) {
     await tx.insert(messageImage).values(data.imageIds.map((imageId, position) => ({ messageId: sent.id, imageId, position })));
@@ -57,6 +60,21 @@ async function writeMessage(tx: DbTransaction, args: { conversationId: string; s
     )
     .where(eq(conversation.id, conversationId));
   return true;
+}
+
+/** The responder's conversation about a post, created if there is none. Two at once make one. */
+export async function getOrCreateConversation(tx: DbTransaction, postId: string, responderId: string): Promise<string> {
+  const [created] = await tx
+    .insert(conversation)
+    .values({ postId, responderId })
+    .onConflictDoNothing()
+    .returning({ id: conversation.id });
+  if (created) return created.id;
+  const [existing] = await tx
+    .select({ id: conversation.id })
+    .from(conversation)
+    .where(and(eq(conversation.postId, postId), eq(conversation.responderId, responderId)));
+  return existing.id;
 }
 
 /**
@@ -93,19 +111,7 @@ export async function startConversation(args: { senderId: string; postId: string
       });
       if (blocked) return { ok: false, error: blocked };
 
-      const [created] = await tx
-        .insert(conversation)
-        .values({ postId: args.postId, responderId: args.senderId })
-        .onConflictDoNothing()
-        .returning({ id: conversation.id });
-      const conversationId =
-        created?.id ??
-        (
-          await tx
-            .select({ id: conversation.id })
-            .from(conversation)
-            .where(and(eq(conversation.postId, args.postId), eq(conversation.responderId, args.senderId)))
-        )[0].id;
+      const conversationId = await getOrCreateConversation(tx, args.postId, args.senderId);
       if (!(await writeMessage(tx, { conversationId, senderId: args.senderId, isOwner: false, data: parsed.data }))) {
         throw new PhotoMissingError();
       }

@@ -37,6 +37,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
           mine: m.mine,
           body: m.body,
           createdAt: m.createdAt.toISOString(),
+          offer: m.offer ? { ...m.offer, expiresAt: m.offer.expiresAt.toISOString() } : null,
           pictures: await Promise.all(
             m.pictures.map(async (p) => ({
               url: await store.signedUrl(p.key, PICTURE_LINK_SECONDS),
@@ -58,7 +59,17 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
         <div className="px-3 pt-3">
           <ProductCard post={view.post} thumbUrl={coverUrl} />
         </div>
-        <Chat conversationId={view.id} messages={messages} unread={view.unread} readOnlyReason={view.readOnlyReason} />
+        <Chat
+          conversationId={view.id}
+          messages={messages}
+          unread={view.unread}
+          readOnlyReason={view.readOnlyReason}
+          postId={view.post.id}
+          postKind={view.postKind}
+          viewerIsOwner={view.viewerIsOwner}
+          otherName={name}
+          offerOptions={view.offerOptions}
+        />
       </main>
     </div>
   );

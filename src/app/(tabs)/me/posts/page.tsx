@@ -26,11 +26,11 @@ export default function MyPostsPage() {
   );
 }
 
-function ExpiryLine({ expiresAt, views, hearts }: { expiresAt: Date; views: number; hearts: number }) {
+function ExpiryLine({ expiresAt, views, hearts, offers }: { expiresAt: Date; views: number; hearts: number; offers: number }) {
   const notice = expiryNotice(expiresAt);
   return (
     <p className={`text-xs ${notice.warn ? "font-medium text-amber-700 dark:text-amber-400" : "text-zinc-500"}`}>
-      {notice.text} · {views} {views === 1 ? "view" : "views"} · {hearts} {hearts === 1 ? "heart" : "hearts"}
+      {notice.text} · {views} {views === 1 ? "view" : "views"} · {hearts} {hearts === 1 ? "heart" : "hearts"}{offers > 0 ? ` · ${offers} ${offers === 1 ? "offer" : "offers"} waiting` : ""}
     </p>
   );
 }
@@ -71,7 +71,7 @@ async function Posts() {
                 <p className="text-sm text-zinc-500">
                   {kindLabel(p.kind)} · {STATUS_LABEL[p.status] ?? p.status}
                 </p>
-                {p.status === "open" ? <ExpiryLine expiresAt={p.expiresAt} views={p.viewCount} hearts={p.heartCount} /> : null}
+                {p.status === "open" ? <ExpiryLine expiresAt={p.expiresAt} views={p.viewCount} hearts={p.heartCount} offers={p.pendingOffers} /> : null}
                 {p.status === "expired" ? <p className="text-xs text-amber-700 dark:text-amber-400">Expired {dateFormat.format(p.expiresAt)}</p> : null}
               </div>
             </Link>

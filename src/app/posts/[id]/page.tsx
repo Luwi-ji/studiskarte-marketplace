@@ -9,6 +9,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
 import { expiryNotice, formatAvailability, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
+import { offerLabels, offerOptions } from "@/lib/deals/rules";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
 import { ViewTracker } from "./view-tracker";
@@ -55,6 +56,9 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   const condition = CONDITIONS.find((c) => c === detail.condition);
   // Students can message about a post while it is open or reserved (never their own).
   const canMessage = !detail.isOwner && (detail.status === "open" || detail.status === "reserved");
+  // What they may do about the price: offer, reserve, both, or neither (a reserved post takes no offers).
+  const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active" });
+  const labels = offerLabels(detail.kind);
 
   return (
     <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner || canMessage ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
@@ -184,15 +188,26 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           {detail.status === "open" ? ` · Expires ${dateFormat.format(detail.expiresAt)}` : ""}
           {detail.viewCount !== null ? ` · ${detail.viewCount} ${detail.viewCount === 1 ? "view" : "views"}` : ""}
           {detail.heartCount !== null ? ` · ${detail.heartCount} ${detail.heartCount === 1 ? "heart" : "hearts"}` : ""}
+          {detail.pendingOffers ? ` · ${detail.pendingOffers} ${detail.pendingOffers === 1 ? "offer" : "offers"} waiting` : ""}
         </p>
       </div>
 
       {canMessage ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
-          <div className="mx-auto max-w-md">
-            <Link href={`/messages/new?post=${detail.id}`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white">
-              Message {detail.seller.displayName || (detail.seller.handle ? `@${detail.seller.handle}` : "the seller")}
+          <div className="mx-auto flex max-w-md gap-2">
+            <Link href={`/messages/new?post=${detail.id}`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.offer || options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
+              Message
             </Link>
+            {options.offer ? (
+              <Link href={`/offers/new?post=${detail.id}&type=offer`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
+                {labels.offer}
+              </Link>
+            ) : null}
+            {options.reserve ? (
+              <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center rounded-lg bg-brand font-medium text-white">
+                {labels.reserve}
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}

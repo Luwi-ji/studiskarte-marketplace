@@ -31,7 +31,7 @@ jobs:
           fi
           body=$(curl --fail-with-body --silent --show-error --max-time 120 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/jobs/run?job=expire-posts,expiry-warnings")
+            "$APP_URL/api/jobs/run?job=expire-posts,expire-offers,expiry-warnings")
           echo "$body"
           # "stale" lists jobs that never ran, ran too long ago, or last failed.
           echo "$body" | grep -q '"stale":\[\]' || { echo "A scheduled job is stale"; exit 1; }

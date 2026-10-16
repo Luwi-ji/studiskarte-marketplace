@@ -216,7 +216,7 @@ export const conversation = pgTable(
   ],
 );
 
-// Text, pictures, or both (a trigger refuses a message with neither).
+// Text, pictures, an offer card, or any mix (a trigger refuses a message with none).
 export const message = pgTable(
   "message",
   {
@@ -229,11 +229,82 @@ export const message = pgTable(
       .notNull()
       .references(() => student.id),
     body: text("body"),
+    // Set when this message is an offer card (the responder's offer, with an optional note in the body).
+    offerId: uuid("offer_id")
+      .references((): AnyPgColumn => offer.id, { onDelete: "cascade" })
+      .unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check("message_body_length", sql`${t.body} is null or char_length(btrim(${t.body})) between 1 and 2000`),
     index("message_conversation_idx").on(t.conversationId, t.id),
+  ],
+);
+
+// The responder's proposal inside their conversation about a post: an amount,
+// or a "reserve" at the asking price. One pending offer per conversation, so
+// one per responder per post. The status is the offer's whole lifecycle.
+export const offer = pgTable(
+  "offer",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversation.id, { onDelete: "cascade" }),
+    // Whole pesos. A reserve of a free post is 0.
+    amount: integer("amount").notNull(),
+    isReserve: boolean("is_reserve").notNull().default(false),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("offer_status", sql`${t.status} in ('pending', 'accepted', 'declined', 'withdrawn', 'expired')`),
+    check(
+      "offer_amount",
+      sql`(${t.isReserve} and ${t.amount} between 0 and 1000000) or (not ${t.isReserve} and ${t.amount} between 1 and 1000000)`,
+    ),
+    check("offer_decided", sql`(${t.status} = 'pending') = (${t.decidedAt} is null)`),
+    uniqueIndex("offer_one_pending_idx").on(t.conversationId).where(sql`${t.status} = 'pending'`),
+    index("offer_conversation_idx").on(t.conversationId, t.createdAt),
+  ],
+);
+
+// Created when the owner accepts an offer. The handover (method, time, place)
+// is agreed in the next phase. At most one active deal per post (the index).
+export const deal = pgTable(
+  "deal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    offerId: uuid("offer_id")
+      .notNull()
+      .unique()
+      .references(() => offer.id, { onDelete: "cascade" }),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => student.id),
+    responderId: text("responder_id")
+      .notNull()
+      .references(() => student.id),
+    amount: integer("amount").notNull(),
+    status: text("status").notNull().default("agreed"),
+    handoverMethod: text("handover_method"),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    place: text("place"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("deal_status", sql`${t.status} in ('agreed', 'scheduled', 'completed', 'cancelled')`),
+    check("deal_handover", sql`${t.handoverMethod} is null or ${t.handoverMethod} in ('meetup', 'delivery')`),
+    check("deal_distinct_people", sql`${t.ownerId} <> ${t.responderId}`),
+    uniqueIndex("deal_one_active_idx").on(t.postId).where(sql`${t.status} in ('agreed', 'scheduled')`),
+    index("deal_owner_idx").on(t.ownerId),
+    index("deal_responder_idx").on(t.responderId),
   ],
 );
 
@@ -282,7 +353,7 @@ export const notification = pgTable(
     onceKey: text("once_key"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
