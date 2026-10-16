@@ -201,7 +201,7 @@ describe("hearts", () => {
   it("cannot name a student who hearted through the feed", async () => {
     const id = await newPost(ben, `Feed ${run}`);
     await heartPost(ana, id);
-    const item = (await listFeed(200)).find((i) => i.id === id);
+    const item = (await listFeed(ana, { limit: 200 })).items.find((i) => i.id === id);
     expect(JSON.stringify(item)).not.toContain(ana);
   });
 });

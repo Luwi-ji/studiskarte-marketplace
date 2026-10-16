@@ -5,7 +5,7 @@ import { getDb } from "@/lib/db";
 import { loadAvailability } from "@/lib/posts/availability";
 import { countViews } from "@/lib/posts/views";
 import { countHearts, hasHearted } from "@/lib/social/heart";
-import { liveForOthers } from "@/lib/posts/visibility";
+import { visibleToOthers } from "@/lib/discovery/visibility";
 import type { Availability } from "@/lib/posts/schema";
 
 /** Everything the post page shows. The seller's email is never selected. */
@@ -82,7 +82,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
         eq(post.id, postId),
         or(
           eq(post.ownerId, viewerId),
-          and(liveForOthers(), eq(student.accountStatus, "active")),
+          visibleToOthers(),
         ),
       ),
     );

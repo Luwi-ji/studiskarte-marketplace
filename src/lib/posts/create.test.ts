@@ -97,7 +97,7 @@ afterAll(async () => {
 describe("createPost", () => {
   it("creates a complete post that shows in the feed with its price, and no email", async () => {
     const id = await created({ priceAmount: "₱1,500" });
-    const feed = await listFeed(200);
+    const feed = (await listFeed(owner, { limit: 200 })).items;
     expect(feed.find((item) => item.id === id)).toMatchObject({ priceKind: "amount", priceAmount: 1500, ownerHandle: `pa_${run}` });
     expect(JSON.stringify(feed)).not.toContain(ownerEmail);
     const windows = await db.select().from(availabilityWindow).where(eq(availabilityWindow.postId, id));
@@ -223,7 +223,7 @@ describe("updatePost and withdrawPost", () => {
     expect(await withdrawPost(owner, id)).toBe(true);
     expect(await withdrawPost(owner, id)).toBe(false);
     expect((await updatePost({ ownerId: owner, postId: id, store, input: await input() })).ok).toBe(false);
-    expect((await listFeed(200)).some((item) => item.id === id)).toBe(false);
+    expect((await listFeed(owner, { limit: 200 })).items.some((item) => item.id === id)).toBe(false);
   });
 });
 

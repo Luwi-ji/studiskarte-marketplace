@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const TABS = [
   { href: "/", label: "Feed", icon: "M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" },
@@ -10,13 +11,44 @@ const TABS = [
   { href: "/me/settings", label: "Me", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" },
 ] as const;
 
-/** Fixed bottom tabs, within thumb reach. Pads for the iPhone home bar. */
+// Scrolling down past this far from the top hides the bar; any upward scroll shows it.
+const HIDE_AFTER_PX = 120;
+const MOVE_PX = 8;
+
+/**
+ * Fixed bottom tabs, within thumb reach. Pads for the iPhone home bar. Slides
+ * away while scrolling down to give the content room, and comes back on the
+ * first scroll up, at the top, at the bottom, and on every page change.
+ */
 export function BottomNav() {
   const pathname = usePathname();
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    function onScroll() {
+      const y = window.scrollY;
+      const nearBottom = y + window.innerHeight >= document.documentElement.scrollHeight - 8;
+      if (y <= HIDE_AFTER_PX || nearBottom || y < lastY.current - MOVE_PX) setHidden(false);
+      else if (y > lastY.current + MOVE_PX) setHidden(true);
+      if (Math.abs(y - lastY.current) > MOVE_PX) lastY.current = y;
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Show the bar again on every page change.
+  const [shownFor, setShownFor] = useState(pathname);
+  if (shownFor !== pathname) {
+    setShownFor(pathname);
+    setHidden(false);
+  }
+
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-zinc-800"
+      className={`fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur motion-safe:transition-transform motion-safe:duration-200 dark:border-zinc-800 ${hidden ? "translate-y-full" : ""}`}
     >
       <ul className="mx-auto grid h-16 max-w-md grid-cols-4">
         {TABS.map((tab) => {
@@ -26,6 +58,7 @@ export function BottomNav() {
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
+                tabIndex={hidden ? -1 : undefined}
                 className={`flex h-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
               >
                 <span

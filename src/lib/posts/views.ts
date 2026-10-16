@@ -2,7 +2,7 @@ import { and, count, eq, ne } from "drizzle-orm";
 import { post, postView, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { manilaToday } from "@/lib/posts/schema";
-import { liveForOthers } from "@/lib/posts/visibility";
+import { visibleToOthers } from "@/lib/discovery/visibility";
 
 /**
  * Counts a view when a signed-in student other than the owner opens a post
@@ -16,7 +16,7 @@ export async function recordView(viewerId: string, postId: string, now = new Dat
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
     .where(
-      and(eq(post.id, postId), ne(post.ownerId, viewerId), liveForOthers(), eq(student.accountStatus, "active")),
+      and(eq(post.id, postId), ne(post.ownerId, viewerId), visibleToOthers()),
     );
   if (!visible) return false;
 

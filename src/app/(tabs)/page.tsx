@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
+import { MoreCards } from "../feed/more-cards";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
 
@@ -19,8 +20,8 @@ export default function Home() {
 }
 
 async function Feed() {
-  await requireActiveStudent();
-  const items = await listFeed();
+  const me = await requireActiveStudent();
+  const { items, nextCursor } = await listFeed(me.id);
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
@@ -35,5 +36,10 @@ async function Feed() {
     );
   }
 
-  return <PostGrid items={items} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <PostGrid items={items} />
+      <MoreCards nextCursor={nextCursor} />
+    </div>
+  );
 }

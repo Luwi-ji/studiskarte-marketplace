@@ -1,7 +1,7 @@
 import { and, count, eq, notInArray } from "drizzle-orm";
 import { heart, post, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
-import { liveForOthers } from "@/lib/posts/visibility";
+import { visibleToOthers } from "@/lib/discovery/visibility";
 
 export type HeartResult = "ok" | "own_post" | "not_found";
 
@@ -15,7 +15,7 @@ export async function heartPost(studentId: string, postId: string): Promise<Hear
     .select({ id: post.id, ownerId: post.ownerId })
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
-    .where(and(eq(post.id, postId), liveForOthers(), eq(student.accountStatus, "active")));
+    .where(and(eq(post.id, postId), visibleToOthers()));
   if (!target) return "not_found";
   if (target.ownerId === studentId) return "own_post";
   await db.insert(heart).values({ studentId, postId }).onConflictDoNothing();

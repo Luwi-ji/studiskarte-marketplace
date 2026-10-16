@@ -120,7 +120,7 @@ describe("expiry", () => {
   it("hides a post from others as soon as its time passes, before the job runs", async () => {
     const id = await newPost();
     await ageOut(id, 0.01);
-    expect((await listFeed(200)).some((item) => item.id === id)).toBe(false);
+    expect((await listFeed(viewer, { limit: 200 })).items.some((item) => item.id === id)).toBe(false);
     expect(await getPostDetail(viewer, id)).toBeNull();
     expect(await getPostDetail(owner, id)).toMatchObject({ isOwner: true });
   });
@@ -169,7 +169,7 @@ describe("relist", () => {
     expect(row.listedAt.getTime()).toBeGreaterThanOrEqual(before - 1000);
     expect(row.expiresAt.getTime() - row.listedAt.getTime()).toBe(30 * DAY);
     expect(await db.select().from(postView).where(eq(postView.postId, id))).toHaveLength(1);
-    expect((await listFeed(200)).some((item) => item.id === id)).toBe(true);
+    expect((await listFeed(viewer, { limit: 200 })).items.some((item) => item.id === id)).toBe(true);
   });
 
   it("leaves out dates that have passed when relisting", async () => {
