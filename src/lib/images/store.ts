@@ -14,6 +14,15 @@ export interface ObjectStore {
   signedUrl(key: string, ttlSeconds: number): Promise<string>;
 }
 
+/**
+ * Links are signed as of the start of a 5-minute window, so asking again for
+ * the same photo within the window gives the very same address. A page that
+ * refreshes itself (a conversation) then keeps its images instead of swapping
+ * every address and reloading them. The link still works for at least the
+ * requested time.
+ */
+export const SIGNING_WINDOW_SECONDS = 5 * 60;
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set`);
@@ -53,8 +62,10 @@ export function createR2Store(): ObjectStore {
       );
     },
     signedUrl(key, ttlSeconds) {
+      const windowMs = SIGNING_WINDOW_SECONDS * 1000;
       return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
-        expiresIn: ttlSeconds,
+        signingDate: new Date(Math.floor(Date.now() / windowMs) * windowMs),
+        expiresIn: ttlSeconds + SIGNING_WINDOW_SECONDS,
       });
     },
   };

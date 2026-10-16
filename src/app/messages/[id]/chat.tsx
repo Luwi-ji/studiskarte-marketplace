@@ -10,6 +10,17 @@ export type ChatMessageData = { id: number; mine: boolean; body: string | null; 
 
 // New messages appear within this many seconds while the conversation is open.
 const REFRESH_SECONDS = 5;
+// Within this many pixels of the bottom counts as reading the newest messages.
+const AT_BOTTOM_PX = 120;
+
+function scrollToBottom() {
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+}
+
+/** The shape of a picture before it loads, so nothing moves when it does. */
+function pictureRatio(p: ChatPictureData): number {
+  return Math.min(1.6, Math.max(0.75, p.width / p.height));
+}
 
 const timeFormat = new Intl.DateTimeFormat("en-PH", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" });
 const dayFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
@@ -21,10 +32,16 @@ const dayFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZo
  */
 export function Chat({ conversationId, messages, unread, readOnlyReason }: { conversationId: string; messages: ChatMessageData[]; unread: number; readOnlyReason: string | null }) {
   const router = useRouter();
-  const bottom = useRef<HTMLDivElement>(null);
   const viewer = useRef<HTMLDialogElement>(null);
   const [shown, setShown] = useState<ChatPictureData | null>(null);
   const lastId = messages.at(-1)?.id;
+  const lastMine = messages.at(-1)?.mine ?? false;
+  // Following the newest message: true while the reader is at the bottom.
+  const following = useRef(true);
+  const newest = useRef(lastId);
+  // The newest message the reader has scrolled down to.
+  const [seenId, setSeenId] = useState(lastId);
+  const behind = lastId !== undefined && seenId !== lastId && !lastMine;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -33,10 +50,24 @@ export function Chat({ conversationId, messages, unread, readOnlyReason }: { con
     return () => clearInterval(timer);
   }, [router]);
 
-  // Show the newest message when the thread opens and whenever one arrives.
+  // Track whether the reader is at the bottom.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
-  }, [lastId]);
+    function onScroll() {
+      const gap = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+      following.current = gap < AT_BOTTOM_PX;
+      if (following.current) setSeenId(newest.current);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Open at the newest message, and stay with it as messages arrive. A reader
+  // who scrolled up to older messages is left where they are; your own
+  // message always brings you down.
+  useEffect(() => {
+    newest.current = lastId;
+    if (following.current || lastMine) scrollToBottom();
+  }, [lastId, lastMine]);
 
   // Messages from the other person that are on screen are read.
   useEffect(() => {
@@ -62,11 +93,18 @@ export function Chat({ conversationId, messages, unread, readOnlyReason }: { con
               {divider ? <p className="py-1 text-center text-xs text-zinc-500">{day}</p> : null}
               <div className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"}`}>
                 {m.pictures.length > 0 ? (
-                  <div className={`grid max-w-[80%] gap-1 ${m.pictures.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <div className={`grid w-[80%] gap-1 ${m.pictures.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                     {m.pictures.map((p) => (
-                      <button key={p.url} type="button" onClick={() => open(p)} aria-label="View picture full screen" className="block overflow-hidden rounded-xl">
+                      <button
+                        key={p.url}
+                        type="button"
+                        onClick={() => open(p)}
+                        aria-label="View picture full screen"
+                        style={{ aspectRatio: m.pictures.length > 1 ? 1 : pictureRatio(p) }}
+                        className="block overflow-hidden rounded-xl bg-zinc-200 dark:bg-zinc-800"
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p.thumbUrl} alt="Picture in the conversation" width={p.width} height={p.height} className="max-h-60 w-full object-cover" loading="lazy" />
+                        <img src={p.thumbUrl} alt="Picture in the conversation" className="h-full w-full object-cover" loading="lazy" />
                       </button>
                     ))}
                   </div>
@@ -80,9 +118,17 @@ export function Chat({ conversationId, messages, unread, readOnlyReason }: { con
           );
         })}
       </ul>
-      <div ref={bottom} />
 
       <div className="sticky bottom-0 z-10 border-t border-zinc-200 bg-[var(--background)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 dark:border-zinc-800">
+        {behind ? (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="absolute -top-14 right-3 flex h-11 items-center rounded-full bg-brand px-4 text-sm font-medium text-white shadow-lg"
+          >
+            New message ↓
+          </button>
+        ) : null}
         {readOnlyReason ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">{readOnlyReason}</p>
         ) : (

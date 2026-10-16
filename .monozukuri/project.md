@@ -40,6 +40,7 @@ Visitor, Student (verified by a code sent to a `.edu.ph` school email; buyer and
 - Cache Components keeps visited pages alive: forms that create things must clear themselves after success.
 - Check what a production failure looks like in the logs before changing code (`vercel logs runtime`).
 - A SQL CHECK that evaluates to NULL passes. Wrap nullable columns (`coalesce`) in CHECKs that must fail on missing values.
+- A page that refreshes itself must keep what it shows steady: picture links are signed per 5-minute window so images do not reload, picture space is reserved so nothing jumps, and the reader is never pulled away from older messages (found by the owner on the iPhone, reproduced in the browser).
 - A concurrency test proves nothing until it fails without the guard. Remove the lock once and watch it fail.
 - A concurrency test proves nothing until it fails without its lock (checked again for relist).
 - Fill form fields the way people do (typing, tapping), not by setting values with a script: scripted values hid an iPhone-only failure.
