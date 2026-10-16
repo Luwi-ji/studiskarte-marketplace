@@ -148,6 +148,43 @@ export const rateLimitEvent = pgTable(
   (t) => [index("rate_limit_event_lookup_idx").on(t.action, t.key, t.createdAt)],
 );
 
+// Following is public. One row per pair; the database refuses a student
+// following themselves.
+export const follow = pgTable(
+  "follow",
+  {
+    followerId: text("follower_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    followeeId: text("followee_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.followerId, t.followeeId] }),
+    check("follow_not_self", sql`${t.followerId} <> ${t.followeeId}`),
+    // "Who follows this student" and their count.
+    index("follow_followee_idx").on(t.followeeId),
+  ],
+);
+
+// Hearts are private to the student who gave them. The post's owner sees only
+// a count, never these rows. One row per (student, post).
+export const heart = pgTable(
+  "heart",
+  {
+    studentId: text("student_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.postId] }), index("heart_post_idx").on(t.postId)],
+);
+
 // One row per (post, viewer, Manila day). Views are counted from these rows,
 // never stored as a counter. The owner's own opens are never inserted.
 export const postView = pgTable(

@@ -2,7 +2,9 @@ import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { HeartButton } from "@/components/heart-button";
 import { PageHeader } from "@/components/page-header";
+import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
@@ -70,12 +72,17 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           </p>
         ) : null}
 
-        <div className="flex flex-col gap-1 py-4">
-          <p className="text-2xl font-bold">
-            {wishlist && detail.priceKind === "amount" ? "Budget " : ""}
-            {formatPrice(detail.priceKind, detail.priceAmount)}
-          </p>
-          <h1 className="text-xl font-semibold leading-snug">{detail.title}</h1>
+        <div className="flex items-start gap-3 py-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="text-2xl font-bold">
+              {wishlist && detail.priceKind === "amount" ? "Budget " : ""}
+              {formatPrice(detail.priceKind, detail.priceAmount)}
+            </p>
+            <h1 className="text-xl font-semibold leading-snug">{detail.title}</h1>
+          </div>
+          {detail.isOwner || detail.status === "withdrawn" ? null : <HeartButton postId={detail.id} initial={detail.hearted} />}
+        </div>
+        <div className="flex flex-col gap-1 pb-4">
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">{kindLabel(detail.kind)}</span>
             {condition ? (
@@ -135,29 +142,46 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
         </Section>
 
         <Section title={wishlist ? "Posted by" : "Seller"}>
-          <div className="flex items-center gap-3">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+          {/* A profile needs a handle; posts from before sign-up was finished have none. */}
+          {(() => {
+            const who = (
+              <>
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-lg font-semibold dark:bg-zinc-800" aria-hidden>
+                    {(detail.seller.displayName || detail.seller.handle || "?").slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-2">
+                    <span className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</span>
+                    <VerifiedBadge />
+                  </p>
+                  <p className="truncate text-sm text-zinc-500">
+                    {detail.seller.handle ? `@${detail.seller.handle} · ` : ""}
+                    {detail.seller.school}
+                  </p>
+                </div>
+              </>
+            );
+            return detail.seller.handle ? (
+              <Link href={`/u/${detail.seller.handle}`} className="flex min-h-12 items-center gap-3 active:opacity-80">
+                {who}
+                <span aria-hidden className="text-xl text-zinc-400">›</span>
+              </Link>
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200 text-lg font-semibold dark:bg-zinc-800" aria-hidden>
-                {(detail.seller.displayName || detail.seller.handle || "?").slice(0, 1).toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</p>
-              <p className="truncate text-sm text-zinc-500">
-                {detail.seller.handle ? `@${detail.seller.handle} · ` : ""}
-                {detail.seller.school}
-              </p>
-            </div>
-          </div>
+              <div className="flex items-center gap-3">{who}</div>
+            );
+          })()}
         </Section>
 
         <p className="border-t border-zinc-200 py-4 text-xs text-zinc-500 dark:border-zinc-800">
           Listed {dateFormat.format(detail.listedAt)}
           {detail.status === "open" ? ` · Expires ${dateFormat.format(detail.expiresAt)}` : ""}
           {detail.viewCount !== null ? ` · ${detail.viewCount} ${detail.viewCount === 1 ? "view" : "views"}` : ""}
+          {detail.heartCount !== null ? ` · ${detail.heartCount} ${detail.heartCount === 1 ? "heart" : "hearts"}` : ""}
         </p>
       </div>
 

@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { image, post, postPhoto, postView } from "@/db/schema";
+import { image, heart, post, postPhoto, postView } from "@/db/schema";
 import { getDb } from "@/lib/db";
 
 export type OwnPost = {
@@ -13,6 +13,8 @@ export type OwnPost = {
   expiresAt: Date;
   coverThumbKey: string;
   viewCount: number;
+  /** How many students hearted it, never who. */
+  heartCount: number;
 };
 
 /** A student's own posts, newest first, with the cover photo. */
@@ -29,6 +31,7 @@ export async function listOwnPosts(ownerId: string): Promise<OwnPost[]> {
       expiresAt: post.expiresAt,
       coverThumbKey: image.thumbKey,
       viewCount: sql<number>`(select count(*)::int from ${postView} where ${postView.postId} = ${post.id})`,
+      heartCount: sql<number>`(select count(*)::int from ${heart} where ${heart.postId} = ${post.id})`,
     })
     .from(post)
     .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))

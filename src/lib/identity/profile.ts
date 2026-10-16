@@ -1,5 +1,5 @@
-import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
-import { image, school, student } from "@/db/schema";
+import { and, count, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { follow, image, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import {
   checkDisplayName,
@@ -44,6 +44,59 @@ export async function getOwnProfile(studentId: string, now = new Date()): Promis
     avatarKey: row.avatarKey,
     avatarThumbKey: row.avatarThumbKey,
     nextHandleChangeAt: nextHandleChangeAt(row.handleChangedAt, now),
+  };
+}
+
+/** What anyone signed in may see of a student. Never includes the school email. */
+export type PublicProfile = {
+  id: string;
+  handle: string;
+  displayName: string;
+  school: string;
+  avatarKey: string | null;
+  followerCount: number;
+  isSelf: boolean;
+  /** Whether the viewer follows this student. */
+  isFollowing: boolean;
+};
+
+/**
+ * A student's public profile by handle (case-insensitive), or null when there
+ * is no such student, or they have not finished sign-up, or they are suspended
+ * or deleted.
+ */
+export async function getPublicProfile(viewerId: string, rawHandle: string): Promise<PublicProfile | null> {
+  const db = getDb();
+  const handle = rawHandle.trim().replace(/^@/, "").toLowerCase();
+  const [row] = await db
+    .select({
+      id: student.id,
+      handle: student.handle,
+      displayName: student.name,
+      schoolName: school.name,
+      schoolDomain: school.domain,
+      avatarKey: image.key,
+    })
+    .from(student)
+    .innerJoin(school, eq(school.domain, student.schoolDomain))
+    .leftJoin(image, eq(image.id, student.avatarImageId))
+    .where(and(eq(student.handle, handle), eq(student.accountStatus, "active")));
+  if (!row?.handle) return null;
+
+  const [followers] = await db.select({ n: count() }).from(follow).where(eq(follow.followeeId, row.id));
+  const [mine] = await db
+    .select({ n: count() })
+    .from(follow)
+    .where(and(eq(follow.followerId, viewerId), eq(follow.followeeId, row.id)));
+  return {
+    id: row.id,
+    handle: row.handle,
+    displayName: row.displayName,
+    school: row.schoolName ?? row.schoolDomain,
+    avatarKey: row.avatarKey,
+    followerCount: followers.n,
+    isSelf: row.id === viewerId,
+    isFollowing: mine.n > 0,
   };
 }
 

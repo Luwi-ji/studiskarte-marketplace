@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { requireActiveStudent } from "@/lib/access";
@@ -41,6 +42,14 @@ async function Settings() {
         <p className="text-sm text-zinc-500">
           @{profile.handle} · {profile.school}
         </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Link href={`/u/${profile.handle}`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
+          My profile
+        </Link>
+        <Link href="/me/hearts" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
+          Hearted posts
+        </Link>
       </div>
       <AvatarForm pictureUrl={pictureUrl} />
       <DisplayNameForm current={profile.displayName} />

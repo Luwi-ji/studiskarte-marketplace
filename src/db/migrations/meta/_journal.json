@@ -71,6 +71,13 @@
       "when": 1792118767989,
       "tag": "0009_post_views_job_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792145892188,
+      "tag": "0010_follow_and_heart",
+      "breakpoints": true
     }
   ]
 }

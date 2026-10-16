@@ -4,6 +4,7 @@ import { category, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { loadAvailability } from "@/lib/posts/availability";
 import { countViews } from "@/lib/posts/views";
+import { countHearts, hasHearted } from "@/lib/social/heart";
 import { liveForOthers } from "@/lib/posts/visibility";
 import type { Availability } from "@/lib/posts/schema";
 
@@ -28,6 +29,10 @@ export type PostDetail = {
   isOwner: boolean;
   /** Distinct student-days that opened the post. Null unless the viewer is the owner. */
   viewCount: number | null;
+  /** How many students hearted the post, never who. Null unless the viewer is the owner. */
+  heartCount: number | null;
+  /** Whether the viewer hearted it. Always false for the owner. */
+  hearted: boolean;
   seller: { handle: string | null; displayName: string; school: string; avatarThumbKey: string | null };
   photos: { key: string; width: number; height: number; caption: string | null }[];
   availability: Availability[];
@@ -112,6 +117,8 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     expiresAt: row.expiresAt,
     isOwner: row.ownerId === viewerId,
     viewCount: row.ownerId === viewerId ? await countViews(postId) : null,
+    heartCount: row.ownerId === viewerId ? await countHearts(postId) : null,
+    hearted: row.ownerId === viewerId ? false : await hasHearted(viewerId, postId),
     seller: {
       handle: row.sellerHandle,
       displayName: row.sellerName,
