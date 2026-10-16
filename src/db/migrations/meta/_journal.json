@@ -78,6 +78,13 @@
       "when": 1792145892188,
       "tag": "0010_follow_and_heart",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792155716223,
+      "tag": "0011_search_indexes",
+      "breakpoints": true
     }
   ]
 }

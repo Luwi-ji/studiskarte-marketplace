@@ -58,6 +58,9 @@ export const student = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // Search for people by handle or display name, tolerating misspellings (pg_trgm).
+    index("student_handle_trgm_idx").using("gin", t.handle.op("gin_trgm_ops")),
+    index("student_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
     // The suffix rule lives in school-email.ts; the database refuses anything
     // that is not at least shaped like a school address, even if code is bypassed.
     check("student_email_school", sql`${t.email} ~ '^[^@]+@([a-z0-9-]+\\.)+edu\\.ph$'`),
@@ -294,6 +297,9 @@ export const post = pgTable(
     index("post_feed_idx").on(t.status, t.listedAt.desc()),
     // The expiry job looks for open posts whose time has passed.
     index("post_expiry_idx").on(t.status, t.expiresAt),
+    // Search: partial words and misspellings (pg_trgm), in titles and descriptions.
+    index("post_title_trgm_idx").using("gin", t.title.op("gin_trgm_ops")),
+    index("post_description_trgm_idx").using("gin", t.description.op("gin_trgm_ops")),
     // The same post twice while open is refused (business logic edge case).
     uniqueIndex("post_open_duplicate")
       .on(t.ownerId, t.kind, sql`lower(btrim(${t.title}))`, sql`md5(btrim(${t.description}))`)

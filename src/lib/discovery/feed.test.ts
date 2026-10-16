@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { image, post } from "@/db/schema";
+import { image, post, school } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import { listFeed, type FeedItem } from "@/lib/discovery/feed";
+import { parseFilters } from "@/lib/discovery/filters";
 import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
 import { followStudent } from "@/lib/social/follow";
@@ -17,6 +18,9 @@ const loner = `feed-l-${run}`; // follows nobody
 const starA = `feed-a-${run}`;
 const starB = `feed-b-${run}`;
 const all = [fan, loner, starA, starB];
+// A school of its own, so paging walks only these posts and not other test files' posts.
+const domain = `f${run}.edu.ph`;
+const filters = parseFilters({ school: domain });
 
 async function newPost(ownerId: string, title: string, listedAt: string): Promise<string> {
   const name = randomUUID();
@@ -54,7 +58,7 @@ async function walk(viewerId: string, size: number, between?: () => Promise<void
   const seen: FeedItem[] = [];
   let cursor: string | null = null;
   for (let guard = 0; guard < 500; guard++) {
-    const page = await listFeed(viewerId, { cursor, limit: size });
+    const page = await listFeed(viewerId, { filters, cursor, limit: size });
     seen.push(...page.items);
     cursor = page.nextCursor;
     if (!cursor) break;
@@ -69,7 +73,7 @@ const idsOf = (items: FeedItem[], wanted: string[]) => items.map((i) => i.id).fi
 let fNew: string, fOld: string, nNew: string, nOld: string;
 
 beforeAll(async () => {
-  for (const id of all) await createTestStudent(id, { handle: `f${id.slice(5, 6)}_${run}` });
+  for (const id of all) await createTestStudent(id, { handle: `f${id.slice(5, 6)}_${run}`, schoolDomain: domain });
   await followStudent(fan, starA);
   fOld = await newPost(starA, "Followed old", "2026-01-01T00:00:00Z");
   fNew = await newPost(starA, "Followed new", "2026-01-02T12:00:00Z");
@@ -81,18 +85,19 @@ afterAll(async () => {
   await db.delete(post).where(inArray(post.ownerId, all));
   await db.delete(image).where(inArray(image.ownerId, all));
   for (const id of all) await deleteTestStudent(id);
+  await db.delete(school).where(eq(school.domain, domain));
   await getPool().end();
   globalThis.__studiskartePool = undefined;
 });
 
 describe("feed order", () => {
   it("puts followed students first, then everyone, each newest first", async () => {
-    const feed = (await listFeed(fan, { limit: 500 })).items;
+    const feed = (await listFeed(fan, { filters, limit: 500 })).items;
     expect(idsOf(feed, [fNew, fOld, nNew, nOld])).toEqual([fNew, fOld, nNew, nOld]);
   });
 
   it("shows newest first to someone who follows nobody", async () => {
-    const feed = (await listFeed(loner, { limit: 500 })).items;
+    const feed = (await listFeed(loner, { filters, limit: 500 })).items;
     expect(idsOf(feed, [fNew, fOld, nNew, nOld])).toEqual([nNew, fNew, nOld, fOld]);
   });
 
@@ -101,13 +106,13 @@ describe("feed order", () => {
     const lapsed = await newPost(starB, "Lapsed", "2026-01-04T00:00:00Z");
     await db.update(post).set({ status: "withdrawn" }).where(eq(post.id, gone));
     await db.update(post).set({ expiresAt: sql`now() - interval '1 minute'`, listedAt: sql`now() - interval '31 days'` }).where(eq(post.id, lapsed));
-    expect(idsOf((await listFeed(fan, { limit: 500 })).items, [gone, lapsed])).toEqual([]);
+    expect(idsOf((await listFeed(fan, { filters, limit: 500 })).items, [gone, lapsed])).toEqual([]);
   });
 });
 
 describe("pages", () => {
   it("reads the same list page by page as in one go, with nothing repeated or skipped", async () => {
-    const whole = (await listFeed(fan, { limit: 500 })).items.map((i) => i.id);
+    const whole = (await listFeed(fan, { filters, limit: 500 })).items.map((i) => i.id);
     for (const size of [1, 2, 3]) {
       const paged = (await walk(fan, size)).map((i) => i.id);
       expect(new Set(paged).size).toBe(paged.length);
@@ -133,12 +138,12 @@ describe("pages", () => {
   });
 
   it("says when there is nothing more, and starts over on an unreadable cursor", async () => {
-    const last = await listFeed(fan, { limit: 500 });
+    const last = await listFeed(fan, { filters, limit: 500 });
     expect(last.nextCursor).toBeNull();
-    const first = await listFeed(fan, { limit: 2 });
+    const first = await listFeed(fan, { filters, limit: 2 });
     expect(first.nextCursor).not.toBeNull();
     for (const junk of ["", "not-a-cursor", Buffer.from('{"f":9,"t":"x","id":"y"}').toString("base64url"), "A".repeat(500)]) {
-      expect((await listFeed(fan, { limit: 2, cursor: junk })).items.map((i) => i.id)).toEqual(first.items.map((i) => i.id));
+      expect((await listFeed(fan, { filters, limit: 2, cursor: junk })).items.map((i) => i.id)).toEqual(first.items.map((i) => i.id));
     }
   });
 });

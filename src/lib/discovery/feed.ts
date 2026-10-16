@@ -1,7 +1,8 @@
-import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { follow, heart, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { allFilterConditions, DEFAULT_FILTERS, priceKey, type Filters, type Sort } from "@/lib/discovery/filters";
 import { visibleToOthers } from "@/lib/discovery/visibility";
 
 export type FeedItem = {
@@ -47,9 +48,14 @@ function visibleCards<E extends Record<string, SQL>>(extra: E) {
     .innerJoin(image, eq(image.id, postPhoto.imageId));
 }
 
-// Where the next page starts: after the post with this followed flag, listing
-// time and id. The time is Postgres's own text, so no precision is lost.
-const cursorSchema = z.object({ f: z.union([z.literal(0), z.literal(1)]), t: z.string().max(40), id: z.uuid() });
+// Where the next page starts: after the post with this sort key, listing time
+// and id. The time is Postgres's own text, so no precision is lost. The key is
+// 0 or 1 ("followed") for the default order, or the price for price sorts.
+const cursorSchema = z.object({
+  k: z.number().int().min(-1).max(2_000_000_000),
+  t: z.string().max(40),
+  id: z.uuid(),
+});
 type Cursor = z.infer<typeof cursorSchema>;
 
 function encodeCursor(cursor: Cursor): string {
@@ -67,29 +73,59 @@ function decodeCursor(raw: string | null | undefined): Cursor | null {
   }
 }
 
+// Negotiable posts have no price: they come last in both price orders.
+const NO_PRICE_LAST_ASC = 2_000_000_000;
+const NO_PRICE_LAST_DESC = -1;
+
+/**
+ * How a sort orders posts. The first key is the sort itself; listing time and
+ * id (both newest/greatest first) break ties, so every post has one place.
+ * Only the default sort, without a search, puts followed students first.
+ */
+function orderFor(sort: Sort, searching: boolean, viewerId: string): { key: SQL; dir: "asc" | "desc" } {
+  if (sort === "price_low") return { key: sql`coalesce(${priceKey}, ${NO_PRICE_LAST_ASC})`, dir: "asc" };
+  if (sort === "price_high") return { key: sql`coalesce(${priceKey}, ${NO_PRICE_LAST_DESC})`, dir: "desc" };
+  // Cast, so ORDER BY sees an expression and not a column number.
+  if (searching) return { key: sql`(0)::int`, dir: "desc" };
+  return {
+    key: sql`(case when exists (select 1 from ${follow} where ${follow.followerId} = ${viewerId} and ${follow.followeeId} = ${post.ownerId}) then 1 else 0 end)`,
+    dir: "desc",
+  };
+}
+
+/** Rows strictly after the cursor in an order of (key, listed time desc, id desc). */
+function after(key: SQL, dir: "asc" | "desc", cursor: Cursor): SQL {
+  const sameKey = sql`${key} = ${cursor.k}::int`;
+  const sameTime = sql`${post.listedAt} = ${cursor.t}::timestamptz`;
+  return or(
+    sql`${key} ${dir === "asc" ? sql`>` : sql`<`} ${cursor.k}::int`,
+    and(sameKey, sql`${post.listedAt} < ${cursor.t}::timestamptz`),
+    and(sameKey, sameTime, sql`${post.id} < ${cursor.id}::uuid`),
+  ) as SQL;
+}
+
 export type FeedPage = { items: FeedItem[]; nextCursor: string | null };
 
 /**
- * One page of the feed: posts from students the viewer follows first, then
- * everyone else's, each group newest first. A viewer who follows nobody sees
- * newest first. Pages are keyed on (followed, listed time, id), so a post
- * listed or expired while scrolling never repeats or skips another one.
+ * One page of the feed. By default posts from students the viewer follows come
+ * first, then everyone else's, each newest first; a viewer who follows nobody
+ * sees newest first. Picking a price sort, or searching, drops the follow
+ * order. Filters and search words must all match. Pages are keyed on the sort
+ * key, listed time and id, so a post listed or expired while scrolling never
+ * repeats or skips another one.
  */
-export async function listFeed(viewerId: string, options: { cursor?: string | null; limit?: number } = {}): Promise<FeedPage> {
+export async function listFeed(
+  viewerId: string,
+  options: { filters?: Filters; cursor?: string | null; limit?: number } = {},
+): Promise<FeedPage> {
   const limit = options.limit ?? FEED_PAGE_SIZE;
+  const filters = options.filters ?? DEFAULT_FILTERS;
   const cursor = decodeCursor(options.cursor);
-  const followed = sql<number>`(case when exists (select 1 from ${follow} where ${follow.followerId} = ${viewerId} and ${follow.followeeId} = ${post.ownerId}) then 1 else 0 end)`;
+  const { key, dir } = orderFor(filters.sort, filters.query !== undefined, viewerId);
 
-  const rows = await visibleCards({ followed, listedKey: sql<string>`${post.listedAt}::text` })
-    .where(
-      and(
-        visibleToOthers(),
-        cursor
-          ? sql`(${followed}, ${post.listedAt}, ${post.id}) < (${cursor.f}::int, ${cursor.t}::timestamptz, ${cursor.id}::uuid)`
-          : undefined,
-      ),
-    )
-    .orderBy(desc(followed), desc(post.listedAt), desc(post.id))
+  const rows = await visibleCards({ sortKey: sql<number>`${key}`, listedKey: sql<string>`${post.listedAt}::text` })
+    .where(and(visibleToOthers(), allFilterConditions(filters), cursor ? after(key, dir, cursor) : undefined))
+    .orderBy(dir === "asc" ? asc(key) : desc(key), desc(post.listedAt), desc(post.id))
     .limit(limit + 1);
 
   const page = rows.slice(0, limit);
@@ -107,7 +143,7 @@ export async function listFeed(viewerId: string, options: { cursor?: string | nu
   }));
   return {
     items,
-    nextCursor: rows.length > limit && last ? encodeCursor({ f: last.followed === 1 ? 1 : 0, t: last.listedKey, id: last.id }) : null,
+    nextCursor: rows.length > limit && last ? encodeCursor({ k: Number(last.sortKey), t: last.listedKey, id: last.id }) : null,
   };
 }
 

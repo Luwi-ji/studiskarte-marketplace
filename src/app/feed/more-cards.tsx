@@ -5,8 +5,11 @@ import { CardGrid } from "@/components/post-card";
 import type { PostCardData } from "@/lib/discovery/cards";
 import { loadMoreFeedAction } from "./actions";
 
-/** The pages after the first, added below it as the student asks for them. */
-export function MoreCards({ nextCursor }: { nextCursor: string | null }) {
+/**
+ * The pages after the first, added below it as the student asks for them.
+ * `params` are the page's filters, sort and search, so the next pages match.
+ */
+export function MoreCards({ params, nextCursor }: { params: Record<string, string>; nextCursor: string | null }) {
   const [cards, setCards] = useState<PostCardData[]>([]);
   const [cursor, setCursor] = useState<string | null>(nextCursor);
   const [loading, setLoading] = useState(false);
@@ -17,7 +20,7 @@ export function MoreCards({ nextCursor }: { nextCursor: string | null }) {
     setLoading(true);
     setFailed(false);
     try {
-      const page = await loadMoreFeedAction(cursor);
+      const page = await loadMoreFeedAction(params, cursor);
       // A post can only appear once, even if the student taps twice.
       setCards((current) => [...current, ...page.cards.filter((card) => !current.some((c) => c.id === card.id))]);
       setCursor(page.nextCursor);
