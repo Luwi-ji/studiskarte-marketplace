@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { requireActiveStudent } from "@/lib/access";
 import { getOwnProfile } from "@/lib/identity/profile";
 import { getObjectStore } from "@/lib/images/store";
+import { AlertsToggle } from "@/components/alerts-toggle";
+import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { AvatarForm, DisplayNameForm, HandleForm, SignOutButton } from "./settings-forms";
 
 export const metadata = { title: "Settings · Studiskarte Marketplace" };
@@ -43,12 +45,15 @@ async function Settings() {
           @{profile.handle} · {profile.school}
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Link href={`/u/${profile.handle}`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
+      <div className="grid grid-cols-3 gap-2">
+        <Link href={`/u/${profile.handle}`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
           My profile
         </Link>
-        <Link href="/me/hearts" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
-          Hearted posts
+        <Link href="/me/hearts" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+          Hearted
+        </Link>
+        <Link href="/notifications" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+          Notifications
         </Link>
       </div>
       <AvatarForm pictureUrl={pictureUrl} />
@@ -59,6 +64,7 @@ async function Settings() {
         <p className="text-zinc-700 dark:text-zinc-300">{profile.school}</p>
         <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
       </div>
+      <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
       <SignOutButton />
     </div>
   );

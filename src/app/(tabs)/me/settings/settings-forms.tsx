@@ -5,6 +5,8 @@ import { useActionState, useState, type ChangeEvent } from "react";
 import { DISPLAY_NAME_MAX, HANDLE_MAX } from "@/lib/identity/names";
 import { preparePhoto } from "@/lib/images/prepare-photo";
 import { signOut } from "@/app/(public)/sign-in/actions";
+import { removeAlertsAction } from "@/app/notifications/actions";
+import { currentSubscription } from "@/lib/notifications/push/device";
 import { saveDisplayName, saveHandle, type FieldState } from "./actions";
 
 const input =
@@ -151,6 +153,14 @@ export function AvatarForm({ pictureUrl }: { pictureUrl: string | null }) {
   );
 }
 
+/** Removes this device's alert subscription (here and at the push service). */
+async function dropThisDevice(): Promise<void> {
+  const sub = await currentSubscription();
+  if (!sub) return;
+  await removeAlertsAction(sub.endpoint);
+  await sub.unsubscribe();
+}
+
 /**
  * Signs out, then reloads the sign-in page in full. Next.js keeps visited
  * pages in memory; a full reload clears them, so the next person on a shared
@@ -165,6 +175,9 @@ export function SignOutButton() {
       onClick={async () => {
         setBusy(true);
         try {
+          // Alerts for this device stop with the session, while we can still say so as this student.
+          // Signing out never waits on this: a failure here must not leave the student signed in.
+          await dropThisDevice().catch(() => {});
           await signOut();
         } finally {
           // A full reload on purpose: client navigation would keep signed-in pages in memory.

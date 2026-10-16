@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { getPublicProfile } from "@/lib/identity/profile";
 import { followStudent, unfollowStudent } from "@/lib/social/follow";
+import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 import { heartPost, unheartPost } from "@/lib/social/heart";
 
 const postIdSchema = z.uuid();
@@ -35,7 +36,7 @@ export async function setHeartAction(postId: unknown, heart: unknown): Promise<{
   const id = postIdSchema.safeParse(postId);
   if (!id.success || typeof heart !== "boolean") return { ok: false };
   if (heart) {
-    if ((await heartPost(me.id, id.data)) !== "ok") return { ok: false };
+    if ((await heartPost(me.id, id.data, sendAlertAfterResponse)) !== "ok") return { ok: false };
   } else {
     await unheartPost(me.id, id.data);
   }

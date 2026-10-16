@@ -256,6 +256,56 @@ export const messageImage = pgTable(
   ],
 );
 
+// An entry in a student's in-app list. Repeated events fold into one unread row
+// (a conversation's new messages, a post's hearts) so the list stays readable;
+// once_key makes a one-time event (an expiry warning) happen once per listing.
+// The text is worked out from the post when shown, so it never holds message
+// text or the name of who hearted.
+export const notification = pgTable(
+  "notification",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    postId: uuid("post_id").references(() => post.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").references(() => conversation.id, { onDelete: "cascade" }),
+    // How many events this row stands for.
+    count: integer("count").notNull().default(1),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    // Time of the latest event folded in.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // While unread, one row per (recipient, type, fold_key).
+    foldKey: text("fold_key"),
+    // Once ever per (recipient, once_key).
+    onceKey: text("once_key"),
+  },
+  (t) => [
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired')`),
+    check("notification_count", sql`${t.count} >= 1`),
+    uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
+    uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
+    index("notification_list_idx").on(t.recipientId, t.createdAt.desc()),
+  ],
+);
+
+// A device the student allowed alerts on. One row per browser push address.
+export const pushSubscription = pgTable(
+  "push_subscription",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("push_subscription_student_idx").on(t.studentId)],
+);
+
 // One row per (post, viewer, Manila day). Views are counted from these rows,
 // never stored as a counter. The owner's own opens are never inserted.
 export const postView = pgTable(

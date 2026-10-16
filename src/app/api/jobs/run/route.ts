@@ -2,6 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cleanupUnusedPhotos } from "@/lib/jobs/cleanup";
 import { expirePosts } from "@/lib/jobs/expire-posts";
+import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
+import { deliverAlert } from "@/lib/notifications/push/notify";
 import { isJobName, JOBS, runJob, staleJobs, type JobName } from "@/lib/jobs/job-run";
 import { getObjectStore } from "@/lib/images/store";
 
@@ -19,23 +21,38 @@ function authorized(request: Request): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+// Alerts are sent as each notice is written; the job waits for them, because this request is all the time they get.
 async function runNamed(name: JobName): Promise<string> {
-  if (name === "expire-posts") return runJob(name, async () => `expired ${await expirePosts()} posts`);
+  const alerts: Promise<unknown>[] = [];
+  const alert = (id: string) => void alerts.push(deliverAlert(id));
+  if (name === "expire-posts") {
+    return runJob(name, async () => {
+      const n = await expirePosts(new Date(), alert);
+      await Promise.all(alerts);
+      return `expired ${n} posts`;
+    });
+  }
+  if (name === "expiry-warnings") {
+    return runJob(name, async () => {
+      const n = await warnExpiringPosts(new Date(), alert);
+      await Promise.all(alerts);
+      return `warned about ${n} posts`;
+    });
+  }
   return runJob(name, async () => `removed ${await cleanupUnusedPhotos(getObjectStore())} unused photos`);
 }
 
 /**
- * ?job=expire-posts | cleanup | all (default). Also reports jobs that have
+ * ?job=expire-posts,expiry-warnings,cleanup (any, comma-separated) | all (default). Also reports jobs that have
  * stopped running, so a dead scheduler shows up in the response.
  */
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const wanted = new URL(request.url).searchParams.get("job") ?? "all";
-  if (wanted !== "all" && !isJobName(wanted)) {
-    return NextResponse.json({ error: "Unknown job" }, { status: 400 });
-  }
-  const names = wanted === "all" ? (Object.keys(JOBS).filter(isJobName) as JobName[]) : [wanted];
+  const wanted = (new URL(request.url).searchParams.get("job") ?? "all").split(",");
+  const unknown = wanted.some((name) => name !== "all" && !isJobName(name));
+  if (unknown) return NextResponse.json({ error: "Unknown job" }, { status: 400 });
+  const names = wanted.includes("all") ? (Object.keys(JOBS).filter(isJobName) as JobName[]) : [...new Set(wanted.filter(isJobName))];
 
   const results: Record<string, string> = {};
   let failed = false;

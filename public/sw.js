@@ -1,7 +1,9 @@
-// Service worker. One job for now: show a static "connection needed" page when
-// a page cannot load because the device is offline. It stores that one page
-// and nothing else, so no private data is ever kept on the device.
-// Alerts (push) are added in Phase 9.
+// Service worker. Two jobs:
+// 1. Show a static "connection needed" page when a page cannot load because the
+//    device is offline. It stores that one page and nothing else, so no private
+//    data is ever kept on the device.
+// 2. Show device alerts (Web Push) and open the right page when one is tapped.
+//    An alert carries only a headline and the post's title, never message text.
 
 // Bump when offline.html changes so installed apps fetch the new copy.
 const CACHE = "offline-v2";
@@ -45,6 +47,53 @@ self.addEventListener("fetch", (event) => {
         // fetch only throws when there is no network; server errors pass through.
         return (await caches.match(OFFLINE_URL, { cacheName: CACHE })) ?? Response.error();
       }
+    })(),
+  );
+});
+
+// An alert from the server: { title, body, url, tag }. Showing a notification is
+// required for every push (iPhone cancels alerts for apps that skip it).
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = typeof data.title === "string" && data.title ? data.title : "Studiskarte";
+  const tag = typeof data.tag === "string" && data.tag ? data.tag : undefined;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof data.body === "string" ? data.body : "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag,
+      // A newer alert about the same thing replaces the older one and still alerts.
+      renotify: Boolean(tag),
+      data: { url: pathOnly(data.url) },
+    }),
+  );
+});
+
+// Only a path on this site: an alert can never send the app somewhere else.
+function pathOnly(value) {
+  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = pathOnly(event.notification.data && event.notification.data.url);
+  event.waitUntil(
+    (async () => {
+      const open = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of open) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(url).catch(() => {});
+          return;
+        }
+      }
+      await self.clients.openWindow(url);
     })(),
   );
 });

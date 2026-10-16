@@ -2,6 +2,7 @@ import { and, eq, notExists } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { conversation, image, message, messageImage, post, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
+import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
 import { MESSAGES_PER_MINUTE, parseMessage, readOnlyReason, type MessageData } from "@/lib/messaging/rules";
 
@@ -64,14 +65,15 @@ async function writeMessage(tx: DbTransaction, args: { conversationId: string; s
  * students make two conversations. Refused for your own post, and for a post
  * that is not open or reserved by the time it is written.
  */
-export async function startConversation(args: { senderId: string; postId: string; input: unknown; now?: Date }): Promise<SendResult> {
+export async function startConversation(args: { senderId: string; postId: string; input: unknown; alert?: AlertSink; now?: Date }): Promise<SendResult> {
   const parsed = parseMessage(args.input);
   if (!parsed.ok) return parsed;
   if (!(await consume({ action: "message", key: args.senderId, max: MESSAGES_PER_MINUTE, windowSeconds: 60 }))) return TOO_FAST;
 
   const owner = alias(student, "owner");
+  let recorded = null as Recorded | null;
   try {
-    return await getDb().transaction(async (tx): Promise<SendResult> => {
+    const result = await getDb().transaction(async (tx): Promise<SendResult> => {
       // Share-lock the post: it cannot be withdrawn or expired between this check and the write.
       const [target] = await tx
         .select({ ownerId: post.ownerId, status: post.status, expiresAt: post.expiresAt, ownerStatus: owner.accountStatus })
@@ -107,8 +109,11 @@ export async function startConversation(args: { senderId: string; postId: string
       if (!(await writeMessage(tx, { conversationId, senderId: args.senderId, isOwner: false, data: parsed.data }))) {
         throw new PhotoMissingError();
       }
+      recorded = await recordNotification(tx, { type: "message", recipientId: target.ownerId, postId: args.postId, conversationId });
       return { ok: true, conversationId };
     });
+    if (result.ok && recorded?.alert) args.alert?.(recorded.id);
+    return result;
   } catch (error) {
     if (error instanceof PhotoMissingError || isUniqueViolation(error)) return PHOTO_MISSING;
     throw error;
@@ -120,18 +125,20 @@ export async function startConversation(args: { senderId: string; postId: string
  * same "not found" as for a conversation that does not exist. Refused while
  * the post is closed, withdrawn, expired or hidden.
  */
-export async function sendMessage(args: { senderId: string; conversationId: string; input: unknown; now?: Date }): Promise<SendResult> {
+export async function sendMessage(args: { senderId: string; conversationId: string; input: unknown; alert?: AlertSink; now?: Date }): Promise<SendResult> {
   const parsed = parseMessage(args.input);
   if (!parsed.ok) return parsed;
   if (!(await consume({ action: "message", key: args.senderId, max: MESSAGES_PER_MINUTE, windowSeconds: 60 }))) return TOO_FAST;
 
   const owner = alias(student, "owner");
   const responder = alias(student, "responder");
+  let recorded = null as Recorded | null;
   try {
-    return await getDb().transaction(async (tx): Promise<SendResult> => {
+    const result = await getDb().transaction(async (tx): Promise<SendResult> => {
       const [found] = await tx
         .select({
           responderId: conversation.responderId,
+          postId: post.id,
           ownerId: post.ownerId,
           status: post.status,
           expiresAt: post.expiresAt,
@@ -156,8 +163,12 @@ export async function sendMessage(args: { senderId: string; conversationId: stri
       if (!(await writeMessage(tx, { conversationId: args.conversationId, senderId: args.senderId, isOwner: found.ownerId === args.senderId, data: parsed.data }))) {
         throw new PhotoMissingError();
       }
+      const recipientId = found.ownerId === args.senderId ? found.responderId : found.ownerId;
+      recorded = await recordNotification(tx, { type: "message", recipientId, postId: found.postId, conversationId: args.conversationId });
       return { ok: true, conversationId: args.conversationId };
     });
+    if (result.ok && recorded?.alert) args.alert?.(recorded.id);
+    return result;
   } catch (error) {
     if (error instanceof PhotoMissingError || isUniqueViolation(error)) return PHOTO_MISSING;
     throw error;

@@ -8,9 +8,15 @@ import * as schema from "@/db/schema";
 /** The handle passed to `getDb().transaction(async (tx) => …)`. */
 export type DbTransaction = PgTransaction<NodePgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
 
+/** The database handle from getDb(). */
+export type Database = NodePgDatabase<typeof schema>;
+
+/** Where a query runs: the database itself, or a transaction in progress. */
+export type Executor = Database | DbTransaction;
+
 declare global {
   var __studiskartePool: Pool | undefined;
-  var __studiskarteDb: NodePgDatabase<typeof schema> | undefined;
+  var __studiskarteDb: Database | undefined;
 }
 
 // Application traffic uses the pooled DATABASE_URL (the "-pooler" host).
@@ -33,7 +39,7 @@ export function getPool(): Pool {
   return globalThis.__studiskartePool;
 }
 
-export function getDb(): NodePgDatabase<typeof schema> {
+export function getDb(): Database {
   globalThis.__studiskarteDb ??= drizzle(getPool(), { schema });
   return globalThis.__studiskarteDb;
 }

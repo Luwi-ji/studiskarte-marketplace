@@ -7,8 +7,9 @@ import { getDb } from "@/lib/db";
  * scheduler is considered stopped. Each job is safe to run twice.
  */
 export const JOBS = {
-  // Runs every 15 minutes (GitHub Actions) and daily (Vercel cron).
+  // Run every 15 minutes (GitHub Actions) and daily (Vercel cron).
   "expire-posts": { maxAgeMinutes: 3 * 60 },
+  "expiry-warnings": { maxAgeMinutes: 3 * 60 },
   // Runs daily (Vercel cron).
   cleanup: { maxAgeMinutes: 36 * 60 },
 } as const;

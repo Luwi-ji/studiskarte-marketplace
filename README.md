@@ -17,6 +17,8 @@ Design lives in `.monozukuri/` (project memory, blueprint, decisions). Read `.mo
    | `GMAIL_USER`, `APP_PASSWORD` | Sender mailbox and its Google App Password. |
    | `MAIL_TRANSPORT=log` | Local only: print mail to the server log instead of sending. Refused in production. |
    | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Cloudflare R2 for photos. Needed only to create posts and view photos. |
+   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web Push alerts. Make a pair with `npx web-push generate-vapid-keys`; the subject is a `mailto:` address. Use a different pair per environment. Without them the app works and shows notifications in the app only. |
+   | `CRON_SECRET` | Protects `/api/jobs/run` (at least 16 characters). Needed by Vercel cron and the GitHub Actions workflow. |
 
 3. `npm run db:migrate` applies `src/db/migrations/` to the branch in `.env.local`.
 4. `npm run dev`, then open http://localhost:3000.

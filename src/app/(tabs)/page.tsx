@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { NotificationBell } from "@/components/notification-bell";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
 import { requireActiveStudent } from "@/lib/access";
@@ -12,7 +13,7 @@ import { MoreCards } from "../feed/more-cards";
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <>
-      <PageHeader title="Studiskarte" logo />
+      <PageHeader title="Studiskarte" logo action={<NotificationBell />} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
         <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
           <Feed searchParams={searchParams} />

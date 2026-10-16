@@ -2,6 +2,7 @@ import { and, count, eq, notInArray } from "drizzle-orm";
 import { heart, post, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { visibleToOthers } from "@/lib/discovery/visibility";
+import { recordNotification, type AlertSink } from "@/lib/notifications/record";
 
 export type HeartResult = "ok" | "own_post" | "not_found";
 
@@ -9,7 +10,7 @@ export type HeartResult = "ok" | "own_post" | "not_found";
  * Hearts a post, privately. Only a post others can see may be hearted, and
  * never your own. Doing it twice is the same as once.
  */
-export async function heartPost(studentId: string, postId: string): Promise<HeartResult> {
+export async function heartPost(studentId: string, postId: string, alert?: AlertSink): Promise<HeartResult> {
   const db = getDb();
   const [target] = await db
     .select({ id: post.id, ownerId: post.ownerId })
@@ -18,7 +19,12 @@ export async function heartPost(studentId: string, postId: string): Promise<Hear
     .where(and(eq(post.id, postId), visibleToOthers()));
   if (!target) return "not_found";
   if (target.ownerId === studentId) return "own_post";
-  await db.insert(heart).values({ studentId, postId }).onConflictDoNothing();
+  const added = await db.insert(heart).values({ studentId, postId }).onConflictDoNothing().returning({ postId: heart.postId });
+  // Tell the owner there is a heart, without saying whose. A heart that was already there tells nobody.
+  if (added.length > 0) {
+    const recorded = await recordNotification(db, { type: "heart", recipientId: target.ownerId, postId });
+    if (recorded?.alert) alert?.(recorded.id);
+  }
   return "ok";
 }
 

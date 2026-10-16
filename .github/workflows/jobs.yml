@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Run expire-posts and check that every job is healthy
+      - name: Run the frequent jobs and check that every job is healthy
         env:
           APP_URL: ${{ secrets.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -31,7 +31,7 @@ jobs:
           fi
           body=$(curl --fail-with-body --silent --show-error --max-time 120 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/jobs/run?job=expire-posts")
+            "$APP_URL/api/jobs/run?job=expire-posts,expiry-warnings")
           echo "$body"
           # "stale" lists jobs that never ran, ran too long ago, or last failed.
           echo "$body" | grep -q '"stale":\[\]' || { echo "A scheduled job is stale"; exit 1; }
