@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
-import { formatPrice, STATUS_LABEL } from "@/lib/posts/format";
+import { formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
 import { listOwnPosts } from "@/lib/posts/mine";
 import { OPEN_POSTS_MAX } from "@/lib/posts/schema";
 import { WithdrawButton } from "./withdraw-button";
@@ -60,7 +60,7 @@ async function Posts() {
                 <p className="truncate font-medium">{p.title}</p>
                 <p className="text-sm font-semibold">{formatPrice(p.priceKind, p.priceAmount)}</p>
                 <p className="text-sm text-zinc-500">
-                  {p.kind === "wishlist" ? "Wanted" : "Offered"} · {STATUS_LABEL[p.status] ?? p.status}
+                  {kindLabel(p.kind)} · {STATUS_LABEL[p.status] ?? p.status}
                 </p>
                 {p.status === "open" ? <p className="text-xs text-zinc-500">Expires {dateFormat.format(p.expiresAt)}</p> : null}
               </div>

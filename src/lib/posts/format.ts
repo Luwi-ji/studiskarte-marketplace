@@ -1,5 +1,10 @@
 import { WEEKDAY_LABEL, type Availability } from "@/lib/posts/schema";
 
+/** The post type as students see it: "Showcase" (I offer) or "Wishlist" (I seek). */
+export function kindLabel(kind: string): string {
+  return kind === "wishlist" ? "Wishlist" : "Showcase";
+}
+
 /** "₱1,200", "Free" or "Negotiable". */
 export function formatPrice(priceKind: string, priceAmount: number | null): string {
   if (priceKind === "free") return "Free";

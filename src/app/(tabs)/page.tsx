@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
 import { getObjectStore } from "@/lib/images/store";
-import { formatPrice } from "@/lib/posts/format";
+import { formatPrice, kindLabel } from "@/lib/posts/format";
 
 const PHOTO_LINK_SECONDS = 5 * 60;
 
@@ -56,7 +56,7 @@ async function Feed() {
             <p className="text-base font-semibold">{formatPrice(item.priceKind, item.priceAmount)}</p>
             <p className="line-clamp-2 text-sm leading-snug">{item.title}</p>
             <p className="truncate text-xs text-zinc-500">
-              {item.kind === "wishlist" ? "Wanted" : "Offered"}
+              {kindLabel(item.kind)}
               {item.ownerHandle ? ` · @${item.ownerHandle}` : ""}
             </p>
             <p className="truncate text-xs text-zinc-500">{item.school}</p>

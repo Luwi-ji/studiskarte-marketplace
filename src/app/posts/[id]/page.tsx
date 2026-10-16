@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
-import { formatAvailability, formatPrice, STATUS_LABEL } from "@/lib/posts/format";
+import { formatAvailability, formatPrice, kindLabel, STATUS_LABEL } from "@/lib/posts/format";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
 
@@ -70,7 +70,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           </p>
           <h1 className="text-xl font-semibold leading-snug">{detail.title}</h1>
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">{wishlist ? "Wanted" : "Offered"}</span>
+            <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">{kindLabel(detail.kind)}</span>
             {condition ? (
               <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
                 {wishlist ? "Wants: " : ""}
