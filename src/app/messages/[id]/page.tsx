@@ -56,8 +56,9 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
     <div className="flex min-h-dvh flex-col">
       <PageHeader title={name} back="/messages" />
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col">
-        <div className="px-3 pt-3">
-          <ProductCard post={view.post} thumbUrl={coverUrl} />
+        {/* Stays under the header while the thread scrolls, so the post is always one tap away. */}
+        <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 dark:border-zinc-800">
+          <ProductCard post={view.post} thumbUrl={coverUrl} compact />
         </div>
         <Chat
           conversationId={view.id}
