@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { deal } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
-import { canConfirmNow, formatHandoverTime } from "@/lib/deals/handover";
 import { lockDeal } from "@/lib/deals/lock";
 import { readyToComplete } from "@/lib/deals/slot";
 import { activeFor, tellOther, type HandoverResult } from "@/lib/deals/schedule";
@@ -13,8 +12,9 @@ export type ConfirmResult = HandoverResult | { ok: true; conversationId: string;
 export const NOT_SCHEDULED = "Agree a time and place first.";
 
 /**
- * One of the two says the handover happened. It can be said from the agreed
- * time on, and only once the deal is scheduled. The deal completes when both
+ * One of the two says the handover happened. It can be said at any time once a
+ * time and place are agreed, so a handover that happens earlier, or somewhere else,
+ * can be confirmed right away. The deal completes when both
  * have said so and the payment is settled (confirmed, or cash in person agreed, or
  * there was nothing to pay), and
  * in no other way (the database refuses it otherwise): the post is then fulfilled if every unit has been handed over. The other person
@@ -28,7 +28,6 @@ export async function confirmHandover(args: { actorId: string; dealId: string; a
     if ("error" in checked) return checked.error;
     const { found } = checked;
     if (found.status !== "scheduled" || !found.scheduledAt) return { ok: false, error: NOT_SCHEDULED };
-    if (!canConfirmNow(found.scheduledAt, now)) return { ok: false, error: `You can confirm from ${formatHandoverTime(found.scheduledAt)}, when the handover is due.` };
 
     const asOwner = found.ownerId === args.actorId;
     const mineBefore = asOwner ? found.ownerConfirmedAt : found.responderConfirmedAt;

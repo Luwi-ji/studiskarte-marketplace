@@ -7,6 +7,7 @@ import { chooseableDays, METHOD_LABEL, suggestTime, time12, to24h, windowsOn, ty
 import type { DealCard } from "@/lib/messaging/read";
 import type { Availability } from "@/lib/posts/schema";
 import { PaymentSteps, ReportBox } from "./payment-steps";
+import { NO_ANSWER, ReloadButton } from "./reload-hint";
 
 /** A reservation as the page sends it to the browser: times as text. */
 export type DealCardData = Omit<DealCard, "handover" | "proposal"> & {
@@ -60,7 +61,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
         router.refresh();
       }
     } catch {
-      setError("Could not do that. Check your connection and try again.");
+      setError(NO_ANSWER);
     } finally {
       setBusy(null);
     }
@@ -245,6 +246,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
               {error}
             </p>
           ) : null}
+          {error === NO_ANSWER ? <ReloadButton /> : null}
           <div className="grid grid-cols-2 gap-2">
             <button type="button" className={button} disabled={busy !== null} onClick={() => setEditing(false)}>
               Cancel
@@ -264,6 +266,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           {error}
         </p>
       ) : null}
+      {error === NO_ANSWER && !editing ? <ReloadButton /> : null}
     </div>
   );
 }

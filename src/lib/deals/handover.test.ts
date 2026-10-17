@@ -303,14 +303,15 @@ describe("agreeing a time and place", () => {
 });
 
 describe("confirming the handover", () => {
-  it("completes only when both confirm, from the agreed time on, and fulfils the post", async () => {
+  it("completes only when both confirm (before the agreed time too, once a slot is agreed), and fulfils the post", async () => {
     const { postId, dealId, conversationId } = await scheduled();
     const unscheduled = await reserved(ben, await newPost());
     await db.delete(notification).where(inArray(notification.recipientId, people));
     const after = new Date(slot.at.getTime() + HOUR);
 
     // Not before the time, and not before it is scheduled.
-    expect(await confirmHandover({ actorId: ana, dealId })).toMatchObject({ ok: false, error: expect.stringContaining("You can confirm from") });
+    // Confirming is allowed before the agreed time too: they may meet earlier, or elsewhere.
+    expect(await confirmHandover({ actorId: ana, dealId })).toMatchObject({ ok: true, completed: false });
     expect(await confirmHandover({ actorId: ben, dealId: unscheduled.dealId, now: after })).toEqual({ ok: false, error: NOT_SCHEDULED });
 
     expect(await confirmHandover({ actorId: ana, dealId, now: after })).toEqual({ ok: true, conversationId, completed: false });

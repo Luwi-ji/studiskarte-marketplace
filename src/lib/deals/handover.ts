@@ -121,8 +121,3 @@ export function parseProposal(input: unknown, post: { methods: HandoverMethod[];
 export function formatHandoverTime(at: Date): string {
   return new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" }).format(at);
 }
-
-/** Whether a scheduled handover can be confirmed yet: from its time on. */
-export function canConfirmNow(scheduledAt: Date, now = new Date()): boolean {
-  return scheduledAt.getTime() <= now.getTime();
-}

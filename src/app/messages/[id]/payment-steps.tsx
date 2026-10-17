@@ -15,6 +15,7 @@ import { DETAILS_MAX, REPORT_REASONS, type ReportReason } from "@/lib/deals/slot
 import { PAYMENT_LABEL, type PaymentMode } from "@/lib/payment";
 import { formatPrice } from "@/lib/posts/format";
 import type { DealCardData } from "./handover-panel";
+import { NO_ANSWER, ReloadButton } from "./reload-hint";
 
 const button = "h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700";
 const primary = "h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60";
@@ -48,7 +49,7 @@ function useStep() {
       refreshing.current = true;
       startTransition(() => router.refresh());
     } catch {
-      setError("Could not do that. Check your connection and try again.");
+      setError(NO_ANSWER);
       setBusy(null);
     }
   }
@@ -210,6 +211,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
           {step.error}
         </p>
       ) : null}
+      {step.error === NO_ANSWER ? <ReloadButton /> : null}
     </div>
   );
 }
@@ -298,6 +300,7 @@ export function ReportBox({ deal, otherName }: { deal: DealCardData; otherName: 
           {step.error}
         </p>
       ) : null}
+      {step.error === NO_ANSWER ? <ReloadButton /> : null}
     </div>
   );
 }
