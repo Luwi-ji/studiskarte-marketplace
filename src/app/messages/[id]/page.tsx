@@ -6,6 +6,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation } from "@/lib/messaging/read";
 import { Chat, type ChatMessageData } from "./chat";
+import { ErrorBanner } from "./error-banner";
 import { Transactions, type ListingCardData } from "./transactions";
 
 export const metadata = { title: "Messages · Studiskarte Marketplace" };
@@ -79,6 +80,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
         <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 dark:border-zinc-800">
           <Transactions listings={view.listings.map(withThumb)} />
         </div>
+        <ErrorBanner />
         <Chat conversationId={view.id} messages={messages} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
       </main>
     </div>

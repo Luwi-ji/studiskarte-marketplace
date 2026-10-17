@@ -21,6 +21,16 @@ export type HandoverMethod = "meetup" | "delivery";
 export const METHOD_LABEL: Record<HandoverMethod, string> = { meetup: "Meet-up", delivery: "Delivery" };
 
 const MANILA_OFFSET = "+08:00";
+const MANILA_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * Today's date in the Philippines as "YYYY-MM-DD", by plain arithmetic. The tap
+ * handlers of the handover form use this, not Intl: a phone's locale support
+ * must never be able to make a tap do nothing.
+ */
+export function manilaDate(now: Date): string {
+  return new Date(now.getTime() + MANILA_MS).toISOString().slice(0, 10);
+}
 const DAY_MS = 86_400_000;
 
 const inputSchema = z.object({
@@ -60,9 +70,9 @@ export function time12(time: string): string {
 export function suggestTime(date: string, windows: Availability[] | null, now = new Date()): string {
   const first = windows === null ? undefined : [...windowsOn(date, windows)].sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
   const start = first ? first.startTime : "09:00";
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now);
+  const today = manilaDate(now);
   if (date !== today) return start;
-  const wall = new Date(now.getTime() + 8 * 60 * 60 * 1000); // the Philippine wall clock, read as UTC
+  const wall = new Date(now.getTime() + MANILA_MS); // the Philippine wall clock, read as UTC
   const nowMinutes = wall.getUTCHours() * 60 + wall.getUTCMinutes();
   const [h, m] = start.split(":").map(Number);
   if (h * 60 + m > nowMinutes) return start;
@@ -75,7 +85,14 @@ export function to24h(hour: number, minute: number, pm: boolean): string {
   return `${String((hour % 12) + (pm ? 12 : 0)).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-const dayLabel = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Manila" });
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Sat, Oct 17" for a "YYYY-MM-DD" date. */
+function dayLabel(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  return `${WEEKDAY_SHORT[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]}, ${MONTH_SHORT[month - 1]} ${day}`;
+}
 
 /**
  * The days that can be chosen, from today (Philippine time) up to 60 days ahead.
@@ -83,12 +100,12 @@ const dayLabel = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "sh
  * every day.
  */
 export function chooseableDays(windows: Availability[] | null, now = new Date()): { date: string; label: string }[] {
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now);
+  const today = manilaDate(now);
   const days: { date: string; label: string }[] = [];
   for (let i = 0; i <= PLAN_AHEAD_DAYS; i++) {
     const date = new Date(Date.parse(`${today}T00:00:00Z`) + i * DAY_MS).toISOString().slice(0, 10);
     if (windows !== null && windowsOn(date, windows).length === 0) continue;
-    days.push({ date, label: dayLabel.format(new Date(`${date}T12:00:00${MANILA_OFFSET}`)) });
+    days.push({ date, label: dayLabel(date) });
   }
   return days;
 }

@@ -188,7 +188,10 @@ describe("choosing a day and a time", () => {
     expect(days).not.toContain("2030-01-08"); // a Tuesday
     expect(days.every((d) => d <= "2030-03-02")).toBe(true);
     expect(chooseableDays(null, now)).toHaveLength(61);
-    expect(chooseableDays(windows, now)[0]).toMatchObject({ date: "2030-01-07", label: expect.stringContaining("Jan 7") });
+    expect(chooseableDays(windows, now)[0]).toMatchObject({ date: "2030-01-07", label: "Mon, Jan 7" });
+    expect(chooseableDays(null, now)[0]).toMatchObject({ date: "2030-01-01", label: "Tue, Jan 1" });
+    // The Philippine date, not the machine's: 16:30 UTC is already the next day in Manila.
+    expect(chooseableDays(null, new Date("2030-01-01T16:30:00Z"))[0].date).toBe("2030-01-02");
   });
 
   it("starts the form at a time that is not in the past: the window's start, or the next hour if today's has passed", () => {

@@ -80,9 +80,14 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
     setClock({ hour: String(h24 % 12 === 0 ? 12 : h24 % 12), minute: String(m), ampm: h24 < 12 ? "AM" : "PM" });
   }
   function openForm() {
-    const first = chooseableDays(windows)[0]?.date ?? "";
-    setDay(first);
-    if (first) suggest(first);
+    // A failure here must show, not leave a button that does nothing.
+    try {
+      const first = chooseableDays(windows)[0]?.date ?? "";
+      setDay(first);
+      if (first) suggest(first);
+    } catch (failure) {
+      setError(`Could not fill in the form (${failure instanceof Error ? failure.message : "unknown"}). You can still pick the day and time yourself.`);
+    }
     setEditing(true);
   }
   const chosen = method ?? options?.methods[0] ?? "meetup";

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
+import { UpdateNotice } from "./update-notice";
 
 export const metadata: Metadata = {
   title: "Studiskarte Marketplace",
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         {children}
         <ServiceWorkerRegistration />
+        <UpdateNotice />
       </body>
     </html>
   );
