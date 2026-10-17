@@ -51,6 +51,25 @@ export function time12(time: string): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/**
+ * The time a form should start with for a day, as "HH:MM": the start of the
+ * post's availability that day (9:00 AM for the owner, who has no limit), or,
+ * if that has already passed today, the next full hour. So a proposal made
+ * with the first day and the starting time is never in the past.
+ */
+export function suggestTime(date: string, windows: Availability[] | null, now = new Date()): string {
+  const first = windows === null ? undefined : [...windowsOn(date, windows)].sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+  const start = first ? first.startTime : "09:00";
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now);
+  if (date !== today) return start;
+  const wall = new Date(now.getTime() + 8 * 60 * 60 * 1000); // the Philippine wall clock, read as UTC
+  const nowMinutes = wall.getUTCHours() * 60 + wall.getUTCMinutes();
+  const [h, m] = start.split(":").map(Number);
+  if (h * 60 + m > nowMinutes) return start;
+  const next = (Math.floor(nowMinutes / 60) + 1) * 60;
+  return next >= 24 * 60 ? start : `${String(next / 60).padStart(2, "0")}:00`;
+}
+
 /** An hour (1 to 12), minute and AM or PM as "HH:MM" on the 24-hour clock. */
 export function to24h(hour: number, minute: number, pm: boolean): string {
   return `${String((hour % 12) + (pm ? 12 : 0)).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;

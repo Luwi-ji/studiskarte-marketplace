@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { answerProposalAction, confirmHandoverAction, proposeHandoverAction } from "@/app/deals/actions";
-import { chooseableDays, METHOD_LABEL, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
+import { chooseableDays, METHOD_LABEL, suggestTime, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
 import type { DealCard } from "@/lib/messaging/read";
 import type { Availability } from "@/lib/posts/schema";
 import { PaymentSteps, ReportBox } from "./payment-steps";
@@ -39,6 +39,9 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const [editing, setEditing] = useState(false);
   const [method, setMethod] = useState<HandoverMethod | null>(null);
   const [day, setDay] = useState("");
+  // The time on the form: an hour (1 to 12), minute and AM or PM, as the person sees it.
+  const [clock, setClock] = useState({ hour: "9", minute: "0", ampm: "AM" });
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // What the viewer just confirmed, shown at once; the refreshed page then says the same.
@@ -63,7 +66,24 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
     }
   }
 
+  // A refusal shows up beside the button that was tapped, so bring it into view.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [error]);
+
   const options = deal.options;
+  const windows = viewerIsOwner ? null : (options?.windows ?? null);
+  /** Fills in the time for a day: the start of that day's availability, or the next hour if today's has passed. */
+  function suggest(date: string) {
+    const [h24, m] = suggestTime(date, windows).split(":").map(Number);
+    setClock({ hour: String(h24 % 12 === 0 ? 12 : h24 % 12), minute: String(m), ampm: h24 < 12 ? "AM" : "PM" });
+  }
+  function openForm() {
+    const first = chooseableDays(windows)[0]?.date ?? "";
+    setDay(first);
+    if (first) suggest(first);
+    setEditing(true);
+  }
   const chosen = method ?? options?.methods[0] ?? "meetup";
   const prefill = chosen === "meetup" ? options?.meetupPlace : options?.deliveryPlace;
   const them = viewerIsOwner ? otherName : "the owner";
@@ -130,7 +150,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       ) : null}
 
       {options && !editing ? (
-        <button type="button" className={button} disabled={busy !== null} onClick={() => setEditing(true)}>
+        <button type="button" className={button} disabled={busy !== null} onClick={openForm}>
           {deal.handover ? "Change time or place" : deal.proposal && !deal.proposal.byMe ? "Suggest another" : "Propose a time and place"}
         </button>
       ) : null}
@@ -167,7 +187,16 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           </p>
           <label className="flex flex-col gap-1 text-sm">
             Day
-            <select name="date" required value={day} onChange={(event) => setDay(event.target.value)} className={field}>
+            <select
+              name="date"
+              required
+              value={day}
+              onChange={(event) => {
+                setDay(event.target.value);
+                suggest(event.target.value);
+              }}
+              className={field}
+            >
               <option value="" disabled>
                 Choose a day
               </option>
@@ -181,21 +210,21 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           <fieldset className="flex flex-col gap-1 text-sm">
             <legend className="mb-1">Time</legend>
             <div className="grid grid-cols-3 gap-2">
-              <select name="hour" aria-label="Hour" required defaultValue="9" className={field}>
+              <select name="hour" aria-label="Hour" required value={clock.hour} onChange={(e) => setClock({ ...clock, hour: e.target.value })} className={field}>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
                   <option key={h} value={h}>
                     {h}
                   </option>
                 ))}
               </select>
-              <select name="minute" aria-label="Minute" required defaultValue="0" className={field}>
+              <select name="minute" aria-label="Minute" required value={clock.minute} onChange={(e) => setClock({ ...clock, minute: e.target.value })} className={field}>
                 {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
                   <option key={m} value={m}>
                     {String(m).padStart(2, "0")}
                   </option>
                 ))}
               </select>
-              <select name="ampm" aria-label="AM or PM" required defaultValue="AM" className={field}>
+              <select name="ampm" aria-label="AM or PM" required value={clock.ampm} onChange={(e) => setClock({ ...clock, ampm: e.target.value })} className={field}>
                 <option>AM</option>
                 <option>PM</option>
               </select>
@@ -211,6 +240,11 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
             {/* Keyed on the method, so choosing the other one fills in its place. */}
             <input key={chosen} name="place" type="text" required maxLength={200} defaultValue={prefill ?? ""} className={field} />
           </label>
+          {error ? (
+            <p ref={errorRef} role="alert" className="text-sm text-red-600">
+              {error}
+            </p>
+          ) : null}
           <div className="grid grid-cols-2 gap-2">
             <button type="button" className={button} disabled={busy !== null} onClick={() => setEditing(false)}>
               Cancel
@@ -225,8 +259,8 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       {deal.secured ? <p className="text-xs text-zinc-500">The slot is secured, so it can&apos;t be cancelled. If something goes wrong, report what happened.</p> : null}
       {deal.canReport ? <ReportBox deal={deal} otherName={otherName} /> : null}
 
-      {error ? (
-        <p role="alert" className="text-sm text-red-600">
+      {error && !editing ? (
+        <p ref={errorRef} role="alert" className="text-sm text-red-600">
           {error}
         </p>
       ) : null}

@@ -6,7 +6,7 @@ import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
 import { confirmHandover, NOT_SCHEDULED } from "@/lib/deals/confirm";
 import { answerCash, requestCash } from "@/lib/deals/payment";
-import { chooseableDays, parseProposal, time12, to24h } from "@/lib/deals/handover";
+import { chooseableDays, parseProposal, suggestTime, time12, to24h } from "@/lib/deals/handover";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerProposal, NO_PROPOSAL, proposeHandover } from "@/lib/deals/schedule";
 import { getDb, getPool } from "@/lib/db";
@@ -189,6 +189,20 @@ describe("choosing a day and a time", () => {
     expect(days.every((d) => d <= "2030-03-02")).toBe(true);
     expect(chooseableDays(null, now)).toHaveLength(61);
     expect(chooseableDays(windows, now)[0]).toMatchObject({ date: "2030-01-07", label: expect.stringContaining("Jan 7") });
+  });
+
+  it("starts the form at a time that is not in the past: the window's start, or the next hour if today's has passed", () => {
+    const monday = "2030-01-07";
+    // The owner has no window: 9:00 AM on a later day, the next full hour today once 9:00 has passed.
+    expect(suggestTime("2030-01-08", null, now)).toBe("09:00");
+    expect(suggestTime("2030-01-01", null, now)).toBe("09:00"); // today, 8:00 AM: 9:00 is still ahead
+    expect(suggestTime("2030-01-01", null, new Date("2030-01-01T08:42:00Z"))).toBe("17:00"); // 4:42 PM
+    // A buyer starts at the window's start on that day, or the next hour when it has begun today.
+    expect(suggestTime(monday, windows, now)).toBe("09:00");
+    expect(suggestTime("2030-01-10", windows, now)).toBe("13:00");
+    expect(suggestTime(monday, windows, new Date("2030-01-07T01:20:00Z"))).toBe("10:00"); // 9:20 AM on the Monday itself
+    // Late at night there is no next hour today: the start is kept and the server says why it is refused.
+    expect(suggestTime("2030-01-01", null, new Date("2030-01-01T15:30:00Z"))).toBe("09:00");
   });
 
   it("lets the owner propose any time, but not a buyer", () => {
