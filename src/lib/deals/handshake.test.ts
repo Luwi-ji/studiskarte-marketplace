@@ -398,7 +398,7 @@ describe("the activity of a reservation", () => {
 describe("the reservations pinned at the bottom of a thread", () => {
   const pinnedIds = async (viewer: string, conversationId: string) => (await getConversation(viewer, conversationId))?.pinned.map((o) => o.deal.id);
 
-  it("are the ones being carried out or lately changed, the most recently active last", async () => {
+  it("are the ones being carried out, the most recently active last", async () => {
     const one = await scheduled(await newPost({ cash: true, online: true }));
     const two = await reserved(ana, await newPost());
     expect(one.conversationId).toBe(two.conversationId);
@@ -416,7 +416,7 @@ describe("the reservations pinned at the bottom of a thread", () => {
     expect(view?.messages.map((m) => m.id)).toEqual([...(view?.messages.map((m) => m.id) ?? [])].sort((a, b) => a - b));
   });
 
-  it("keep a finished one for a day, and an active or reported one for as long as it lasts", async () => {
+  it("are only the ones being carried out: finished, cancelled and reported ones stay at their offer", async () => {
     const done = await scheduled(await newPost({ free: true }));
     await bothConfirm(done.dealId);
     const cancelled = await reserved(ana, await newPost());
@@ -425,13 +425,9 @@ describe("the reservations pinned at the bottom of a thread", () => {
     await confirmHandover({ actorId: ana, dealId: reported.dealId, now: after });
     await reportDeal({ actorId: seller, dealId: reported.dealId, input: { fault: "unsure", reason: "other", details: "" } });
     const open = await reserved(ana, await newPost());
-    const { conversationId } = done;
+    const active = await scheduled(await newPost({ free: true }));
 
-    expect((await pinnedIds(ana, conversationId))?.sort()).toEqual([done.dealId, cancelled.dealId, reported.dealId, open.dealId].sort());
-    const old = new Date(Date.now() - 2 * DAY);
-    for (const id of [done.dealId, cancelled.dealId, reported.dealId, open.dealId]) await db.update(deal).set({ activityAt: old }).where(eq(deal.id, id));
-    // A day later the completed and cancelled ones have gone back to their messages; the others stay.
-    expect((await pinnedIds(ana, conversationId))?.sort()).toEqual([reported.dealId, open.dealId].sort());
+    expect((await pinnedIds(ana, done.conversationId))?.sort()).toEqual([open.dealId, active.dealId].sort());
   });
 });
 

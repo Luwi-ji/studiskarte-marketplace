@@ -41,9 +41,9 @@ type Props = {
   offer: OfferCardData;
   /** Who made it, as the viewer should read it. */
   responderName: string;
-  /** "message": the card where the offer was made. "pinned": the reservation at the bottom of the thread. */
+  /** "message": the card where the offer was made. "pinned": the reservation's card, placed at its latest update. */
   placement: "message" | "pinned";
-  /** For a "message" card: its reservation is shown at the bottom, so only the offer text stays here. */
+  /** For a "message" card: its reservation has its own card further down, so only the offer text stays here. */
   dealPinned?: boolean;
 };
 
@@ -65,8 +65,8 @@ function updatedAgo(iso: string, now = Date.now()): string {
  * the listing). Its state is always the current one. The owner can accept
  * (after a confirming tap) or decline a pending offer; the one who made it can
  * withdraw it. Once accepted, its reservation (time and place, payment, cancel,
- * report) is shown as a card at the bottom of the thread, where it never gets
- * buried; the offer's own card then only points to it.
+ * report) is shown as one card that moves down the thread with every update, so it
+ * is never buried; the offer's own card then only points to it.
  */
 export function OfferCardView({ offer, responderName, placement, dealPinned = false }: Props) {
   const { viewerIsOwner } = offer;
@@ -139,7 +139,7 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
   const reported = status === "accepted" && dealStatus === "disputed";
   const canCancel = status === "accepted" && offer.deal !== null && (dealStatus === "agreed" || dealStatus === "scheduled") && !offer.deal.secured;
   const settled = status !== "pending";
-  // The interactive reservation is at the bottom of the chat: this card in the message list only points to it.
+  // The interactive reservation card is further down the chat, at its latest update: this card only points to it.
   const pointer = placement === "message" && dealPinned && status === "accepted" && offer.deal !== null;
   return (
     <div className={`${placement === "pinned" ? "w-full" : "w-[85%]"} rounded-2xl border p-3 ${reported ? "border-amber-500" : status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
@@ -150,7 +150,7 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
       <p className="text-lg font-semibold">{title}</p>
       <p className={`text-sm ${(settled && status !== "accepted") || cancelled || pointer ? "text-zinc-500" : ""}`}>
         {pointer
-          ? "This reservation is shown at the bottom of the chat."
+          ? "This reservation moves down the chat with every update. See its latest card below."
           : cancelled
             ? "Cancelled. The units went back to the post."
             : reported
@@ -199,7 +199,7 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
       {status === "accepted" && offer.deal && !cancelled && !pointer ? <HandoverPanel deal={offer.deal} viewerIsOwner={viewerIsOwner} otherName={responderName} /> : null}
 
       {/* A cancelled or reported reservation that had a time: the calendar says to remove it. */}
-      {placement === "pinned" && (cancelled || reported) && offer.deal?.handover ? <CalendarActions deal={{ ...offer.deal, status: cancelled ? "cancelled" : offer.deal.status }} /> : null}
+      {!pointer && (cancelled || reported) && offer.deal?.handover ? <CalendarActions deal={{ ...offer.deal, status: cancelled ? "cancelled" : offer.deal.status }} /> : null}
 
       {canCancel && !cancelled && !pointer ? (
         confirmingCancel ? (

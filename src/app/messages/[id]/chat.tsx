@@ -52,7 +52,7 @@ export function Chat({
 }: {
   conversationId: string;
   messages: ChatMessageData[];
-  /** The reservations to show after the last message. */
+  /** The reservations being carried out: each has one card, placed where its last step happened. */
   pinned: OfferCardData[];
   unread: number;
   readOnlyReason: string | null;
@@ -114,12 +114,30 @@ export function Chat({
 
   // A date line above the first message of each day.
   const days = messages.map((m) => dayFormat.format(new Date(m.createdAt)));
-  // The reservations shown at the bottom: their offer cards in the list only point to them.
+  // A reservation being carried out has one card, placed where its last step happened: below the messages sent
+  // before it, above those sent after. Each step moves it down; chat then goes on below it. The offer's own
+  // card in the list only points to it.
   const pinnedDealIds = new Set(pinned.flatMap((o) => (o.deal ? [o.deal.id] : [])));
+  const timeline: ({ kind: "message"; m: ChatMessageData; index: number } | { kind: "card"; offer: OfferCardData })[] = [];
+  const cards = [...pinned].sort((a, b) => Date.parse(a.deal?.activityAt ?? "") - Date.parse(b.deal?.activityAt ?? ""));
+  let next = 0;
+  messages.forEach((m, index) => {
+    while (next < cards.length && Date.parse(cards[next].deal?.activityAt ?? "") < Date.parse(m.createdAt)) timeline.push({ kind: "card", offer: cards[next++] });
+    timeline.push({ kind: "message", m, index });
+  });
+  while (next < cards.length) timeline.push({ kind: "card", offer: cards[next++] });
   return (
     <>
       <ul className="flex flex-col gap-1.5 px-3 py-3" aria-label="Messages">
-        {messages.map((m, index) => {
+        {timeline.map((entry) => {
+          if (entry.kind === "card") {
+            return (
+              <li key={`deal-${entry.offer.id}`} className="flex">
+                <OfferCardView offer={entry.offer} responderName={otherName} placement="pinned" />
+              </li>
+            );
+          }
+          const { m, index } = entry;
           const when = new Date(m.createdAt);
           const day = days[index];
           const divider = index === 0 || day !== days[index - 1];
@@ -161,18 +179,8 @@ export function Chat({
         })}
       </ul>
 
-      {/* The reservations being carried out (or just finished) sit here, after the last message, the most recently active last. */}
-      <div className="flex flex-1 flex-col">
-        {pinned.length > 0 ? (
-          <ul className="flex flex-col gap-3 px-3 pb-3" aria-label="Reservations">
-            {pinned.map((o) => (
-              <li key={o.id} className="flex">
-                <OfferCardView offer={o} responderName={otherName} placement="pinned" />
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+      {/* Pushes the message box to the bottom of a short thread. */}
+      <div className="flex flex-1 flex-col" />
 
       <div className="sticky bottom-0 z-10 border-t border-zinc-200 bg-[var(--background)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 dark:border-zinc-800">
         {behind ? (

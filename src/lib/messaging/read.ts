@@ -12,10 +12,8 @@ import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, 
 
 /** Messages shown in a conversation: the latest this many. */
 export const MESSAGES_SHOWN = 200;
-/** Reservations in these states are always shown at the bottom of the thread. */
-export const PINNED_STATUSES = ["agreed", "scheduled", "disputed"] as const;
-/** A finished reservation (completed, cancelled) stays at the bottom this long after its last activity, so its result is seen. */
-const PIN_RECENT_MS = 24 * 60 * 60 * 1000;
+/** Only a reservation being carried out gets a card at the bottom of the thread; finished ones stay at their offer. */
+export const PINNED_STATUSES = ["agreed", "scheduled"] as const;
 const INBOX_MAX = 100;
 
 export type Person = { handle: string | null; displayName: string; avatarThumbKey: string | null };
@@ -116,7 +114,7 @@ export type ChatMessage = {
   offer: OfferCard | null;
 };
 
-/** An offer whose reservation is shown at the bottom of the thread. */
+/** An offer whose reservation is being carried out: its card moves down the thread with each step. */
 export type PinnedOffer = OfferCard & { deal: DealCard };
 
 export type ConversationView = {
@@ -125,7 +123,7 @@ export type ConversationView = {
   messages: ChatMessage[];
   /** Every listing the two have dealt about, the one with the newest message first. */
   listings: ThreadListing[];
-  /** The reservations to show at the bottom of the thread, the most recently active last (see PINNED_STATUSES). */
+  /** The reservations being carried out, the most recently active last (see PINNED_STATUSES). */
   pinned: PinnedOffer[];
   /** Null when the conversation takes new messages; otherwise why not. */
   readOnlyReason: string | null;
@@ -432,7 +430,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       .select({ offerId: deal.offerId })
       .from(deal)
       .innerJoin(offer, eq(offer.id, deal.offerId))
-      .where(and(eq(offer.conversationId, conversationId), or(inArray(deal.status, [...PINNED_STATUSES]), gt(deal.activityAt, new Date(Date.now() - PIN_RECENT_MS))))),
+      .where(and(eq(offer.conversationId, conversationId), inArray(deal.status, [...PINNED_STATUSES]))),
   ]);
   const listingById = new Map(listings.map((l) => [l.post.id, l]));
 
@@ -518,8 +516,8 @@ export async function getConversation(viewerId: string, conversationId: string):
     });
   }
 
-  // The deals being carried out, or with something happening lately, sit at the bottom of the thread (not buried
-  // at their offer's message), the most recently active last.
+  // The deals being carried out get one card each, placed in the thread where their last step happened (the client
+  // interleaves it with the messages by time), the most recently active last.
   const pinned: PinnedOffer[] = [];
   for (const { offerId } of pinnedRows) {
     const card = offerById.get(offerId);
