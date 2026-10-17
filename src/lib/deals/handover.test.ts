@@ -5,7 +5,7 @@ import { conversation, deal, image, notification, post, rateLimitEvent } from "@
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
 import { confirmHandover, NOT_SCHEDULED } from "@/lib/deals/confirm";
-import { parseProposal } from "@/lib/deals/handover";
+import { chooseableDays, parseProposal, time12, to24h } from "@/lib/deals/handover";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerProposal, NO_PROPOSAL, proposeHandover } from "@/lib/deals/schedule";
 import { getDb, getPool } from "@/lib/db";
@@ -156,7 +156,51 @@ describe("what a proposal may be", () => {
   });
 });
 
+describe("choosing a day and a time", () => {
+  const windows: Availability[] = [
+    { kind: "weekly", weekday: 1, startTime: "09:00", endTime: "17:30" },
+    { kind: "date", date: "2030-01-10", startTime: "13:00", endTime: "14:00" },
+  ];
+  const now = new Date("2030-01-01T00:00:00Z"); // 8:00 AM in the Philippines
+
+  it("reads times on the 12-hour clock, and writes them back on the 24-hour clock", () => {
+    expect([time12("00:00"), time12("09:05"), time12("12:00"), time12("13:30"), time12("23:59")]).toEqual(["12:00 AM", "9:05 AM", "12:00 PM", "1:30 PM", "11:59 PM"]);
+    expect([to24h(12, 0, false), to24h(9, 5, false), to24h(12, 0, true), to24h(1, 30, true), to24h(11, 55, true)]).toEqual(["00:00", "09:05", "12:00", "13:30", "23:55"]);
+  });
+
+  it("offers only the days the post is available, within 60 days, and every day to the owner", () => {
+    const days = chooseableDays(windows, now).map((d) => d.date);
+    expect(days).toContain("2030-01-07"); // a Monday
+    expect(days).toContain("2030-01-10"); // the one-off date
+    expect(days).not.toContain("2030-01-08"); // a Tuesday
+    expect(days.every((d) => d <= "2030-03-02")).toBe(true);
+    expect(chooseableDays(null, now)).toHaveLength(61);
+    expect(chooseableDays(windows, now)[0]).toMatchObject({ date: "2030-01-07", label: expect.stringContaining("Jan 7") });
+  });
+
+  it("lets the owner propose any time, but not a buyer", () => {
+    const outside = { method: "meetup", date: "2030-01-08", time: "07:00", place: "Gate" };
+    const post_ = { methods: ["meetup" as const], windows };
+    expect(parseProposal(outside, post_, now)).toMatchObject({ ok: false, field: "time" });
+    expect(parseProposal(outside, { ...post_, windows: null }, now).ok).toBe(true);
+    // The owner still cannot propose the past.
+    expect(parseProposal({ ...outside, date: "2029-12-31" }, { ...post_, windows: null }, now)).toMatchObject({ ok: false, field: "time" });
+  });
+});
+
 describe("agreeing a time and place", () => {
+  it("lets the owner propose a time outside the post's availability, such as an early handover", async () => {
+    const { dealId } = await reserved(ana, await newPost());
+    // The post is available Mondays 9:00 to 10:00 AM; this is a Monday evening.
+    expect(await proposeHandover({ actorId: seller, dealId, input: proposal({ time: "18:00" }) })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ proposedBy: seller });
+    expect(await answerProposal({ actorId: ana, dealId, agree: true })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ status: "scheduled" });
+    // The buyer cannot go outside it.
+    const other = await reserved(ben, await newPost());
+    expect(await proposeHandover({ actorId: ben, dealId: other.dealId, input: proposal({ time: "18:00" }) })).toMatchObject({ ok: false, field: "time" });
+  });
+
   it("is proposed by one, agreed by the other, and then scheduled for both", async () => {
     const postId = await newPost();
     const { dealId, conversationId } = await reserved(ana, postId);

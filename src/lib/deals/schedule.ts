@@ -35,7 +35,8 @@ export async function tellOther(tx: Executor, found: LockedDeal, actorId: string
 /**
  * Either person proposes a way, time and place to hand it over. It replaces
  * any earlier proposal; the other person is told and agrees or declines.
- * The method must be one the post offers, and the time inside its availability.
+ * The method must be one the post offers. The time must be inside the post's
+ * availability, except that the owner may propose any time.
  */
 export async function proposeHandover(args: { actorId: string; dealId: string; input: unknown; alert?: AlertSink; now?: Date }): Promise<HandoverResult> {
   const now = args.now ?? new Date();
@@ -46,7 +47,7 @@ export async function proposeHandover(args: { actorId: string; dealId: string; i
     const { found } = checked;
 
     const methods: HandoverMethod[] = [...(found.exchangeMeetup ? (["meetup"] as const) : []), ...(found.exchangeDelivery ? (["delivery"] as const) : [])];
-    const parsed = parseProposal(args.input, { methods, windows: await loadAvailability(found.postId) }, now);
+    const parsed = parseProposal(args.input, { methods, windows: found.ownerId === args.actorId ? null : await loadAvailability(found.postId) }, now);
     if (!parsed.ok) return parsed;
 
     await tx

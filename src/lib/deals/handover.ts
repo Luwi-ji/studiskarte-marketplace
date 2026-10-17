@@ -34,21 +34,53 @@ export type Proposal = { method: HandoverMethod; at: Date; place: string };
 
 export type ParsedProposal = { ok: true; data: Proposal } | { ok: false; error: string; field?: "method" | "date" | "time" | "place" };
 
+/** The availability windows that cover a Philippine date (a weekday every week, or that exact date). */
+export function windowsOn(date: string, windows: Availability[]): Availability[] {
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return windows.filter((w) => (w.kind === "weekly" ? w.weekday === weekday : w.date === date));
+}
+
 /** Whether a Philippine date and time fall inside one of the post's availability windows. */
 export function withinAvailability(date: string, time: string, windows: Availability[]): boolean {
-  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return windows.some((w) => {
-    const day = w.kind === "weekly" ? w.weekday === weekday : w.date === date;
-    return day && time >= w.startTime && time <= w.endTime;
-  });
+  return windowsOn(date, windows).some((w) => time >= w.startTime && time <= w.endTime);
+}
+
+/** "13:30" as people read it in the Philippines: "1:30 PM". */
+export function time12(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** An hour (1 to 12), minute and AM or PM as "HH:MM" on the 24-hour clock. */
+export function to24h(hour: number, minute: number, pm: boolean): string {
+  return `${String((hour % 12) + (pm ? 12 : 0)).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+const dayLabel = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Manila" });
+
+/**
+ * The days that can be chosen, from today (Philippine time) up to 60 days ahead.
+ * With the post's availability only the days it covers; with null (the owner)
+ * every day.
+ */
+export function chooseableDays(windows: Availability[] | null, now = new Date()): { date: string; label: string }[] {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(now);
+  const days: { date: string; label: string }[] = [];
+  for (let i = 0; i <= PLAN_AHEAD_DAYS; i++) {
+    const date = new Date(Date.parse(`${today}T00:00:00Z`) + i * DAY_MS).toISOString().slice(0, 10);
+    if (windows !== null && windowsOn(date, windows).length === 0) continue;
+    days.push({ date, label: dayLabel.format(new Date(`${date}T12:00:00${MANILA_OFFSET}`)) });
+  }
+  return days;
 }
 
 /**
  * Checks a proposed handover: a method the post offers, a Philippine date and
- * time in the future (up to 60 days ahead) inside the post's availability, and
- * a place of 1 to 200 characters.
+ * time in the future (up to 60 days ahead), and a place of 1 to 200 characters.
+ * The time must be inside the post's availability, unless `windows` is null:
+ * the owner may propose any time (an early handover, a special case).
  */
-export function parseProposal(input: unknown, post: { methods: HandoverMethod[]; windows: Availability[] }, now = new Date()): ParsedProposal {
+export function parseProposal(input: unknown, post: { methods: HandoverMethod[]; windows: Availability[] | null }, now = new Date()): ParsedProposal {
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "That could not be saved. Check it and try again." };
   const { method, date, time } = parsed.data;
@@ -58,7 +90,9 @@ export function parseProposal(input: unknown, post: { methods: HandoverMethod[];
   const at = new Date(`${date}T${time}:00${MANILA_OFFSET}`);
   if (at.getTime() <= now.getTime()) return { ok: false, error: "Choose a time that has not passed.", field: "time" };
   if (at.getTime() > now.getTime() + PLAN_AHEAD_DAYS * DAY_MS) return { ok: false, error: `Choose a time within the next ${PLAN_AHEAD_DAYS} days.`, field: "date" };
-  if (!withinAvailability(date, time, post.windows)) return { ok: false, error: "That is outside the days and hours this post is available. Pick a time inside them.", field: "time" };
+  if (post.windows !== null && !withinAvailability(date, time, post.windows)) {
+    return { ok: false, error: "That is outside the days and hours this post is available. Pick a time inside them.", field: "time" };
+  }
   const place = parsed.data.place.trim();
   if (place.length < 1 || place.length > PLACE_MAX) return { ok: false, error: `Say where, up to ${PLACE_MAX} characters.`, field: "place" };
   return { ok: true, data: { method, at, place } };

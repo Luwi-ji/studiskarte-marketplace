@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { answerProposalAction, confirmHandoverAction, proposeHandoverAction } from "@/app/deals/actions";
-import { METHOD_LABEL, type HandoverMethod } from "@/lib/deals/handover";
+import { chooseableDays, METHOD_LABEL, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
 import type { DealCard } from "@/lib/messaging/read";
 import type { Availability } from "@/lib/posts/schema";
 
@@ -21,7 +21,7 @@ const when = (at: string) => whenFormat.format(new Date(at));
 /** "Tue 10:00–12:00, Fri 14:00–16:00": when the post can be handed over. */
 function describeWindows(windows: Availability[]): string {
   return windows
-    .map((w) => `${w.kind === "weekly" ? dayNames[w.weekday] : w.date} ${w.startTime}–${w.endTime}`)
+    .map((w) => `${w.kind === "weekly" ? dayNames[w.weekday] : w.date} ${time12(w.startTime)}–${time12(w.endTime)}`)
     .join(", ");
 }
 
@@ -37,6 +37,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [method, setMethod] = useState<HandoverMethod | null>(null);
+  const [day, setDay] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // What the viewer just confirmed, shown at once; the refreshed page then says the same.
@@ -51,6 +52,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       else {
         if (kind === "confirm") setJustConfirmed(result.completed ? "completed" : "waiting");
         setEditing(false);
+        setDay("");
         router.refresh();
       }
     } catch {
@@ -132,7 +134,12 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
             event.preventDefault();
             const data = new FormData(event.currentTarget);
             void run("propose", () =>
-              proposeHandoverAction(deal.id, { method: chosen, date: data.get("date"), time: data.get("time"), place: data.get("place") }),
+              proposeHandoverAction(deal.id, {
+                method: chosen,
+                date: data.get("date"),
+                time: to24h(Number(data.get("hour")), Number(data.get("minute")), data.get("ampm") === "PM"),
+                place: data.get("place"),
+              }),
             );
           }}
         >
@@ -147,15 +154,50 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
               ))}
             </fieldset>
           ) : null}
-          <p className="text-xs text-zinc-500">Available: {describeWindows(options.windows)} (Philippine time)</p>
+          <p className="text-xs text-zinc-500">
+            {viewerIsOwner ? "It is your post, so you can pick any day and time." : `Available: ${describeWindows(options.windows)} (Philippine time)`}
+          </p>
           <label className="flex flex-col gap-1 text-sm">
-            Date
-            <input name="date" type="date" required className={field} />
+            Day
+            <select name="date" required value={day} onChange={(event) => setDay(event.target.value)} className={field}>
+              <option value="" disabled>
+                Choose a day
+              </option>
+              {chooseableDays(viewerIsOwner ? null : options.windows).map((d) => (
+                <option key={d.date} value={d.date}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            Time
-            <input name="time" type="time" required className={field} />
-          </label>
+          <fieldset className="flex flex-col gap-1 text-sm">
+            <legend className="mb-1">Time</legend>
+            <div className="grid grid-cols-3 gap-2">
+              <select name="hour" aria-label="Hour" required defaultValue="9" className={field}>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+              <select name="minute" aria-label="Minute" required defaultValue="0" className={field}>
+                {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                  <option key={m} value={m}>
+                    {String(m).padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+              <select name="ampm" aria-label="AM or PM" required defaultValue="AM" className={field}>
+                <option>AM</option>
+                <option>PM</option>
+              </select>
+            </div>
+            {day && !viewerIsOwner ? (
+              <span className="text-xs text-zinc-500">
+                That day: {windowsOn(day, options.windows).map((w) => `${time12(w.startTime)} to ${time12(w.endTime)}`).join(", ")}
+              </span>
+            ) : null}
+          </fieldset>
           <label className="flex flex-col gap-1 text-sm">
             {chosen === "meetup" ? "Where to meet" : "Where to deliver"}
             {/* Keyed on the method, so choosing the other one fills in its place. */}
