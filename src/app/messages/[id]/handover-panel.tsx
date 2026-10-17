@@ -109,6 +109,15 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
             {METHOD_LABEL[deal.handover.method]} · {when(deal.handover.at)}
           </p>
           <p className="text-sm">{deal.handover.place}</p>
+          {deal.status === "scheduled" ? (
+            <a
+              href={`/api/calendar/deal/${deal.id}`}
+              download
+              className="mt-2 flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700"
+            >
+              Add to calendar
+            </a>
+          ) : null}
         </div>
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">No time and place yet. If none is agreed within 7 days, the reservation is cancelled.</p>

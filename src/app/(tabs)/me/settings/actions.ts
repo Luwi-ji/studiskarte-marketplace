@@ -1,7 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { refresh } from "next/cache";
 import { requireActiveStudent } from "@/lib/access";
+import { createCalendarToken, revokeCalendarToken } from "@/lib/calendar/token";
 import { changeDisplayName, changeHandle } from "@/lib/identity/profile";
 
 export type FieldState = { value: string; error?: string; saved?: boolean };
@@ -22,4 +24,36 @@ export async function saveHandle(_prev: FieldState, formData: FormData): Promise
   if (!result.ok) return { value, error: result.message };
   refresh();
   return { value: value.trim().replace(/^@/, "").toLowerCase(), saved: true };
+}
+
+export type CalendarLinkResult = { ok: true; url: string; webcalUrl: string } | { ok: false; error: string };
+
+/** Makes a new private calendar link, replacing any old one. The link is returned once and never stored. */
+export async function createCalendarLinkAction(): Promise<CalendarLinkResult> {
+  const me = await requireActiveStudent();
+  try {
+    const token = await createCalendarToken(me.id);
+    const h = await headers();
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    const url = `${proto}://${host}/calendar/${token}.ics`;
+    refresh();
+    return { ok: true, url, webcalUrl: url.replace(/^https?:/, "webcal:") };
+  } catch (error) {
+    console.error("calendar link create failed", error);
+    return { ok: false, error: "Could not make the link. Try again." };
+  }
+}
+
+/** Turns the private calendar link off. */
+export async function revokeCalendarLinkAction(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const me = await requireActiveStudent();
+  try {
+    await revokeCalendarToken(me.id);
+    refresh();
+    return { ok: true };
+  } catch (error) {
+    console.error("calendar link revoke failed", error);
+    return { ok: false, error: "Could not turn off the link. Try again." };
+  }
 }

@@ -20,6 +20,11 @@ export type HandoverMethod = "meetup" | "delivery";
 
 export const METHOD_LABEL: Record<HandoverMethod, string> = { meetup: "Meet-up", delivery: "Delivery" };
 
+/** A stored method name as the type; the database allows only these two. */
+export function asMethod(value: string): HandoverMethod {
+  return value === "delivery" ? "delivery" : "meetup";
+}
+
 const MANILA_OFFSET = "+08:00";
 const MANILA_MS = 8 * 60 * 60 * 1000;
 

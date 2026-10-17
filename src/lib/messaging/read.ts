@@ -5,7 +5,7 @@ import { getDb } from "@/lib/db";
 import { transactionLabel } from "@/lib/deals/rules";
 import { loadAvailability } from "@/lib/posts/availability";
 import type { Availability } from "@/lib/posts/schema";
-import type { HandoverMethod } from "@/lib/deals/handover";
+import { asMethod, type HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
 import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
@@ -327,11 +327,6 @@ type DealRow = {
   cashRequestedAt: Date | null;
   cashAgreedAt: Date | null;
 };
-
-/** A stored method name as the type; the database allows only these two. */
-function asMethod(value: string): HandoverMethod {
-  return value === "delivery" ? "delivery" : "meetup";
-}
 
 const asMode = (value: string | null): PaymentMode | null => (value === "online" || value === "other" || value === "cash" ? value : null);
 const asReason = (value: string): ReportReason => (value in REPORT_REASONS ? (value as ReportReason) : "other");

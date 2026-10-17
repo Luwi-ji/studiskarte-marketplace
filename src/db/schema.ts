@@ -54,6 +54,9 @@ export const student = pgTable(
     avatarImageId: uuid("avatar_image_id").references((): AnyPgColumn => image.id, {
       onDelete: "set null",
     }),
+    // SHA-256 (hex) of the private calendar link's token; null when there is no
+    // link. The token itself is never stored.
+    calendarTokenHash: text("calendar_token_hash"),
     accountStatus: text("account_status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -82,6 +85,11 @@ export const student = pgTable(
       "student_name_length",
       sql`char_length(${t.name}) <= 200 and ${t.name} !~ '[\\r\\n]'`,
     ),
+    check(
+      "student_calendar_token_format",
+      sql`${t.calendarTokenHash} is null or ${t.calendarTokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    unique("student_calendar_token_hash").on(t.calendarTokenHash),
   ],
 );
 

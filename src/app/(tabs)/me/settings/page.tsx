@@ -7,6 +7,8 @@ import { getOwnProfile } from "@/lib/identity/profile";
 import { getObjectStore } from "@/lib/images/store";
 import { AlertsToggle } from "@/components/alerts-toggle";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
+import { hasCalendarToken } from "@/lib/calendar/token";
+import { CalendarLink } from "./calendar-link";
 import { AvatarForm, DisplayNameForm, HandleForm, SignOutButton } from "./settings-forms";
 
 export const metadata = { title: "Settings · Studiskarte Marketplace" };
@@ -36,6 +38,7 @@ async function Settings() {
   const nextChangeOn = profile.nextHandleChangeAt
     ? profile.nextHandleChangeAt.toLocaleDateString("en-PH", { dateStyle: "long", timeZone: "Asia/Manila" })
     : null;
+  const calendarActive = await hasCalendarToken(me.id);
 
   return (
     <div className="flex flex-col gap-8">
@@ -68,6 +71,7 @@ async function Settings() {
         <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
       </div>
       <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
+      <CalendarLink active={calendarActive} />
       <SignOutButton />
     </div>
   );
