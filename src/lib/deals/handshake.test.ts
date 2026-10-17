@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { conversation, deal, image, notification, post, rateLimitEvent } from "@/db/schema";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
-import { confirmHandover } from "@/lib/deals/confirm";
+import { ALREADY_SAID, confirmHandover, NOTHING_TO_DENY, rejectHandover } from "@/lib/deals/confirm";
 import { noticeDetail } from "@/lib/deals/notice-detail";
 import { makeOffer } from "@/lib/deals/offers";
 import {
@@ -452,5 +452,32 @@ describe("the time and place shown under a notification", () => {
     await clearNotices();
     expect(await cancelDeal({ actorId: ana, dealId: next.dealId })).toMatchObject({ ok: true });
     expect(await detailsFor(seller)).toEqual([{ type: "deal_cancelled", detail: proposed }]);
+  });
+});
+
+describe.each(kinds)("$kind: saying the handover did not happen", ({ wishlist }) => {
+  it("takes the other's confirmation back and tells them; only the one who has not confirmed can, and then both can confirm again", async () => {
+    // The seller hands over a showcase item; on a Wishlist the supplier (Ana) hands it over to the poster (the seller).
+    const hander = wishlist ? ana : seller;
+    const receiver = wishlist ? seller : ana;
+    const { dealId } = await scheduled(await newPost({ wishlist, free: true }));
+
+    expect(await rejectHandover({ actorId: receiver, dealId })).toEqual({ ok: false, error: NOTHING_TO_DENY });
+    await confirmHandover({ actorId: hander, dealId, now: after });
+    await clearNotices();
+    expect(await rejectHandover({ actorId: hander, dealId })).toEqual({ ok: false, error: ALREADY_SAID });
+
+    expect(await rejectHandover({ actorId: receiver, dealId })).toMatchObject({ ok: true, completed: false });
+    const row = await dealRow(dealId);
+    expect(row.ownerConfirmedAt).toBeNull();
+    expect(row.responderConfirmedAt).toBeNull();
+    expect(row.status).toBe("scheduled");
+    expect(await noticesFor(hander)).toEqual(["deal_handover_rejected"]);
+    expect(await noticesFor(receiver)).toEqual([]);
+
+    // Once it is true, both say so and it completes.
+    await bothConfirm(dealId);
+    expect((await dealRow(dealId)).status).toBe("completed");
+    expect(await rejectHandover({ actorId: receiver, dealId })).toMatchObject({ ok: false });
   });
 });

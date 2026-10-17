@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { answerProposalAction, confirmHandoverAction, proposeHandoverAction } from "@/app/deals/actions";
+import { answerProposalAction, confirmHandoverAction, proposeHandoverAction, rejectHandoverAction } from "@/app/deals/actions";
 import { chooseableDays, METHOD_LABEL, suggestTime, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
 import type { DealCard } from "@/lib/messaging/read";
 import type { Availability } from "@/lib/posts/schema";
@@ -163,10 +163,21 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           </p>
         ) : (
           <>
-            {deal.confirmedByOther ? <p className="text-sm">{viewerIsOwner ? otherName : "The owner"} says it was {deal.viewerHandsOver ? "received" : "handed over"}. Confirm if it was.</p> : null}
-            <button type="button" className={button} disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
-              {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
-            </button>
+            {deal.confirmedByOther ? <p className="text-sm">{viewerIsOwner ? otherName : "The owner"} says it was {deal.viewerHandsOver ? "received" : "handed over"}. Confirm if it was, or say it was not.</p> : null}
+            {deal.confirmedByOther ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className={button} disabled={busy !== null} onClick={() => run("reject-handover", () => rejectHandoverAction(deal.id))}>
+                  {busy === "reject-handover" ? "Saving…" : deal.viewerHandsOver ? "I didn't hand it over" : "I didn't receive it"}
+                </button>
+                <button type="button" className="h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60" disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
+                  {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
+                </button>
+              </div>
+            ) : (
+              <button type="button" className={button} disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
+                {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
+              </button>
+            )}
           </>
         )
       ) : null}

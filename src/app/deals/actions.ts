@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
-import { confirmHandover } from "@/lib/deals/confirm";
+import { confirmHandover, rejectHandover } from "@/lib/deals/confirm";
 import { answerCash, askToPay, confirmPayment, giveCash, markPaid, receiveCash, rejectCash, rejectPayment, requestCash, type PaymentConfirmResult } from "@/lib/deals/payment";
 import { reportDeal } from "@/lib/deals/report";
 import { answerProposal, proposeHandover, type HandoverResult } from "@/lib/deals/schedule";
@@ -99,6 +99,8 @@ export const answerProposalAction = async (dealId: unknown, agree: unknown) =>
   act("answer", dealId, (a) => (typeof agree === "boolean" ? answerProposal({ ...a, agree }) : Promise.resolve(NO_DEAL)));
 /** Says the handover happened. The reservation completes when both have said so. */
 export const confirmHandoverAction = async (dealId: unknown) => act("confirm", dealId, confirmHandover);
+/** The other person says the handover happened and this one says it did not: their confirmation is taken back. */
+export const rejectHandoverAction = async (dealId: unknown) => act("handover-rejected", dealId, rejectHandover);
 
 /** The one being paid asks the other to pay (online or others), once a time and place are agreed. */
 export const askToPayAction = async (dealId: unknown, input: unknown) => act("ask", dealId, (a) => askToPay({ ...a, input }));

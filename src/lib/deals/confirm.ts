@@ -52,3 +52,39 @@ export async function confirmHandover(args: { actorId: string; dealId: string; a
   if (result.ok && recorded?.alert) args.alert?.(recorded.id);
   return result;
 }
+
+export const NOTHING_TO_DENY = "The other person has not said the handover happened.";
+export const ALREADY_SAID = "You already confirmed the handover.";
+
+/**
+ * The other person says the handover happened and this person says it did not
+ * (they did not receive it, or did not hand it over). That takes the other's
+ * confirmation back and tells them; they can say it again once it is true, or
+ * either can report what happened. Only possible while this person has not
+ * confirmed themselves, and never once the deal is complete.
+ */
+export async function rejectHandover(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }): Promise<ConfirmResult> {
+  const now = args.now ?? new Date();
+  let recorded = null as Recorded | null;
+  const result = await getDb().transaction(async (tx): Promise<ConfirmResult> => {
+    const checked = activeFor(await lockDeal(tx, args.dealId), args.actorId);
+    if ("error" in checked) return checked.error;
+    const { found } = checked;
+    if (found.status !== "scheduled" || !found.scheduledAt) return { ok: false, error: NOT_SCHEDULED };
+
+    const asOwner = found.ownerId === args.actorId;
+    const mine = asOwner ? found.ownerConfirmedAt : found.responderConfirmedAt;
+    const theirs = asOwner ? found.responderConfirmedAt : found.ownerConfirmedAt;
+    if (mine) return { ok: false, error: ALREADY_SAID };
+    if (!theirs) return { ok: false, error: NOTHING_TO_DENY };
+
+    await tx
+      .update(deal)
+      .set({ ...(asOwner ? { responderConfirmedAt: null } : { ownerConfirmedAt: null }), ...touched(now) })
+      .where(eq(deal.id, found.id));
+    recorded = await tellOther(tx, found, args.actorId, "deal_handover_rejected", `handover-rejected:${now.getTime()}`);
+    return { ok: true, conversationId: found.conversationId, completed: false };
+  });
+  if (result.ok && recorded?.alert) args.alert?.(recorded.id);
+  return result;
+}
