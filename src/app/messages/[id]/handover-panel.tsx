@@ -2,12 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { answerProposalAction, confirmHandoverAction, confirmPaymentAction, markPaidAction, proposeHandoverAction } from "@/app/deals/actions";
+import { answerProposalAction, confirmHandoverAction, proposeHandoverAction } from "@/app/deals/actions";
 import { chooseableDays, METHOD_LABEL, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
 import type { DealCard } from "@/lib/messaging/read";
-import { PAYMENT_LABEL, type PaymentMode } from "@/lib/payment";
-import { formatPrice } from "@/lib/posts/format";
 import type { Availability } from "@/lib/posts/schema";
+import { PaymentSteps, ReportBox } from "./payment-steps";
 
 /** A reservation as the page sends it to the browser: times as text. */
 export type DealCardData = Omit<DealCard, "handover" | "proposal"> & {
@@ -43,9 +42,6 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // What the viewer just confirmed, shown at once; the refreshed page then says the same.
-  const [payMethod, setPayMethod] = useState<PaymentMode | null>(null);
-  // Payment as we last changed it, until the refreshed page says the same.
-  const [paymentNow, setPaymentNow] = useState<"paid" | "confirmed" | null>(null);
   const [justConfirmed, setJustConfirmed] = useState<"waiting" | "completed" | null>(null);
 
   async function run(kind: string, action: () => Promise<{ ok: boolean; error?: string; completed?: boolean }>) {
@@ -56,11 +52,6 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       if (!result.ok) setError(result.error ?? "Could not do that.");
       else {
         if (kind === "confirm") setJustConfirmed(result.completed ? "completed" : "waiting");
-        if (kind === "pay") setPaymentNow("paid");
-        if (kind === "receive") {
-          setPaymentNow("confirmed");
-          if (result.completed) setJustConfirmed("completed");
-        }
         setEditing(false);
         setDay("");
         router.refresh();
@@ -75,13 +66,12 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const options = deal.options;
   const chosen = method ?? options?.methods[0] ?? "meetup";
   const prefill = chosen === "meetup" ? options?.meetupPlace : options?.deliveryPlace;
-  // How it was paid, as known now: from the server, or what was just chosen.
-  const paidBy = deal.payment?.method ?? payMethod ?? (deal.payment?.modes.length === 1 ? deal.payment.modes[0] : null);
   const them = viewerIsOwner ? otherName : "the owner";
 
   if (deal.status === "completed" || justConfirmed === "completed") {
     return <p className="mt-2 text-sm font-medium text-green-600">Completed. The handover{deal.payment ? " and the payment are" : " is"} confirmed.</p>;
   }
+  if (deal.status === "disputed") return <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800"><ReportBox deal={deal} otherName={otherName} /></div>;
   if (deal.status !== "agreed" && deal.status !== "scheduled") return null;
 
   return (
@@ -120,58 +110,13 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
         </div>
       ) : null}
 
-      {deal.payment ? (
-        <div className="flex flex-col gap-2">
-          <div>
-            <p className="text-xs text-zinc-500">Payment · {formatPrice("amount", deal.payment.total)} in all</p>
-            <p className="text-sm">Pay by: {deal.payment.modes.map((m) => PAYMENT_LABEL[m]).join(", ")}</p>
-            {deal.payment.note ? <p className="text-sm text-zinc-600 dark:text-zinc-400">{deal.payment.note}</p> : null}
-          </div>
-          {deal.payment.confirmed || paymentNow === "confirmed" ? (
-            <p className="text-sm font-medium text-green-600">Payment confirmed{paidBy ? ` (${PAYMENT_LABEL[paidBy]})` : ""}.</p>
-          ) : deal.payment.paid || paymentNow === "paid" ? (
-            deal.payment.viewerPays ? (
-              <p className="text-sm">You said you paid{paidBy ? ` by ${PAYMENT_LABEL[paidBy].toLowerCase()}` : ""}. Waiting for them to confirm.</p>
-            ) : (
-              <>
-                <p className="text-sm">{otherName} says they paid{paidBy ? ` by ${PAYMENT_LABEL[paidBy].toLowerCase()}` : ""}. Confirm when you have it.</p>
-                <button type="button" className={button} disabled={busy !== null} onClick={() => run("receive", () => confirmPaymentAction(deal.id))}>
-                  {busy === "receive" ? "Confirming…" : "Payment received"}
-                </button>
-              </>
-            )
-          ) : deal.payment.viewerPays ? (
-            <>
-              {deal.payment.modes.length > 1 ? (
-                <label className="flex flex-col gap-1 text-sm">
-                  How did you pay?
-                  <select value={payMethod ?? ""} onChange={(event) => setPayMethod(deal.payment?.modes.find((m) => m === event.target.value) ?? null)} className={field}>
-                    <option value="" disabled>
-                      Choose
-                    </option>
-                    {deal.payment.modes.map((m) => (
-                      <option key={m} value={m}>
-                        {PAYMENT_LABEL[m]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <button type="button" className={button} disabled={busy !== null || (deal.payment.modes.length > 1 && payMethod === null)} onClick={() => run("pay", () => markPaidAction(deal.id, { method: payMethod ?? undefined }))}>
-                {busy === "pay" ? "Saving…" : "I've paid"}
-              </button>
-            </>
-          ) : (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Waiting for {otherName} to pay.</p>
-          )}
-        </div>
-      ) : null}
+      <PaymentSteps deal={deal} viewerIsOwner={viewerIsOwner} otherName={otherName} />
 
       {deal.status === "scheduled" ? (
         deal.confirmedByMe || justConfirmed === "waiting" ? (
           <p className="text-sm">
-            {deal.confirmedByOther && deal.payment && !deal.payment.confirmed
-              ? "Both of you confirmed the handover. Waiting for the payment to be confirmed."
+            {deal.confirmedByOther && deal.payment && deal.payment.stage !== "confirmed" && deal.payment.stage !== "cash_agreed"
+              ? "Both of you confirmed the handover. Waiting for the payment to be settled."
               : `You confirmed. Waiting for ${viewerIsOwner ? otherName : "the owner"} to confirm.`}
           </p>
         ) : (
@@ -276,6 +221,9 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           </div>
         </form>
       ) : null}
+
+      {deal.secured ? <p className="text-xs text-zinc-500">The slot is secured, so it can&apos;t be cancelled. If something goes wrong, report what happened.</p> : null}
+      {deal.canReport ? <ReportBox deal={deal} otherName={otherName} /> : null}
 
       {error ? (
         <p role="alert" className="text-sm text-red-600">

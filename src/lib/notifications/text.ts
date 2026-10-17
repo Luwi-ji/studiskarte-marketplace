@@ -18,6 +18,12 @@ export const NOTIFICATION_TYPES = [
   "deal_expired",
   "deal_paid",
   "deal_payment_confirmed",
+  "deal_payment_requested",
+  "deal_cash_requested",
+  "deal_cash_answered",
+  "deal_payment_rejected",
+  "deal_reported",
+  "deal_disputed",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -44,6 +50,12 @@ const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> =
   deal_expired: "A reservation was cancelled for inactivity",
   deal_paid: "Payment marked as paid",
   deal_payment_confirmed: "Payment confirmed",
+  deal_payment_requested: "You were asked to pay",
+  deal_cash_requested: "Cash in person was requested",
+  deal_cash_answered: "Your cash request was answered",
+  deal_payment_rejected: "Payment was not received",
+  deal_reported: "A problem was reported on a reservation",
+  deal_disputed: "A reservation needs a look: nobody completed it",
 };
 
 /** The headline: what happened. The post's title goes under it. */

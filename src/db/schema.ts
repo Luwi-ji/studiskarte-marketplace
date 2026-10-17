@@ -339,6 +339,13 @@ export const deal = pgTable(
     proposedAt: timestamp("proposed_at", { withTimezone: true }),
     proposedPlace: text("proposed_place"),
     // How it was paid: the payer says so (and how), then the payee confirms receiving it. A free deal needs neither.
+    // The slot is secured once the payer says they paid, or the payee agrees to cash in person; after that nobody can cancel.
+    // The payee asks the payer to pay (online or others) once a time and place are agreed.
+    paymentAskedAt: timestamp("payment_asked_at", { withTimezone: true }),
+    paymentAskMethod: text("payment_ask_method"),
+    // The payer asks to pay cash at the handover; the payee agrees.
+    cashRequestedAt: timestamp("cash_requested_at", { withTimezone: true }),
+    cashAgreedAt: timestamp("cash_agreed_at", { withTimezone: true }),
     paymentMethod: text("payment_method"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
@@ -349,7 +356,9 @@ export const deal = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("deal_status", sql`${t.status} in ('agreed', 'scheduled', 'completed', 'cancelled')`),
+    check("deal_status", sql`${t.status} in ('agreed', 'scheduled', 'completed', 'cancelled', 'disputed')`),
+    check("deal_ask_method", sql`(${t.paymentAskedAt} is null) = (${t.paymentAskMethod} is null) and (${t.paymentAskMethod} is null or ${t.paymentAskMethod} in ('online', 'other'))`),
+    check("deal_cash_order", sql`${t.cashAgreedAt} is null or ${t.cashRequestedAt} is not null`),
     check("deal_handover", sql`${t.handoverMethod} is null or ${t.handoverMethod} in ('meetup', 'delivery')`),
     check("deal_distinct_people", sql`${t.ownerId} <> ${t.responderId}`),
     check("deal_quantity", sql`${t.quantity} between 1 and 1000`),
@@ -369,7 +378,7 @@ export const deal = pgTable(
     check("deal_payment_method", sql`(${t.paidAt} is null) = (${t.paymentMethod} is null) and (${t.paymentMethod} is null or ${t.paymentMethod} in ('cash', 'online', 'other'))`),
     check("deal_payment_order", sql`${t.paymentConfirmedAt} is null or ${t.paidAt} is not null`),
     // Completed needs the payment confirmed, unless there was nothing to pay.
-    check("deal_completed_paid", sql`${t.status} <> 'completed' or ${t.amount} = 0 or ${t.paymentConfirmedAt} is not null`),
+    check("deal_completed_paid", sql`${t.status} <> 'completed' or ${t.amount} = 0 or ${t.paymentConfirmedAt} is not null or ${t.cashAgreedAt} is not null`),
     check(
       "deal_confirm_after_schedule",
       sql`(${t.ownerConfirmedAt} is null and ${t.responderConfirmedAt} is null) or ${t.scheduledAt} is not null`,
@@ -378,6 +387,32 @@ export const deal = pgTable(
     uniqueIndex("deal_one_active_idx").on(t.postId, t.responderId).where(sql`${t.status} in ('agreed', 'scheduled')`),
     index("deal_owner_idx").on(t.ownerId),
     index("deal_responder_idx").on(t.responderId),
+  ],
+);
+
+// What went wrong with a secured reservation, from either side. The first report
+// makes the deal "disputed"; the other person can add their own. One per person.
+export const dealReport = pgTable(
+  "deal_report",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deal.id, { onDelete: "cascade" }),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => student.id),
+    // Whose end the problem was on (one of the two), or null when the reporter is not sure.
+    faultPartyId: text("fault_party_id").references(() => student.id),
+    reason: text("reason").notNull(),
+    details: text("details"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("deal_report_reason", sql`${t.reason} in ('no_show', 'not_as_described', 'payment_problem', 'unresponsive', 'other')`),
+    check("deal_report_details", sql`${t.details} is null or char_length(btrim(${t.details})) between 1 and 500`),
+    unique("deal_report_one_each").on(t.dealId, t.reporterId),
+    index("deal_report_deal_idx").on(t.dealId),
   ],
 );
 
@@ -426,7 +461,7 @@ export const notification = pgTable(
     onceKey: text("once_key"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),

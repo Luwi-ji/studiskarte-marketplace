@@ -134,6 +134,13 @@
       "when": 1792199989184,
       "tag": "0018_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792205070486,
+      "tag": "0019_secure_slot",
+      "breakpoints": true
     }
   ]
 }

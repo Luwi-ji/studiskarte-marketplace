@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gt, inArray, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, conversationListing, deal, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
+import { conversation, conversationListing, deal, dealReport, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { transactionLabel } from "@/lib/deals/rules";
 import { loadAvailability } from "@/lib/posts/availability";
@@ -8,6 +8,7 @@ import type { Availability } from "@/lib/posts/schema";
 import type { HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
+import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
 
 /** Messages shown in a conversation: the latest this many. */
 export const MESSAGES_SHOWN = 200;
@@ -63,10 +64,18 @@ export type DealCard = {
     note: string | null;
     /** The total: the price each times the units. */
     total: number;
+    stage: PaymentStage;
+    /** The online or other way the payer was asked to pay by. */
+    askMethod: PaymentMode | null;
+    /** The way it was paid, once paid. */
     method: PaymentMode | null;
-    paid: boolean;
-    confirmed: boolean;
   } | null;
+  /** Paid, or cash in person agreed: it can no longer be cancelled. */
+  secured: boolean;
+  /** A problem can be reported now. */
+  canReport: boolean;
+  /** What each side said went wrong, once reported. */
+  reports: { mine: boolean; blames: "me" | "them" | null; reason: ReportReason; details: string | null }[];
   /** For proposing: what the post offers, where it says to meet or deliver, and when it is available. Only while the reservation is active. */
   options: { methods: HandoverMethod[]; meetupPlace: string | null; deliveryPlace: string | null; windows: Availability[] } | null;
 };
@@ -313,6 +322,10 @@ type DealRow = {
   paymentMethod: string | null;
   paidAt: Date | null;
   paymentConfirmedAt: Date | null;
+  paymentAskedAt: Date | null;
+  paymentAskMethod: string | null;
+  cashRequestedAt: Date | null;
+  cashAgreedAt: Date | null;
 };
 
 /** A stored method name as the type; the database allows only these two. */
@@ -320,8 +333,15 @@ function asMethod(value: string): HandoverMethod {
   return value === "delivery" ? "delivery" : "meetup";
 }
 
-function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows: Availability[] | undefined): DealCard | null {
+const asMode = (value: string | null): PaymentMode | null => (value === "online" || value === "other" || value === "cash" ? value : null);
+const asReason = (value: string): ReportReason => (value in REPORT_REASONS ? (value as ReportReason) : "other");
+
+type ReportRow = { dealId: string; reporterId: string; faultPartyId: string | null; reason: string; details: string | null };
+
+function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows: Availability[] | undefined, reports: ReportRow[]): DealCard | null {
   if (!o.dealId || !o.dealStatus) return null;
+  const fields = { amount: o.dealAmount ?? 0, paymentAskedAt: o.paymentAskedAt, cashRequestedAt: o.cashRequestedAt, cashAgreedAt: o.cashAgreedAt, paidAt: o.paidAt, paymentConfirmedAt: o.paymentConfirmedAt };
+  const stage = paymentStage(fields);
   const mine = viewerIsOwner ? o.ownerConfirmedAt : o.responderConfirmedAt;
   const theirs = viewerIsOwner ? o.responderConfirmedAt : o.ownerConfirmedAt;
   return {
@@ -340,10 +360,13 @@ function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows:
             modes: paymentModesOf(o),
             note: o.paymentNote,
             total: o.dealAmount * o.dealQuantity,
-            method: o.paymentMethod === "online" ? "online" : o.paymentMethod === "other" ? "other" : o.paymentMethod === "cash" ? "cash" : null,
-            paid: o.paidAt !== null,
-            confirmed: o.paymentConfirmedAt !== null,
+            stage: stage,
+            askMethod: asMode(o.paymentAskMethod),
+            method: asMode(o.paymentMethod),
           },
+    secured: isSecured(fields),
+    canReport: canReport({ ...fields, status: o.dealStatus, scheduledAt: o.scheduledAt }) || (o.dealStatus === "disputed" && !reports.some((r) => r.reporterId === viewerId)),
+    reports: reports.map((r) => ({ mine: r.reporterId === viewerId, blames: r.faultPartyId === null ? null : r.faultPartyId === viewerId ? "me" : "them", reason: asReason(r.reason), details: r.details })),
     confirmedByMe: mine !== null,
     confirmedByOther: theirs !== null,
     options: windows
@@ -424,6 +447,10 @@ export async function getConversation(viewerId: string, conversationId: string):
             paymentMethod: deal.paymentMethod,
             paidAt: deal.paidAt,
             paymentConfirmedAt: deal.paymentConfirmedAt,
+            paymentAskedAt: deal.paymentAskedAt,
+            paymentAskMethod: deal.paymentAskMethod,
+            cashRequestedAt: deal.cashRequestedAt,
+            cashAgreedAt: deal.cashAgreedAt,
           })
           .from(offer)
           .innerJoin(post, eq(post.id, offer.postId))
@@ -431,6 +458,17 @@ export async function getConversation(viewerId: string, conversationId: string):
           .where(inArray(offer.id, offerIds));
   // Only reservations still being carried out can be rescheduled, so only they need the post's availability.
   const activePostIds = [...new Set(offers.filter((o) => o.dealStatus === "agreed" || o.dealStatus === "scheduled").map((o) => o.postId))];
+  const disputedIds = offers.flatMap((o) => (o.dealStatus === "disputed" && o.dealId ? [o.dealId] : []));
+  const reportRows: ReportRow[] =
+    disputedIds.length === 0
+      ? []
+      : await getDb()
+          .select({ dealId: dealReport.dealId, reporterId: dealReport.reporterId, faultPartyId: dealReport.faultPartyId, reason: dealReport.reason, details: dealReport.details })
+          .from(dealReport)
+          .where(inArray(dealReport.dealId, disputedIds))
+          .orderBy(dealReport.createdAt);
+  const reportsByDeal = new Map<string, ReportRow[]>();
+  for (const r of reportRows) reportsByDeal.set(r.dealId, [...(reportsByDeal.get(r.dealId) ?? []), r]);
   const windowsByPost = new Map(await Promise.all(activePostIds.map(async (id): Promise<[string, Availability[]]> => [id, await loadAvailability(id)])));
   // A pending offer past its time is shown as expired even before the job has swept it.
   const now = Date.now();
@@ -445,7 +483,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       isReserve: o.isReserve,
       status: o.status === "pending" && o.expiresAt.getTime() <= now ? "expired" : o.status,
       expiresAt: o.expiresAt,
-      deal: o.dealId && o.dealStatus ? dealCard(o, listing.viewerIsOwner, viewerId, windowsByPost.get(o.postId)) : null,
+      deal: o.dealId && o.dealStatus ? dealCard(o, listing.viewerIsOwner, viewerId, windowsByPost.get(o.postId), reportsByDeal.get(o.dealId) ?? []) : null,
       post: listing.post,
       viewerIsOwner: listing.viewerIsOwner,
     });

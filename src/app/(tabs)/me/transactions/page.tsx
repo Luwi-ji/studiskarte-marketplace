@@ -14,7 +14,7 @@ const SECTIONS: { group: TransactionGroup; title: string }[] = [
   { group: "waiting", title: "Waiting for an answer" },
   { group: "active", title: "In progress" },
   { group: "done", title: "Completed" },
-  { group: "closed", title: "Cancelled" },
+  { group: "closed", title: "Cancelled or reported" },
 ];
 
 export default function TransactionsPage() {

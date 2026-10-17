@@ -122,6 +122,7 @@ export function transactionLabel(
   }
   if (latest.status === "accepted") {
     if (latest.dealStatus === "cancelled") return "Reservation cancelled";
+    if (latest.dealStatus === "disputed") return "Reported";
     return latest.dealStatus === "completed" ? "Completed" : "Reserved";
   }
   return OFFER_STATE[latest.status] ?? null;

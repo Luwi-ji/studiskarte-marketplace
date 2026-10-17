@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { deal, image, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { formatHandoverTime } from "@/lib/deals/handover";
+import { paymentStage, type PaymentFields, type PaymentStage } from "@/lib/deals/slot";
 
 /** Where a transaction is: what is waiting on someone, being carried out, or over. */
 export type TransactionGroup = "waiting" | "active" | "done" | "closed";
@@ -37,37 +38,37 @@ const nameOf = (name: string, handle: string | null) => name || (handle ? `@${ha
  * What the next step is for a reservation, from the viewer's side.
  * Waiting on you comes first in the words, so it reads as a to-do.
  */
-function dealState(d: {
+function dealState(d: PaymentFields & {
   status: string;
   scheduledAt: Date | null;
   proposedBy: string | null;
   ownerConfirmedAt: Date | null;
   responderConfirmedAt: Date | null;
-  amount: number;
-  paidAt: Date | null;
-  paymentConfirmedAt: Date | null;
   postKind: string;
   viewerIsOwner: boolean;
   viewerId: string;
 }): string {
-  // Payment, when there is something to pay: what the viewer or the other still has to do.
-  const viewerPays = d.postKind === "wishlist" ? d.viewerIsOwner : !d.viewerIsOwner;
-  const payment =
-    d.amount === 0 || d.paymentConfirmedAt
-      ? ""
-      : !d.paidAt
-        ? viewerPays
-          ? " · you still need to pay"
-          : " · waiting for them to pay"
-        : viewerPays
-          ? " · payment waiting for them to confirm"
-          : " · confirm the payment you received";
   if (d.status === "completed") return "Completed";
   if (d.status === "cancelled") return "Cancelled";
+  if (d.status === "disputed") return "Reported · closed";
   if (d.status === "agreed") {
-    if (!d.proposedBy) return `Reserved · agree a time and place${payment}`;
-    return `${d.proposedBy === d.viewerId ? "Reserved · waiting for them to answer your time" : "Reserved · answer their proposed time"}${payment}`;
+    if (!d.proposedBy) return "Reserved · agree a time and place";
+    return d.proposedBy === d.viewerId ? "Reserved · waiting for them to answer your time" : "Reserved · answer their proposed time";
   }
+  // Securing the slot: what the viewer or the other still has to do.
+  const viewerPays = d.postKind === "wishlist" ? d.viewerIsOwner : !d.viewerIsOwner;
+  const secure: Record<PaymentStage, [string, string]> = {
+    // [if the viewer pays, if the viewer is paid]
+    free: ["", ""],
+    open: [" · waiting for them to ask you to pay", " · ask them to pay to secure the slot"],
+    asked: [" · pay to secure the slot", " · waiting for them to pay"],
+    cash_requested: [" · waiting for them to agree to cash", " · answer their cash request"],
+    paid: [" · paid, waiting for them to confirm", " · confirm the payment you received"],
+    confirmed: ["", ""],
+    cash_agreed: [" · cash in person agreed", " · cash in person agreed"],
+  };
+  const stage = paymentStage(d);
+  const payment = secure[stage][viewerPays ? 0 : 1];
   const mine = d.viewerIsOwner ? d.ownerConfirmedAt : d.responderConfirmedAt;
   const theirs = d.viewerIsOwner ? d.responderConfirmedAt : d.ownerConfirmedAt;
   const when = d.scheduledAt ? formatHandoverTime(d.scheduledAt) : "";
@@ -101,6 +102,9 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
         responderConfirmedAt: deal.responderConfirmedAt,
         paidAt: deal.paidAt,
         paymentConfirmedAt: deal.paymentConfirmedAt,
+        paymentAskedAt: deal.paymentAskedAt,
+        cashRequestedAt: deal.cashRequestedAt,
+        cashAgreedAt: deal.cashAgreedAt,
         postKind: post.kind,
         conversationId: offer.conversationId,
         at: deal.updatedAt,
@@ -152,7 +156,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
       quantity: d.quantity,
       amount: d.amount,
       isReserve: d.isReserve,
-      group: d.status === "completed" ? "done" : d.status === "cancelled" ? "closed" : "active",
+      group: d.status === "completed" ? "done" : d.status === "cancelled" || d.status === "disputed" ? "closed" : "active",
       state: dealState({ ...d, viewerIsOwner, viewerId }),
       conversationId: d.conversationId,
       at: d.at,

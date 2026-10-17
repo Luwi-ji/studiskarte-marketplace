@@ -117,16 +117,17 @@ export function OfferCardView({ offer, responderName }: Props) {
   // A reservation can be cancelled after it was accepted; that is its own, final state.
   const dealStatus = dealDone ?? offer.deal?.status ?? null;
   const cancelled = status === "accepted" && dealStatus === "cancelled";
-  const canCancel = status === "accepted" && offer.deal !== null && (dealStatus === "agreed" || dealStatus === "scheduled");
+  const reported = status === "accepted" && dealStatus === "disputed";
+  const canCancel = status === "accepted" && offer.deal !== null && (dealStatus === "agreed" || dealStatus === "scheduled") && !offer.deal.secured;
   const settled = status !== "pending";
   return (
-    <div className={`w-[85%] rounded-2xl border p-3 ${status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
+    <div className={`w-[85%] rounded-2xl border p-3 ${reported ? "border-amber-500" : status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
       <p className="text-xs text-zinc-500">{who}</p>
       <div className="mb-1">
         <ProductCard post={offer.listing.post} thumbUrl={offer.listing.thumbUrl} compact />
       </div>
       <p className="text-lg font-semibold">{title}</p>
-      <p className={`text-sm ${(settled && status !== "accepted") || cancelled ? "text-zinc-500" : ""}`}>{cancelled ? "Reservation cancelled. The units went back to the post." : (statusText[status] ?? "")}</p>
+      <p className={`text-sm ${(settled && status !== "accepted") || cancelled ? "text-zinc-500" : ""}`}>{cancelled ? "Reservation cancelled. The units went back to the post." : reported ? "Reservation reported." : (statusText[status] ?? "")}</p>
 
       {status === "pending" && viewerIsOwner ? (
         confirming ? (

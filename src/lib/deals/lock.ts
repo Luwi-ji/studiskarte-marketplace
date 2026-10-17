@@ -23,6 +23,10 @@ export type LockedDeal = {
   paymentMethod: string | null;
   paidAt: Date | null;
   paymentConfirmedAt: Date | null;
+  paymentAskedAt: Date | null;
+  paymentAskMethod: string | null;
+  cashRequestedAt: Date | null;
+  cashAgreedAt: Date | null;
   postKind: string;
   exchangeMeetup: boolean;
   exchangeDelivery: boolean;
@@ -74,6 +78,10 @@ export async function lockDeal(tx: DbTransaction, dealId: string): Promise<Locke
       paymentMethod: deal.paymentMethod,
       paidAt: deal.paidAt,
       paymentConfirmedAt: deal.paymentConfirmedAt,
+      paymentAskedAt: deal.paymentAskedAt,
+      paymentAskMethod: deal.paymentAskMethod,
+      cashRequestedAt: deal.cashRequestedAt,
+      cashAgreedAt: deal.cashAgreedAt,
     })
     .from(deal)
     .innerJoin(offer, eq(offer.id, deal.offerId))
