@@ -156,9 +156,9 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           </p>
         ) : (
           <>
-            {deal.confirmedByOther ? <p className="text-sm">{viewerIsOwner ? otherName : "The owner"} says it was handed over. Confirm if it was.</p> : null}
+            {deal.confirmedByOther ? <p className="text-sm">{viewerIsOwner ? otherName : "The owner"} says it was {deal.viewerHandsOver ? "received" : "handed over"}. Confirm if it was.</p> : null}
             <button type="button" className={button} disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
-              {busy === "confirm" ? "Confirming…" : viewerIsOwner ? "I handed it over" : "I received it"}
+              {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
             </button>
           </>
         )

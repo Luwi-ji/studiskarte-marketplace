@@ -341,6 +341,17 @@ describe("confirming the handover", () => {
     expect(await cancelDeal({ actorId: seller, dealId })).toMatchObject({ ok: false });
   });
 
+  it("says the one who supplies a Wishlist hands it over and the one who posted it receives", async () => {
+    const post_ = await scheduled(ana, await newPost({ wishlist: true }));
+    const card = async (who: string) => (await getConversation(who, post_.conversationId))?.messages[0].offer?.deal;
+    // On a Wishlist the poster (seller) receives; the one who supplies it (ana) hands it over.
+    expect(await card(seller)).toMatchObject({ viewerHandsOver: false });
+    expect(await card(ana)).toMatchObject({ viewerHandsOver: true });
+    const showcase = await scheduled(ben);
+    expect((await getConversation(seller, showcase.conversationId))?.messages[0].offer?.deal).toMatchObject({ viewerHandsOver: true });
+    expect((await getConversation(ben, showcase.conversationId))?.messages[0].offer?.deal).toMatchObject({ viewerHandsOver: false });
+  });
+
   it("leaves the post open for the rest when only some units were handed over", async () => {
     const postId = await newPost({ quantity: "2" });
     const a = await scheduled(ana, postId);

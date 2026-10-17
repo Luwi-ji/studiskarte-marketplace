@@ -55,6 +55,8 @@ export type DealCard = {
   proposal: { byMe: boolean; method: HandoverMethod; at: Date; place: string } | null;
   confirmedByMe: boolean;
   confirmedByOther: boolean;
+  /** The viewer is the one handing it over (on a Wishlist, the one who supplies it, not the one who posted it). */
+  viewerHandsOver: boolean;
   /** Paying for it, from the viewer's side. Null when there is nothing to pay (a free deal). */
   payment: {
     /** The viewer is the one paying (on a Wishlist, the one who posted it). */
@@ -364,6 +366,7 @@ function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows:
     reports: reports.map((r) => ({ mine: r.reporterId === viewerId, blames: r.faultPartyId === null ? null : r.faultPartyId === viewerId ? "me" : "them", reason: asReason(r.reason), details: r.details })),
     confirmedByMe: mine !== null,
     confirmedByOther: theirs !== null,
+    viewerHandsOver: o.postKind === "wishlist" ? !viewerIsOwner : viewerIsOwner,
     options: windows
       ? {
           methods: [...(o.exchangeMeetup ? (["meetup"] as const) : []), ...(o.exchangeDelivery ? (["delivery"] as const) : [])],
