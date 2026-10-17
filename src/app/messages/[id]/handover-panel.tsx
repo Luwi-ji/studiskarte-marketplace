@@ -6,11 +6,15 @@ import { answerProposalAction, confirmHandoverAction, proposeHandoverAction } fr
 import { chooseableDays, METHOD_LABEL, suggestTime, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
 import type { DealCard } from "@/lib/messaging/read";
 import type { Availability } from "@/lib/posts/schema";
+import { isSettled } from "@/lib/deals/slot";
+import { CalendarActions } from "./calendar-actions";
 import { PaymentSteps, ReportBox } from "./payment-steps";
 import { NO_ANSWER, ReloadButton } from "./reload-hint";
 
 /** A reservation as the page sends it to the browser: times as text. */
-export type DealCardData = Omit<DealCard, "handover" | "proposal"> & {
+export type DealCardData = Omit<DealCard, "handover" | "proposal" | "activityAt"> & {
+  /** When the last thing happened on it, as an ISO time. */
+  activityAt: string;
   handover: { method: HandoverMethod; at: string; place: string } | null;
   proposal: { byMe: boolean; method: HandoverMethod; at: string; place: string } | null;
 };
@@ -25,6 +29,17 @@ function describeWindows(windows: Availability[]): string {
   return windows
     .map((w) => `${w.kind === "weekly" ? dayNames[w.weekday] : w.date} ${time12(w.startTime)}–${time12(w.endTime)}`)
     .join(", ");
+}
+
+/** What a reservation with both handover confirmations still waits for, from the viewer's side. */
+function waitingFor(payment: NonNullable<DealCardData["payment"]>): string {
+  if (payment.stage === "cash_agreed") {
+    return payment.viewerPays ? "Waiting for the cash: tap \"I gave the cash\" above when you hand it over." : "Waiting for the cash: they say when they gave it, then you confirm you received it.";
+  }
+  if (payment.stage === "cash_given") {
+    return payment.viewerPays ? "Waiting for them to confirm they received the cash." : "Confirm above that you received the cash.";
+  }
+  return "Waiting for the payment to be settled.";
 }
 
 const button = "h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700";
@@ -91,7 +106,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
     setEditing(true);
   }
   const chosen = method ?? options?.methods[0] ?? "meetup";
-  const prefill = chosen === "meetup" ? options?.meetupPlace : options?.deliveryPlace;
+  const prefill = chosen === "meetup" ? options?.meetupPlace : null;
   const them = viewerIsOwner ? otherName : "the owner";
 
   if (deal.status === "completed" || justConfirmed === "completed") {
@@ -109,15 +124,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
             {METHOD_LABEL[deal.handover.method]} · {when(deal.handover.at)}
           </p>
           <p className="text-sm">{deal.handover.place}</p>
-          {deal.status === "scheduled" ? (
-            <a
-              href={`/api/calendar/deal/${deal.id}`}
-              download
-              className="mt-2 flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700"
-            >
-              Add to calendar
-            </a>
-          ) : null}
+          <CalendarActions deal={deal} />
         </div>
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">No time and place yet. If none is agreed within 7 days, the reservation is cancelled.</p>
@@ -150,8 +157,8 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       {deal.status === "scheduled" ? (
         deal.confirmedByMe || justConfirmed === "waiting" ? (
           <p className="text-sm">
-            {deal.confirmedByOther && deal.payment && deal.payment.stage !== "confirmed" && deal.payment.stage !== "cash_agreed"
-              ? "Both of you confirmed the handover. Waiting for the payment to be settled."
+            {deal.confirmedByOther && deal.payment && !isSettled(deal.payment.stage)
+              ? `Both of you confirmed the handover. ${waitingFor(deal.payment)}`
               : `You confirmed. Waiting for ${viewerIsOwner ? otherName : "the owner"} to confirm.`}
           </p>
         ) : (
@@ -272,7 +279,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
         </form>
       ) : null}
 
-      {deal.secured ? <p className="text-xs text-zinc-500">The slot is secured, so it can&apos;t be cancelled. If something goes wrong, report what happened.</p> : null}
+      {deal.secured ? <p className="text-xs text-zinc-500">This can&apos;t be cancelled any more. If something goes wrong, report what happened.</p> : null}
       {deal.canReport ? <ReportBox deal={deal} otherName={otherName} /> : null}
 
       {error && !editing ? (

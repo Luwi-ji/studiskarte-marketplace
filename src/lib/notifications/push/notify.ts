@@ -49,6 +49,7 @@ export async function deliverAlert(notificationId: string, send: PushSender = se
         postId: notification.postId,
         conversationId: notification.conversationId,
         postTitle: post.title,
+        detail: notification.detail,
         recipientStatus: student.accountStatus,
       })
       .from(notification)

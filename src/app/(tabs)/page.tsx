@@ -59,7 +59,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
           <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
             <p className="text-zinc-600 dark:text-zinc-400">Nothing posted yet. Be the first.</p>
             <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
-              Sell or ask for something
+              Create a post
             </Link>
           </div>
         )

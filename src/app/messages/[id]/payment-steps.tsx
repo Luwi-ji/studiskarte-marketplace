@@ -6,7 +6,10 @@ import {
   answerCashAction,
   askToPayAction,
   confirmPaymentAction,
+  giveCashAction,
   markPaidAction,
+  receiveCashAction,
+  rejectCashAction,
   rejectPaymentAction,
   reportDealAction,
   requestCashAction,
@@ -66,10 +69,12 @@ function blameText(r: { mine: boolean; blames: "me" | "them" | null }, otherName
 type Props = { deal: DealCardData; viewerIsOwner: boolean; otherName: string };
 
 /**
- * Securing the slot, once a time and place are agreed. Online or others: the
- * one being paid asks, the payer says they paid, the payee confirms. Cash: the
- * payer asks to pay cash in person and the payee agrees. From "paid" or "cash
- * agreed" the slot is secured and cannot be cancelled.
+ * Securing the slot and settling the payment, once a time and place are
+ * agreed. Online or others: the one being paid asks, the payer says they paid,
+ * the payee confirms. Cash: the payer asks to pay cash in person and the payee
+ * agrees (the slot is then secured); at the handover, when the cash really
+ * changes hands, the payer says they gave it and the payee confirms they
+ * received it. From "paid" or "cash agreed" on the slot cannot be cancelled.
  */
 export function PaymentSteps({ deal, otherName }: Props) {
   const payment = deal.payment;
@@ -96,8 +101,39 @@ export function PaymentSteps({ deal, otherName }: Props) {
     body = <p className="text-sm text-zinc-600 dark:text-zinc-400">Agree a time and place first. Then the slot is secured by payment.</p>;
   } else if (payment.stage === "confirmed") {
     body = <p className="text-sm font-medium text-green-600">Payment confirmed{paidLabel ? ` (${paidLabel})` : ""}. The slot is secured.</p>;
+  } else if (payment.stage === "cash_received") {
+    body = <p className="text-sm font-medium text-green-600">Cash received and confirmed. The payment is settled.</p>;
+  } else if (payment.stage === "cash_given") {
+    body = payment.viewerPays ? (
+      <p className="text-sm">You said you gave the cash. Waiting for {who} to confirm they received it.</p>
+    ) : (
+      <>
+        <p className="text-sm">{who} says they gave you the cash. Confirm only if you really have it.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("cash-reject", () => rejectCashAction(deal.id))}>
+            {step.busy === "cash-reject" ? "Saving…" : "Not received"}
+          </button>
+          <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("cash-receive", () => receiveCashAction(deal.id))}>
+            {step.busy === "cash-receive" ? "Confirming…" : "I received the cash"}
+          </button>
+        </div>
+      </>
+    );
   } else if (payment.stage === "cash_agreed") {
-    body = <p className="text-sm font-medium text-green-600">Cash in person agreed. The slot is secured. The cash changes hands at the handover.</p>;
+    body = payment.viewerPays ? (
+      <>
+        <p className="text-sm font-medium text-green-600">Cash in person agreed. The slot is secured.</p>
+        <p className="text-sm">When you hand over the cash at the handover, tap the button. {who} then confirms they received it.</p>
+        <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("cash-give", () => giveCashAction(deal.id))}>
+          {step.busy === "cash-give" ? "Saving…" : "I gave the cash"}
+        </button>
+      </>
+    ) : (
+      <>
+        <p className="text-sm font-medium text-green-600">Cash in person agreed. The slot is secured.</p>
+        <p className="text-sm">{who} hands you the cash at the handover and says so in the app. Then you confirm you received it.</p>
+      </>
+    );
   } else if (payment.stage === "paid") {
     body = payment.viewerPays ? (
       <p className="text-sm">

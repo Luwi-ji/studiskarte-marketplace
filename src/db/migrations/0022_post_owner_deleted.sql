@@ -1,0 +1,1 @@
+ALTER TABLE "post" ADD COLUMN "owner_deleted_at" timestamp with time zone;

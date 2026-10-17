@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { checkAlertsAction, removeAlertsAction, saveAlertsAction } from "@/app/notifications/actions";
 import { currentSubscription, deviceSupport, keyToBytes, type DeviceSupport } from "@/lib/notifications/push/device";
 
@@ -17,7 +18,7 @@ const MESSAGE: Partial<Record<Status, string>> = {
  * they say is also in the Notifications list. On an iPhone they need the app
  * installed on the Home Screen, so there it explains how.
  */
-export function AlertsToggle({ publicKey }: { publicKey: string | null }) {
+export function AlertsToggle({ publicKey, banner = false }: { publicKey: string | null; banner?: boolean }) {
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,12 +91,23 @@ export function AlertsToggle({ publicKey }: { publicKey: string | null }) {
   const on = status === "on";
   const canToggle = status === "on" || status === "off";
 
+  // The banner only asks while alerts are not on; once they are, or while we do not know yet, it takes no room.
+  if (banner && (status === "checking" || on)) return null;
+
   return (
-    <section className="flex flex-col gap-2">
+    <section className={banner ? "mx-3 mt-3 flex flex-col gap-2 rounded-xl border border-brand bg-zinc-50 p-3 dark:bg-zinc-900" : "flex flex-col gap-2"}>
       <div className="flex min-h-11 items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium">Alerts on this device</p>
-          <p className="text-xs text-zinc-500">A short alert for new messages and your posts. It shows only the post&apos;s title, never what a message says.</p>
+          <p className={banner ? "font-semibold" : "text-sm font-medium"}>{banner ? "Alerts are off on this device" : "Alerts on this device"}</p>
+          {banner ? (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Turn them on to get a phone alert for handover reminders, proposed times and places, and payments, even when the app is closed. Until then you only see them here.
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-500">
+              A short phone alert for messages, reservations, handover reminders and payments. It shows the post&apos;s title and, for a handover, its time and place, never what a message says.
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -120,10 +132,15 @@ export function AlertsToggle({ publicKey }: { publicKey: string | null }) {
           <p className="mt-1 text-xs text-zinc-500">Until then, everything still shows in the app.</p>
         </div>
       ) : null}
-      {MESSAGE[status] ? <p className="text-xs text-zinc-500">{MESSAGE[status]}</p> : null}
+      {MESSAGE[status] ? <p className={banner ? "text-sm text-zinc-600 dark:text-zinc-400" : "text-xs text-zinc-500"}>{MESSAGE[status]}</p> : null}
       {error ? (
         <p role="alert" className="text-sm text-red-600">
           {error}
+        </p>
+      ) : null}
+      {banner ? (
+        <p className="text-xs text-zinc-500">
+          You can change this any time: <Link href="/me/settings" className="font-medium text-brand underline">Me &gt; Settings &gt; Alerts on this device</Link>
         </p>
       ) : null}
     </section>

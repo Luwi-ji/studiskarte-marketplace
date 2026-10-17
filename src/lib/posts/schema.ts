@@ -89,7 +89,6 @@ export const postFieldsSchema = z.object({
   exchangeMeetup: z.boolean(),
   exchangeDelivery: z.boolean(),
   meetupLocation: z.string(),
-  deliveryArea: z.string(),
   // How payment is made (ignored for a free post). Cash unless said otherwise.
   paymentCash: z.boolean().default(true),
   paymentOnline: z.boolean().default(false),
@@ -122,7 +121,6 @@ export type PostData = {
   exchangeMeetup: boolean;
   exchangeDelivery: boolean;
   meetupLocation: string | null;
-  deliveryArea: string | null;
   paymentCash: boolean;
   paymentOnline: boolean;
   paymentOther: boolean;
@@ -188,12 +186,8 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
 
   if (!raw.exchangeMeetup && !raw.exchangeDelivery) errors.exchange = "Choose meet-up, delivery, or both.";
   const meetupLocation = raw.meetupLocation.trim();
-  const deliveryArea = raw.deliveryArea.trim();
   if (raw.exchangeMeetup && (meetupLocation.length === 0 || meetupLocation.length > PLACE_MAX)) {
     errors.meetupLocation = "Say where to meet (for example, the main gate).";
-  }
-  if (raw.exchangeDelivery && (deliveryArea.length === 0 || deliveryArea.length > PLACE_MAX)) {
-    errors.deliveryArea = "Say where you deliver (for example, within campus).";
   }
 
   // A free post has no payment. Otherwise at least one way, and a note only with online or others.
@@ -260,7 +254,6 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     exchangeMeetup: raw.exchangeMeetup,
     exchangeDelivery: raw.exchangeDelivery,
     meetupLocation: raw.exchangeMeetup ? meetupLocation : null,
-    deliveryArea: raw.exchangeDelivery ? deliveryArea : null,
     paymentCash: pays && raw.paymentCash,
     paymentOnline: pays && raw.paymentOnline,
     paymentOther: pays && raw.paymentOther,

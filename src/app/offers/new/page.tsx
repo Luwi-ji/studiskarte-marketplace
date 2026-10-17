@@ -69,6 +69,7 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
         {allowed ? (
           <OfferForm
             postId={detail.id}
+            postKind={detail.kind === "wishlist" ? "wishlist" : "showcase"}
             kind={kind}
             askingText={askingText}
             maxQuantity={options.maxQuantity}

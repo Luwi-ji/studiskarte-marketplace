@@ -3,7 +3,7 @@ import { notification, student } from "@/db/schema";
 import type { Executor } from "@/lib/db";
 
 /** What happens to a reservation after it is accepted. */
-export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_scheduled" | "deal_confirmed" | "deal_completed" | "deal_reminder" | "deal_confirm_reminder" | "deal_expired" | "deal_paid" | "deal_payment_confirmed" | "deal_payment_requested" | "deal_cash_requested" | "deal_cash_answered" | "deal_payment_rejected" | "deal_reported" | "deal_disputed";
+export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_scheduled" | "deal_confirmed" | "deal_completed" | "deal_reminder" | "deal_confirm_reminder" | "deal_expired" | "deal_paid" | "deal_payment_confirmed" | "deal_payment_requested" | "deal_cash_requested" | "deal_cash_answered" | "deal_cash_given" | "deal_cash_received" | "deal_payment_rejected" | "deal_reported" | "deal_disputed";
 
 export type NotificationSpec =
   | { type: "message"; recipientId: string; postId: string | null; conversationId: string }
@@ -15,6 +15,8 @@ export type NotificationSpec =
       postId: string;
       conversationId: string;
       onceKey: string;
+      /** The agreed time and place, shown under the headline and in the device alert. */
+      detail?: string | null;
     };
 
 /** The entry that was written, and whether a device alert should go with it. */
@@ -43,6 +45,7 @@ export async function recordNotification(db: Executor, spec: NotificationSpec): 
         type: spec.type,
         postId: spec.postId,
         conversationId: "conversationId" in spec ? spec.conversationId : null,
+        detail: "detail" in spec ? (spec.detail ?? null) : null,
         onceKey: spec.onceKey,
       })
       .onConflictDoNothing()

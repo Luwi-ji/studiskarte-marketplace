@@ -10,7 +10,9 @@ import {
   ALREADY_SECURED,
   answerCash,
   askToPay,
+  CASH_NOT_GIVEN,
   confirmPayment,
+  giveCash,
   markPaid,
   NEEDS_SLOT,
   NOT_ASKED,
@@ -19,6 +21,8 @@ import {
   NOT_PAYER,
   NOTHING_TO_PAY,
   payerOf,
+  receiveCash,
+  rejectCash,
   rejectPayment,
   requestCash,
 } from "@/lib/deals/payment";
@@ -71,7 +75,6 @@ async function newPost(opts: { quantity?: string; meetup?: boolean; delivery?: b
     exchangeMeetup: meetup,
     exchangeDelivery: delivery,
     meetupLocation: meetup ? "Main gate" : "",
-    deliveryArea: delivery ? "Campus" : "",
     // Mondays 09:00 to 10:00, Philippine time.
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
@@ -261,10 +264,21 @@ describe("securing the slot with cash in person", () => {
     expect(await requestCash({ actorId: ana, dealId })).toEqual({ ok: false, error: ALREADY_SECURED });
     expect(await markPaid({ actorId: ana, dealId })).toMatchObject({ ok: false });
 
-    // Both still confirm the handover; no payment confirmation is needed.
+    // Both confirm the handover, but the cash has not changed hands: it does not complete.
     await confirmHandover({ actorId: ana, dealId, now: after });
-    expect(await confirmHandover({ actorId: seller, dealId, now: after })).toMatchObject({ ok: true, completed: true });
-    expect((await dealRow(dealId)).status).toBe("completed");
+    expect(await confirmHandover({ actorId: seller, dealId, now: after })).toMatchObject({ ok: true, completed: false });
+    expect((await dealRow(dealId)).status).toBe("scheduled");
+
+    // The cash handshake: the payer says they gave it, then the payee says they received it. Nobody can skip ahead or step in for the other.
+    expect(await receiveCash({ actorId: seller, dealId })).toEqual({ ok: false, error: CASH_NOT_GIVEN });
+    expect(await giveCash({ actorId: seller, dealId })).toEqual({ ok: false, error: NOT_PAYER });
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+    expect(await giveCash({ actorId: ana, dealId })).toMatchObject({ ok: true, completed: false });
+    expect(await noticesFor(seller)).toEqual(["deal_cash_given"]);
+    expect(await receiveCash({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
+    expect(await receiveCash({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: true });
+    expect(await noticesFor(ana)).toEqual(["deal_completed"]);
+    expect(await dealRow(dealId)).toMatchObject({ status: "completed" });
   });
 
   it("is only possible when the post takes cash, and works for a delivery as well as a meet-up", async () => {
@@ -276,12 +290,55 @@ describe("securing the slot with cash in person", () => {
     expect(await requestCash({ actorId: ben, dealId: delivery.dealId })).toMatchObject({ ok: true });
   });
 
-  it("completes when the cash is agreed after both already confirmed the handover", async () => {
-    const { dealId } = await scheduled();
-    await both(dealId);
+  it("completes on whichever comes last: the second handover confirmation or the cash received", async () => {
+    const cashFirst = await scheduled();
+    await requestCash({ actorId: ana, dealId: cashFirst.dealId });
+    await answerCash({ actorId: seller, dealId: cashFirst.dealId, agree: true });
+    await giveCash({ actorId: ana, dealId: cashFirst.dealId });
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+    expect(await receiveCash({ actorId: seller, dealId: cashFirst.dealId })).toMatchObject({ ok: true, completed: false });
+    expect(await noticesFor(ana)).toEqual(["deal_cash_received"]);
+    await confirmHandover({ actorId: ana, dealId: cashFirst.dealId, now: after });
+    expect(await confirmHandover({ actorId: seller, dealId: cashFirst.dealId, now: after })).toMatchObject({ ok: true, completed: true });
+
+    // Agreeing to the cash after both confirmed the handover does not complete it either: the cash must change hands.
+    const { dealId } = await scheduled(ben, await newPost());
+    await both(dealId, ben);
+    await requestCash({ actorId: ben, dealId });
+    expect(await answerCash({ actorId: seller, dealId, agree: true })).toMatchObject({ ok: true, completed: false });
     expect((await dealRow(dealId)).status).toBe("scheduled");
+    await giveCash({ actorId: ben, dealId });
+    expect(await receiveCash({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: true });
+  });
+
+  it("lets the payee say the cash was not received, which puts it back to agreed", async () => {
+    const { dealId } = await scheduled();
     await requestCash({ actorId: ana, dealId });
-    expect(await answerCash({ actorId: seller, dealId, agree: true })).toMatchObject({ ok: true, completed: true });
+    await answerCash({ actorId: seller, dealId, agree: true });
+    expect(await rejectCash({ actorId: seller, dealId })).toEqual({ ok: false, error: CASH_NOT_GIVEN });
+    await giveCash({ actorId: ana, dealId });
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+    expect(await rejectCash({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
+    expect(await rejectCash({ actorId: seller, dealId })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ cashGivenAt: null, cashAgreedAt: expect.any(Date) });
+    expect(await noticesFor(ana)).toEqual(["deal_payment_rejected"]);
+    // Still secured; the payer can say it again, and once received it cannot be taken back.
+    expect(await cancelDeal({ actorId: ana, dealId })).toEqual({ ok: false, error: SECURED_NO_CANCEL });
+    await giveCash({ actorId: ana, dealId });
+    await receiveCash({ actorId: seller, dealId });
+    expect(await rejectCash({ actorId: seller, dealId })).toMatchObject({ ok: false, error: expect.stringContaining("already confirmed") });
+  });
+
+  it("says nothing twice: repeating a cash step changes nothing and tells nobody again", async () => {
+    const { dealId } = await scheduled();
+    await requestCash({ actorId: ana, dealId });
+    await answerCash({ actorId: seller, dealId, agree: true });
+    await giveCash({ actorId: ana, dealId });
+    const given = (await dealRow(dealId)).cashGivenAt;
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+    expect(await giveCash({ actorId: ana, dealId, now: new Date(Date.now() + HOUR) })).toMatchObject({ ok: true });
+    expect((await dealRow(dealId)).cashGivenAt).toEqual(given);
+    expect(await noticesFor(seller)).toEqual([]);
   });
 });
 
@@ -372,7 +429,9 @@ describe("reporting what happened", () => {
     expect(await reportDeal({ actorId: ana, dealId, input: report({ details: "x".repeat(501) }) })).toMatchObject({ ok: false, error: expect.stringContaining("at most 500") });
     expect((await dealRow(dealId)).status).toBe("scheduled");
     await both(dealId);
-    expect((await dealRow(dealId)).status).toBe("completed");
+    expect((await dealRow(dealId)).status).toBe("scheduled"); // the cash is still to change hands
+    await giveCash({ actorId: ana, dealId });
+    expect(await receiveCash({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: true });
     expect(await reportDeal({ actorId: ana, dealId, input: report() })).toMatchObject({ ok: false });
   });
 
@@ -417,6 +476,9 @@ describe("rules the database keeps about payment", () => {
     await expect(db.update(deal).set({ paymentMethod: "online", paidAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // the post takes cash only
     await expect(db.update(deal).set({ paymentMethod: "cash" }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // a way with no time
     await expect(db.update(deal).set({ cashAgreedAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // agreed but never asked
+    await expect(db.update(deal).set({ cashRequestedAt: now, cashAgreedAt: now, status: "completed", ownerConfirmedAt: now, responderConfirmedAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // cash agreed is not cash received
+    await expect(db.update(deal).set({ cashGivenAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // given but never agreed
+    await expect(db.update(deal).set({ cashRequestedAt: now, cashAgreedAt: now, cashReceivedAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // received but never given
     await expect(db.update(deal).set({ paymentAskMethod: "online" }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } });
     await expect(db.update(post).set({ paymentCash: false }).where(eq(post.id, postId))).rejects.toMatchObject({ cause: { code: "23514" } }); // priced, none left
     await expect(db.update(post).set({ paymentNote: "GCash" }).where(eq(post.id, postId))).rejects.toMatchObject({ cause: { code: "23514" } }); // a note with cash only

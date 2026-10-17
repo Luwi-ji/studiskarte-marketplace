@@ -12,6 +12,10 @@ import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, 
 
 /** Messages shown in a conversation: the latest this many. */
 export const MESSAGES_SHOWN = 200;
+/** Reservations in these states are always shown at the bottom of the thread. */
+export const PINNED_STATUSES = ["agreed", "scheduled", "disputed"] as const;
+/** A finished reservation (completed, cancelled) stays at the bottom this long after its last activity, so its result is seen. */
+const PIN_RECENT_MS = 24 * 60 * 60 * 1000;
 const INBOX_MAX = 100;
 
 export type Person = { handle: string | null; displayName: string; avatarThumbKey: string | null };
@@ -51,6 +55,8 @@ export type ConversationSummary = {
 export type DealCard = {
   id: string;
   status: string;
+  /** The last thing that happened on it (any step, a reminder, a cancel). */
+  activityAt: Date;
   handover: { method: HandoverMethod; at: Date; place: string } | null;
   proposal: { byMe: boolean; method: HandoverMethod; at: Date; place: string } | null;
   confirmedByMe: boolean;
@@ -72,14 +78,14 @@ export type DealCard = {
     /** The way it was paid, once paid. */
     method: PaymentMode | null;
   } | null;
-  /** Paid, or cash in person agreed: it can no longer be cancelled. */
+  /** It can no longer be cancelled: paid, cash in person agreed, or a handover said. */
   secured: boolean;
   /** A problem can be reported now. */
   canReport: boolean;
   /** What each side said went wrong, once reported. */
   reports: { mine: boolean; blames: "me" | "them" | null; reason: ReportReason; details: string | null }[];
   /** For proposing: what the post offers, where it says to meet or deliver, and when it is available. Only while the reservation is active. */
-  options: { methods: HandoverMethod[]; meetupPlace: string | null; deliveryPlace: string | null; windows: Availability[] } | null;
+  options: { methods: HandoverMethod[]; meetupPlace: string | null; windows: Availability[] } | null;
 };
 
 /** An offer as it stands now, shown as a card in the thread. */
@@ -110,12 +116,17 @@ export type ChatMessage = {
   offer: OfferCard | null;
 };
 
+/** An offer whose reservation is shown at the bottom of the thread. */
+export type PinnedOffer = OfferCard & { deal: DealCard };
+
 export type ConversationView = {
   id: string;
   other: Person;
   messages: ChatMessage[];
   /** Every listing the two have dealt about, the one with the newest message first. */
   listings: ThreadListing[];
+  /** The reservations to show at the bottom of the thread, the most recently active last (see PINNED_STATUSES). */
+  pinned: PinnedOffer[];
   /** Null when the conversation takes new messages; otherwise why not. */
   readOnlyReason: string | null;
   unread: number;
@@ -313,7 +324,6 @@ type DealRow = {
   exchangeMeetup: boolean;
   exchangeDelivery: boolean;
   meetupLocation: string | null;
-  deliveryArea: string | null;
   postKind: string;
   paymentCash: boolean;
   paymentOnline: boolean;
@@ -328,6 +338,9 @@ type DealRow = {
   paymentAskMethod: string | null;
   cashRequestedAt: Date | null;
   cashAgreedAt: Date | null;
+  cashGivenAt: Date | null;
+  cashReceivedAt: Date | null;
+  activityAt: Date | null;
 };
 
 const asMode = (value: string | null): PaymentMode | null => (value === "online" || value === "other" || value === "cash" ? value : null);
@@ -336,14 +349,26 @@ const asReason = (value: string): ReportReason => (value in REPORT_REASONS ? (va
 type ReportRow = { dealId: string; reporterId: string; faultPartyId: string | null; reason: string; details: string | null };
 
 function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows: Availability[] | undefined, reports: ReportRow[]): DealCard | null {
-  if (!o.dealId || !o.dealStatus) return null;
-  const fields = { amount: o.dealAmount ?? 0, paymentAskedAt: o.paymentAskedAt, cashRequestedAt: o.cashRequestedAt, cashAgreedAt: o.cashAgreedAt, paidAt: o.paidAt, paymentConfirmedAt: o.paymentConfirmedAt };
+  if (!o.dealId || !o.dealStatus || !o.activityAt) return null;
+  const fields = {
+    amount: o.dealAmount ?? 0,
+    paymentAskedAt: o.paymentAskedAt,
+    cashRequestedAt: o.cashRequestedAt,
+    cashAgreedAt: o.cashAgreedAt,
+    cashGivenAt: o.cashGivenAt,
+    cashReceivedAt: o.cashReceivedAt,
+    paidAt: o.paidAt,
+    paymentConfirmedAt: o.paymentConfirmedAt,
+    ownerConfirmedAt: o.ownerConfirmedAt,
+    responderConfirmedAt: o.responderConfirmedAt,
+  };
   const stage = paymentStage(fields);
   const mine = viewerIsOwner ? o.ownerConfirmedAt : o.responderConfirmedAt;
   const theirs = viewerIsOwner ? o.responderConfirmedAt : o.ownerConfirmedAt;
   return {
     id: o.dealId,
     status: o.dealStatus,
+    activityAt: o.activityAt,
     handover: o.handoverMethod && o.scheduledAt && o.place ? { method: asMethod(o.handoverMethod), at: o.scheduledAt, place: o.place } : null,
     proposal:
       o.proposedBy && o.proposedMethod && o.proposedAt && o.proposedPlace
@@ -371,7 +396,6 @@ function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows:
       ? {
           methods: [...(o.exchangeMeetup ? (["meetup"] as const) : []), ...(o.exchangeDelivery ? (["delivery"] as const) : [])],
           meetupPlace: o.meetupLocation,
-          deliveryPlace: o.deliveryArea,
           windows,
         }
       : null,
@@ -394,7 +418,7 @@ export async function getConversation(viewerId: string, conversationId: string):
     .orderBy(desc(message.id))
     .limit(MESSAGES_SHOWN);
   const ids = newest.map((m) => m.id);
-  const [pictures, listings] = await Promise.all([
+  const [pictures, listings, pinnedRows] = await Promise.all([
     ids.length === 0
       ? []
       : getDb()
@@ -404,10 +428,15 @@ export async function getConversation(viewerId: string, conversationId: string):
           .where(inArray(messageImage.messageId, ids))
           .orderBy(messageImage.messageId, messageImage.position),
     threadListings(viewerId, conversationId),
+    getDb()
+      .select({ offerId: deal.offerId })
+      .from(deal)
+      .innerJoin(offer, eq(offer.id, deal.offerId))
+      .where(and(eq(offer.conversationId, conversationId), or(inArray(deal.status, [...PINNED_STATUSES]), gt(deal.activityAt, new Date(Date.now() - PIN_RECENT_MS))))),
   ]);
   const listingById = new Map(listings.map((l) => [l.post.id, l]));
 
-  const offerIds = newest.flatMap((m) => (m.offerId ? [m.offerId] : []));
+  const offerIds = [...new Set([...newest.flatMap((m) => (m.offerId ? [m.offerId] : [])), ...pinnedRows.map((r) => r.offerId)])];
   const offers =
     offerIds.length === 0
       ? []
@@ -434,7 +463,6 @@ export async function getConversation(viewerId: string, conversationId: string):
             exchangeMeetup: post.exchangeMeetup,
             exchangeDelivery: post.exchangeDelivery,
             meetupLocation: post.meetupLocation,
-            deliveryArea: post.deliveryArea,
             postKind: post.kind,
             paymentCash: post.paymentCash,
             paymentOnline: post.paymentOnline,
@@ -449,6 +477,9 @@ export async function getConversation(viewerId: string, conversationId: string):
             paymentAskMethod: deal.paymentAskMethod,
             cashRequestedAt: deal.cashRequestedAt,
             cashAgreedAt: deal.cashAgreedAt,
+            cashGivenAt: deal.cashGivenAt,
+            cashReceivedAt: deal.cashReceivedAt,
+            activityAt: deal.activityAt,
           })
           .from(offer)
           .innerJoin(post, eq(post.id, offer.postId))
@@ -487,6 +518,15 @@ export async function getConversation(viewerId: string, conversationId: string):
     });
   }
 
+  // The deals being carried out, or with something happening lately, sit at the bottom of the thread (not buried
+  // at their offer's message), the most recently active last.
+  const pinned: PinnedOffer[] = [];
+  for (const { offerId } of pinnedRows) {
+    const card = offerById.get(offerId);
+    if (card?.deal) pinned.push({ ...card, deal: card.deal });
+  }
+  pinned.sort((a, b) => a.deal.activityAt.getTime() - b.deal.activityAt.getTime());
+
   const { other, readUpTo } = split(row, viewerId);
   return {
     id: row.id,
@@ -504,6 +544,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       };
     }),
     listings,
+    pinned,
     readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
   };

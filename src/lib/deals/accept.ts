@@ -96,6 +96,7 @@ export async function acceptOffer(args: { ownerId: string; offerId: string; aler
         responderId: found.responderId,
         amount: found.amount,
         quantity: found.quantity,
+        activityAt: now,
       });
       await tx.update(offer).set({ status: "accepted", decidedAt: now }).where(eq(offer.id, args.offerId));
       const statusNow = await syncAvailability(tx, ref.postId, now);

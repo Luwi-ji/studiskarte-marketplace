@@ -8,11 +8,14 @@ import { listFeed } from "@/lib/discovery/feed";
 import type { ObjectStore } from "@/lib/images/store";
 import { cleanupUnusedPhotos } from "@/lib/jobs/cleanup";
 import { expirePosts } from "@/lib/jobs/expire-posts";
+import { EXPIRED_KEEP_DAYS, purgePosts, WITHDRAWN_KEEP_DAYS } from "@/lib/jobs/purge-posts";
 import { isJobName, JOBS, runJob, staleJobs } from "@/lib/jobs/job-run";
 import { createPost } from "@/lib/posts/create";
 import { getPostDetail } from "@/lib/posts/detail";
 import { expiryNotice } from "@/lib/posts/format";
 import { OPEN_POSTS_MAX, type NewPostInput } from "@/lib/posts/schema";
+import { listOwnPosts } from "@/lib/posts/mine";
+import { deletePost, withdrawPost } from "@/lib/posts/transitions";
 import { getEditablePost, updatePost } from "@/lib/posts/update";
 import { recordView } from "@/lib/posts/views";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
@@ -60,7 +63,6 @@ async function input(overrides: Partial<NewPostInput> = {}): Promise<NewPostInpu
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([await photoRow(owner)]),
     ...overrides,
@@ -123,6 +125,74 @@ describe("expiry", () => {
     expect((await listFeed(viewer, { limit: 200 })).items.some((item) => item.id === id)).toBe(false);
     expect(await getPostDetail(viewer, id)).toBeNull();
     expect(await getPostDetail(owner, id)).toMatchObject({ isOwner: true });
+  });
+});
+
+describe("taking finished posts off the owner's list", () => {
+  const store = new MemoryStore();
+  const listed = async (id: string) => (await listOwnPosts(owner)).some((p) => p.id === id);
+  const deletedAt = async (id: string) => (await db.select({ at: post.ownerDeletedAt }).from(post).where(eq(post.id, id)))[0]?.at ?? null;
+
+  it("purges a withdrawn post after a day and an expired one after a week, keeps the rest, and a second run changes nothing", async () => {
+    const now = new Date();
+    const freshWithdrawn = await newPost();
+    const oldWithdrawn = await newPost();
+    const recentlyExpired = await newPost();
+    const longExpired = await newPost();
+    const open = await newPost();
+    const fulfilled = await newPost();
+    await db.update(post).set({ status: "withdrawn", updatedAt: new Date(now.getTime() - (WITHDRAWN_KEEP_DAYS * DAY - 60_000)) }).where(eq(post.id, freshWithdrawn));
+    await db.update(post).set({ status: "withdrawn", updatedAt: new Date(now.getTime() - (WITHDRAWN_KEEP_DAYS * DAY + 60_000)) }).where(eq(post.id, oldWithdrawn));
+    await db.update(post).set({ status: "expired", expiresAt: new Date(now.getTime() - (EXPIRED_KEEP_DAYS * DAY - 60_000)), listedAt: new Date(now.getTime() - 40 * DAY) }).where(eq(post.id, recentlyExpired));
+    await db.update(post).set({ status: "expired", expiresAt: new Date(now.getTime() - (EXPIRED_KEEP_DAYS * DAY + 60_000)), listedAt: new Date(now.getTime() - 40 * DAY) }).where(eq(post.id, longExpired));
+    await db.update(post).set({ status: "fulfilled", updatedAt: new Date(now.getTime() - 30 * DAY) }).where(eq(post.id, fulfilled));
+
+    expect(await purgePosts(now)).toBeGreaterThanOrEqual(2);
+    expect(await listed(oldWithdrawn)).toBe(false);
+    expect(await listed(longExpired)).toBe(false);
+    for (const id of [freshWithdrawn, recentlyExpired, open, fulfilled]) expect(await listed(id)).toBe(true);
+    expect(await purgePosts(now)).toBe(0);
+  });
+
+  it("lets an expired post be relisted before the week is up, and then never purges it", async () => {
+    const id = await newPost();
+    await ageOut(id, EXPIRED_KEEP_DAYS - 1);
+    await expirePosts();
+    expect(await statusOf(id)).toBe("expired");
+    await purgePosts();
+    expect(await listed(id)).toBe(true);
+
+    const relisted = await updatePost({ ownerId: owner, postId: id, store, relist: true, input: await input({ photos: photosOf([await photoRow(owner)]) }) });
+    expect(relisted.ok).toBe(true);
+    await purgePosts(new Date(Date.now() + 60 * DAY));
+    expect(await statusOf(id)).toBe("open");
+    expect(await listed(id)).toBe(true);
+  });
+
+  it("lets the owner delete a withdrawn or expired post, and nothing else", async () => {
+    const withdrawn = await newPost();
+    expect(await withdrawPost(owner, withdrawn)).toBe("ok");
+    const expired = await newPost();
+    await ageOut(expired, 1);
+    await expirePosts();
+    const open = await newPost();
+    const fulfilled = await newPost();
+    await db.update(post).set({ status: "fulfilled" }).where(eq(post.id, fulfilled));
+
+    expect(await deletePost(viewer, withdrawn)).toBe("not_available");
+    expect(await deletePost(owner, open)).toBe("not_available");
+    expect(await deletePost(owner, fulfilled)).toBe("not_available");
+    expect(await deletePost(owner, withdrawn)).toBe("ok");
+    expect(await deletePost(owner, expired)).toBe("ok");
+    expect(await deletePost(owner, expired)).toBe("not_available");
+    expect(await listed(withdrawn)).toBe(false);
+    expect(await listed(expired)).toBe(false);
+    expect(await deletedAt(withdrawn)).not.toBeNull();
+    expect(await statusOf(withdrawn)).toBe("withdrawn");
+    for (const id of [open, fulfilled]) expect(await listed(id)).toBe(true);
+    // A deleted post cannot be relisted.
+    const relist = await updatePost({ ownerId: owner, postId: expired, store, relist: true, input: await input({ photos: photosOf([await photoRow(owner)]) }) });
+    expect(relist.ok).toBe(false);
   });
 });
 

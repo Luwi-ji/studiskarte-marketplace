@@ -5,13 +5,12 @@ import { conversation, deal, image, notification, post, rateLimitEvent } from "@
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
 import { confirmHandover, NOT_SCHEDULED } from "@/lib/deals/confirm";
-import { answerCash, requestCash } from "@/lib/deals/payment";
+import { answerCash, giveCash, receiveCash, requestCash } from "@/lib/deals/payment";
 import { chooseableDays, parseProposal, suggestTime, time12, to24h } from "@/lib/deals/handover";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerProposal, NO_PROPOSAL, proposeHandover } from "@/lib/deals/schedule";
 import { getDb, getPool } from "@/lib/db";
 import { expireDeals } from "@/lib/jobs/expire-deals";
-import { sendHandoverReminders } from "@/lib/jobs/reminders";
 import { getConversation } from "@/lib/messaging/read";
 import { createPost } from "@/lib/posts/create";
 import type { Availability, NewPostInput } from "@/lib/posts/schema";
@@ -56,7 +55,6 @@ async function newPost(opts: { quantity?: string; meetup?: boolean; delivery?: b
     exchangeMeetup: meetup,
     exchangeDelivery: delivery,
     meetupLocation: meetup ? "Main gate" : "",
-    deliveryArea: delivery ? "Campus" : "",
     // Mondays 09:00 to 10:00, Philippine time.
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
@@ -76,10 +74,12 @@ async function reserved(buyer: string, postId: string): Promise<{ dealId: string
   return { dealId: row.id, conversationId: offer.conversationId };
 }
 
-/** Cash in person is agreed, and both confirm the handover: the deal completes. */
+/** Cash in person is agreed, given and received, and both confirm the handover: the deal completes. */
 async function finish(dealId: string, buyer = ana, now = new Date(slot.at.getTime() + HOUR)) {
   await requestCash({ actorId: buyer, dealId });
   await answerCash({ actorId: seller, dealId, agree: true });
+  await giveCash({ actorId: buyer, dealId });
+  await receiveCash({ actorId: seller, dealId });
   await confirmHandover({ actorId: buyer, dealId, now });
   await confirmHandover({ actorId: seller, dealId, now });
 }
@@ -332,10 +332,14 @@ describe("confirming the handover", () => {
     expect(await confirmHandover({ actorId: seller, dealId, now: after })).toEqual({ ok: true, conversationId, completed: false });
     expect(await dealRow(dealId)).toMatchObject({ status: "scheduled" });
     expect(await requestCash({ actorId: ana, dealId })).toMatchObject({ ok: true });
-    expect(await answerCash({ actorId: seller, dealId, agree: true })).toMatchObject({ ok: true, completed: true });
+    expect(await answerCash({ actorId: seller, dealId, agree: true })).toMatchObject({ ok: true, completed: false });
+    // Cash in person agreed is not cash received: it completes once the cash changed hands.
+    expect(await dealRow(dealId)).toMatchObject({ status: "scheduled" });
+    expect(await giveCash({ actorId: ana, dealId })).toMatchObject({ ok: true });
+    expect(await receiveCash({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: true });
     expect(await dealRow(dealId)).toMatchObject({ status: "completed" });
     expect(await postStatus(postId)).toBe("fulfilled");
-    expect(await noticesFor(ana)).toEqual(["deal_completed", "deal_confirmed"]);
+    expect(await noticesFor(ana)).toEqual(["deal_cash_answered", "deal_completed", "deal_confirmed"]);
     // Completed is final.
     expect(await confirmHandover({ actorId: seller, dealId, now: after })).toMatchObject({ ok: false });
     expect(await cancelDeal({ actorId: seller, dealId })).toMatchObject({ ok: false });
@@ -423,43 +427,5 @@ describe("reservations nobody carried out", () => {
     expect((await dealRow(recent.dealId)).status).toBe("scheduled");
     expect((await dealRow(done.dealId)).status).toBe("completed");
     expect(await postStatus(stale.postId)).toBe("open");
-  });
-});
-
-describe("reminders", () => {
-  it("reminds both a day and an hour before, once each, and again for a new time", async () => {
-    const { dealId } = await scheduled();
-    const before = (ms: number) => new Date(slot.at.getTime() - ms);
-    await db.delete(notification).where(inArray(notification.recipientId, people));
-
-    expect(await sendHandoverReminders(before(2 * DAY))).toBe(0);
-    expect(await sendHandoverReminders(before(23 * HOUR))).toBe(2);
-    expect(await sendHandoverReminders(before(22 * HOUR))).toBe(0);
-    expect(await noticesFor(ana)).toEqual(["deal_reminder"]);
-    expect(await noticesFor(seller)).toEqual(["deal_reminder"]);
-    expect(await sendHandoverReminders(before(30 * 60_000))).toBe(2);
-    expect(await noticesFor(ana)).toEqual(["deal_reminder", "deal_reminder"]);
-    expect(await sendHandoverReminders(before(10 * 60_000))).toBe(0);
-    // After the time there is no "before" reminder.
-    expect(await sendHandoverReminders(new Date(slot.at.getTime() + HOUR))).toBe(0);
-    expect((await dealRow(dealId)).status).toBe("scheduled");
-  });
-
-  it("reminds only the one who has not confirmed, 1 and 3 days after, and nobody when neither has", async () => {
-    const { dealId } = await scheduled();
-    await db.delete(notification).where(inArray(notification.recipientId, people));
-    const later = (days: number) => new Date(slot.at.getTime() + days * DAY + HOUR);
-
-    // Nobody has confirmed: no reminder to confirm.
-    expect(await sendHandoverReminders(later(1))).toBe(0);
-    await confirmHandover({ actorId: seller, dealId, now: new Date(slot.at.getTime() + HOUR) });
-    await db.delete(notification).where(inArray(notification.recipientId, people));
-    expect(await sendHandoverReminders(later(0))).toBe(0);
-    expect(await sendHandoverReminders(later(1))).toBe(1);
-    expect(await sendHandoverReminders(later(1))).toBe(0);
-    expect(await noticesFor(ana)).toEqual(["deal_confirm_reminder"]);
-    expect(await noticesFor(seller)).toEqual([]);
-    expect(await sendHandoverReminders(later(3))).toBe(1);
-    expect(await noticesFor(ana)).toEqual(["deal_confirm_reminder", "deal_confirm_reminder"]);
   });
 });

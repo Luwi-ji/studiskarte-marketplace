@@ -3,9 +3,9 @@ import { z } from "zod";
 import { deal } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
-import { lockDeal, type LockedDeal } from "@/lib/deals/lock";
+import { lockDeal, touched, type LockedDeal } from "@/lib/deals/lock";
 import { activeFor, tellOther, type HandoverResult } from "@/lib/deals/schedule";
-import { paymentStage, readyToComplete } from "@/lib/deals/slot";
+import { isCashStage, paymentStage, readyToComplete } from "@/lib/deals/slot";
 import type { DbTransaction } from "@/lib/db";
 import type { AlertSink, DealNoticeType, Recorded } from "@/lib/notifications/record";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
@@ -17,6 +17,8 @@ export const NOT_PAID_YET = "Wait until they say they have paid.";
 export const NEEDS_SLOT = "Agree a time and place first.";
 export const NOT_ASKED = "Wait until they ask you to pay.";
 export const ALREADY_SECURED = "The slot is already secured.";
+export const CASH_NOT_AGREED = "Cash in person has to be agreed first.";
+export const CASH_NOT_GIVEN = "Wait until they say they gave the cash.";
 const NO_MODE = "Choose how they should pay.";
 const MODE_NOT_TAKEN = "This post does not take that way of paying.";
 const NO_CASH = "This post does not take cash.";
@@ -50,11 +52,18 @@ function guard(found: LockedDeal | null, actorId: string, as: "payer" | "payee")
   return checked;
 }
 
+/**
+ * What one payment step comes to: refused with a message, done (the other person
+ * is told, `key` names the event so a repeat is not told twice), or already
+ * the case, so nothing changes and nobody is told.
+ */
+type Outcome = { error: string } | { notice: DealNoticeType; key: string; completed?: boolean } | { unchanged: true };
+
 /** Runs one payment step in a transaction and tells the other person. */
 async function step(
   args: { actorId: string; dealId: string; alert?: AlertSink },
   as: "payer" | "payee",
-  run: (found: LockedDeal, tx: DbTransaction) => Promise<{ error: string } | { notice: DealNoticeType; key: string; completed?: boolean }>,
+  run: (found: LockedDeal, tx: DbTransaction) => Promise<Outcome>,
 ): Promise<HandoverResult & { completed?: boolean }> {
   let recorded = null as Recorded | null;
   const result = await getDb().transaction(async (tx): Promise<HandoverResult & { completed?: boolean }> => {
@@ -62,6 +71,7 @@ async function step(
     if ("error" in checked) return checked.error;
     const outcome = await run(checked.found, tx);
     if ("error" in outcome) return { ok: false, error: outcome.error };
+    if ("unchanged" in outcome) return { ok: true, conversationId: checked.found.conversationId, completed: false };
     recorded = await tellOther(tx, checked.found, args.actorId, outcome.notice, outcome.key);
     return { ok: true, conversationId: checked.found.conversationId, completed: outcome.completed ?? false };
   });
@@ -85,7 +95,7 @@ export function askToPay(args: { actorId: string; dealId: string; input?: unknow
     const method = parsed.data.method ?? (ways.length === 1 ? ways[0] : undefined);
     if (!method) return { error: ways.length === 0 ? "This post takes cash only. They can ask to pay cash in person." : NO_MODE };
     if (!ways.includes(method)) return { error: MODE_NOT_TAKEN };
-    await tx.update(deal).set({ paymentAskedAt: now, paymentAskMethod: method, updatedAt: now }).where(eq(deal.id, found.id));
+    await tx.update(deal).set({ paymentAskedAt: now, paymentAskMethod: method, ...touched(now) }).where(eq(deal.id, found.id));
     return { notice: "deal_payment_requested", key: `asked:${now.getTime()}` };
   });
 }
@@ -98,10 +108,10 @@ export function markPaid(args: { actorId: string; dealId: string; alert?: AlertS
   const now = args.now ?? new Date();
   return step(args, "payer", async (found, tx) => {
     const stage = paymentStage(found);
-    if (stage === "paid" || stage === "confirmed") return { notice: "deal_paid", key: "paid" };
-    if (stage === "cash_agreed") return { error: "You agreed to pay cash in person, so there is nothing to pay in advance." };
+    if (stage === "paid" || stage === "confirmed") return { unchanged: true };
+    if (isCashStage(stage)) return { error: "You agreed to pay cash in person, so there is nothing to pay in advance." };
     if (!found.paymentAskedAt || !found.paymentAskMethod) return { error: NOT_ASKED };
-    await tx.update(deal).set({ paidAt: now, paymentMethod: found.paymentAskMethod, cashRequestedAt: null, updatedAt: now }).where(eq(deal.id, found.id));
+    await tx.update(deal).set({ paidAt: now, paymentMethod: found.paymentAskMethod, cashRequestedAt: null, ...touched(now) }).where(eq(deal.id, found.id));
     return { notice: "deal_paid", key: `paid:${now.getTime()}` };
   });
 }
@@ -117,11 +127,11 @@ export function confirmPayment(args: { actorId: string; dealId: string; alert?: 
   const now = args.now ?? new Date();
   return step(args, "payee", async (found, tx) => {
     if (!found.paidAt) return { error: NOT_PAID_YET };
-    if (found.paymentConfirmedAt) return { notice: "deal_payment_confirmed", key: "payment-confirmed" };
+    if (found.paymentConfirmedAt) return { unchanged: true };
     const completed = readyToComplete({ ...found, paymentConfirmedAt: now });
     await tx
       .update(deal)
-      .set({ paymentConfirmedAt: now, ...(completed ? { status: "completed" } : {}), updatedAt: now })
+      .set({ paymentConfirmedAt: now, ...(completed ? { status: "completed" } : {}), ...touched(now) })
       .where(eq(deal.id, found.id));
     if (completed) await syncAvailability(tx, found.postId, now);
     return { notice: completed ? "deal_completed" : "deal_payment_confirmed", key: completed ? `completed:${args.actorId}` : "payment-confirmed", completed };
@@ -138,7 +148,7 @@ export function rejectPayment(args: { actorId: string; dealId: string; alert?: A
   return step(args, "payee", async (found, tx) => {
     if (!found.paidAt) return { error: NOT_PAID_YET };
     if (found.paymentConfirmedAt) return { error: "You already confirmed this payment." };
-    await tx.update(deal).set({ paidAt: null, paymentMethod: null, updatedAt: now }).where(eq(deal.id, found.id));
+    await tx.update(deal).set({ paidAt: null, paymentMethod: null, ...touched(now) }).where(eq(deal.id, found.id));
     return { notice: "deal_payment_rejected", key: `rejected:${now.getTime()}` };
   });
 }
@@ -148,33 +158,83 @@ export function requestCash(args: { actorId: string; dealId: string; alert?: Ale
   const now = args.now ?? new Date();
   return step(args, "payer", async (found, tx) => {
     const stage = paymentStage(found);
-    if (stage === "paid" || stage === "confirmed" || stage === "cash_agreed") return { error: ALREADY_SECURED };
+    if (stage === "paid" || stage === "confirmed" || isCashStage(stage)) return { error: ALREADY_SECURED };
     if (!paymentModesOf(found).includes("cash" satisfies PaymentMode)) return { error: NO_CASH };
-    if (stage === "cash_requested") return { notice: "deal_cash_requested", key: "cash-requested" };
-    await tx.update(deal).set({ cashRequestedAt: now, updatedAt: now }).where(eq(deal.id, found.id));
+    if (stage === "cash_requested") return { unchanged: true };
+    await tx.update(deal).set({ cashRequestedAt: now, ...touched(now) }).where(eq(deal.id, found.id));
     return { notice: "deal_cash_requested", key: `cash-requested:${now.getTime()}` };
   });
 }
 
 /**
- * The one being paid agrees to the cash request (this secures the slot: the cash
- * changes hands at the handover) or declines it. The payer is told.
+ * The one being paid agrees to the cash request (this secures the slot: neither
+ * can cancel, and the cash changes hands at the handover) or declines it. The
+ * payer is told. Agreeing does not settle the payment: that takes giveCash and
+ * receiveCash.
  */
 export function answerCash(args: { actorId: string; dealId: string; agree: boolean; alert?: AlertSink; now?: Date }) {
   const now = args.now ?? new Date();
   return step(args, "payee", async (found, tx) => {
     const stage = paymentStage(found);
-    if (stage === "cash_agreed") return args.agree ? { notice: "deal_cash_answered", key: "cash-agreed" } : { error: ALREADY_SECURED };
+    if (isCashStage(stage)) return args.agree ? { unchanged: true } : { error: ALREADY_SECURED };
     if (stage !== "cash_requested") return { error: NO_CASH_REQUEST };
-    // If both already confirmed the handover, settling the cash completes it.
-    const completed = args.agree && readyToComplete({ ...found, cashAgreedAt: now });
     await tx
       .update(deal)
-      .set(args.agree ? { cashAgreedAt: now, ...(completed ? { status: "completed" } : {}), updatedAt: now } : { cashRequestedAt: null, updatedAt: now })
+      .set(args.agree ? { cashAgreedAt: now, ...touched(now) } : { cashRequestedAt: null, ...touched(now) })
+      .where(eq(deal.id, found.id));
+    return { notice: "deal_cash_answered", key: `cash-${args.agree ? "agreed" : "declined"}:${now.getTime()}` };
+  });
+}
+
+/**
+ * The one paying says they gave the cash, when it really changed hands at the
+ * handover. Only after the payee agreed to cash in person. The one being paid
+ * is told and confirms receiving it.
+ */
+export function giveCash(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }) {
+  const now = args.now ?? new Date();
+  return step(args, "payer", async (found, tx) => {
+    const stage = paymentStage(found);
+    if (stage === "cash_given" || stage === "cash_received") return { unchanged: true };
+    if (stage !== "cash_agreed") return { error: CASH_NOT_AGREED };
+    await tx.update(deal).set({ cashGivenAt: now, ...touched(now) }).where(eq(deal.id, found.id));
+    return { notice: "deal_cash_given", key: `cash-given:${now.getTime()}` };
+  });
+}
+
+/**
+ * The one being paid says they received the cash, when it really changed hands.
+ * Only after the payer said they gave it. This settles the payment: if both
+ * have confirmed the handover too, the deal completes (and the post is
+ * fulfilled when every unit has been handed over). The payer is told.
+ */
+export function receiveCash(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }): Promise<PaymentConfirmResult> {
+  const now = args.now ?? new Date();
+  return step(args, "payee", async (found, tx) => {
+    if (!found.cashGivenAt) return { error: CASH_NOT_GIVEN };
+    if (found.cashReceivedAt) return { unchanged: true };
+    const completed = readyToComplete({ ...found, cashReceivedAt: now });
+    await tx
+      .update(deal)
+      .set({ cashReceivedAt: now, ...(completed ? { status: "completed" } : {}), ...touched(now) })
       .where(eq(deal.id, found.id));
     if (completed) await syncAvailability(tx, found.postId, now);
-    return completed
-      ? { notice: "deal_completed", key: `completed:${args.actorId}`, completed }
-      : { notice: "deal_cash_answered", key: `cash-${args.agree ? "agreed" : "declined"}:${now.getTime()}` };
+    return { notice: completed ? "deal_completed" : "deal_cash_received", key: completed ? `completed:${args.actorId}` : "cash-received", completed };
+  });
+}
+
+/**
+ * The one being paid says they did not receive the cash the payer says they
+ * gave. That undoes "given" (the cash stays agreed, so the slot stays secured)
+ * and the payer is told: they can say it again, or report what happened. Not
+ * possible once received.
+ */
+export function rejectCash(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }) {
+  const now = args.now ?? new Date();
+  return step(args, "payee", async (found, tx) => {
+    if (!found.cashGivenAt) return { error: CASH_NOT_GIVEN };
+    if (found.cashReceivedAt) return { error: "You already confirmed the cash." };
+    await tx.update(deal).set({ cashGivenAt: null, ...touched(now) }).where(eq(deal.id, found.id));
+    return { notice: "deal_payment_rejected", key: `cash-rejected:${now.getTime()}` };
   });
 }

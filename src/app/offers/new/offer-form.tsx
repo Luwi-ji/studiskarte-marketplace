@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { makeOfferAction } from "@/app/deals/actions";
 import type { OfferKind } from "@/lib/deals/rules";
+import { noteTemplate } from "@/lib/deals/note-template";
 import { MESSAGE_MAX } from "@/lib/messaging/rules";
 
 const field =
@@ -12,6 +13,7 @@ const field =
 /** Sends an offer (with an amount) or a reserve (at the asking price), then opens the conversation. */
 export function OfferForm({
   postId,
+  postKind,
   kind,
   askingText,
   maxQuantity,
@@ -19,6 +21,7 @@ export function OfferForm({
   unitPrice,
 }: {
   postId: string;
+  postKind: "showcase" | "wishlist";
   kind: OfferKind;
   askingText: string;
   /** The most they can ask for (what is left, or 1,000 when ongoing). */
@@ -32,6 +35,7 @@ export function OfferForm({
   const [amount, setAmount] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [note, setNote] = useState("");
+  const [noteEdited, setNoteEdited] = useState(false);
   const [error, setError] = useState<{ field: "amount" | "quantity" | "note" | "form"; message: string } | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -39,12 +43,17 @@ export function OfferForm({
     setAmount("");
     setQuantity("1");
     setNote("");
+    setNoteEdited(false);
     setError(null);
   }
 
   // Pages the app has visited stay alive in the background. Leave nothing typed behind: the form
   // starts empty each time it is opened, and is emptied when it is left.
   useEffect(() => clear, []);
+
+  // The note starts as a template that follows the amount until the student writes their own.
+  const wishlist = postKind === "wishlist";
+  const noteText = noteEdited ? note : noteTemplate(postKind, kind, amount);
 
   // The total, when there is more than one and a price to multiply: the amount is per unit.
   const count = Number(quantity);
@@ -57,7 +66,7 @@ export function OfferForm({
     setSending(true);
     setError(null);
     try {
-      const result = await makeOfferAction(postId, { kind, amount, quantity, note });
+      const result = await makeOfferAction(postId, { kind, amount, quantity, note: noteText });
       if (result.ok) {
         clear();
         router.replace(`/messages/${result.conversationId}`);
@@ -131,11 +140,14 @@ export function OfferForm({
         <span className="text-sm font-medium">Note (optional)</span>
         <textarea
           name="note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
+          value={noteText}
+          onChange={(e) => {
+            setNote(e.target.value);
+            setNoteEdited(true);
+          }}
           maxLength={MESSAGE_MAX}
           rows={3}
-          placeholder="Add a message for the seller"
+          placeholder={wishlist ? "Add a message for the poster" : "Add a message for the seller"}
           className={field}
         />
         {error?.field === "note" ? (

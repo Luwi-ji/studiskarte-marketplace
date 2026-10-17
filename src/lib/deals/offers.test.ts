@@ -47,7 +47,6 @@ async function newPost(price: Price = { kind: "amount", amount: 500 }, kind: "sh
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
   };

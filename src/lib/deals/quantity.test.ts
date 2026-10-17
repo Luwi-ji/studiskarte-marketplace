@@ -58,7 +58,6 @@ async function newPost(quantity: number | null, kind: "showcase" | "wishlist" = 
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
   };
@@ -404,7 +403,6 @@ describe("a post with reservations", () => {
       exchangeMeetup: true,
       exchangeDelivery: false,
       meetupLocation: "Gate",
-      deliveryArea: "",
       availability: [{ kind: "weekly" as const, weekday: 1, startTime: "09:00", endTime: "10:00" }],
       photos: editable!.photos.map((p) => ({ id: p.id, caption: "" })),
     });

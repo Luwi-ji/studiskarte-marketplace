@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { createPost, type SaveResult } from "@/lib/posts/create";
-import { withdrawPost } from "@/lib/posts/transitions";
+import { deletePost, withdrawPost } from "@/lib/posts/transitions";
 import { updatePost } from "@/lib/posts/update";
 import { recordView } from "@/lib/posts/views";
 
@@ -40,6 +40,18 @@ export async function withdrawPostAction(postId: unknown): Promise<{ ok: boolean
   return {
     ok: result === "ok",
     error: result === "has_reservations" ? "Cancel the reservations first. Open them in your messages." : undefined,
+  };
+}
+
+export async function deletePostAction(postId: unknown): Promise<{ ok: boolean; error?: string }> {
+  const me = await requireActiveStudent();
+  const id = postIdSchema.safeParse(postId);
+  if (!id.success) return { ok: false };
+  const result = await deletePost(me.id, id.data);
+  if (result === "ok") refresh();
+  return {
+    ok: result === "ok",
+    error: result === "has_reservations" ? "Finish or cancel the reservations first. Open them in your messages." : result === "not_available" ? "Only withdrawn or expired posts can be deleted." : undefined,
   };
 }
 

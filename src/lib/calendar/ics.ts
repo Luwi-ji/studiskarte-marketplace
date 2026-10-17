@@ -1,3 +1,6 @@
+/** What a calendar app shows as the calendar's own name, in a feed and in a downloaded file. */
+export const CALENDAR_NAME = "Studiskarte transactions";
+
 export type CalendarEvent = {
   /** Stable id of the thing: "deal-<dealId>@studiskarte". */
   uid: string;
@@ -7,6 +10,8 @@ export type CalendarEvent = {
   summary: string;
   location: string;
   description: string;
+  /** A cancelled event keeps its UID, so a calendar app that has the earlier one removes it. */
+  status: "confirmed" | "cancelled";
   /** Last change; becomes LAST-MODIFIED and SEQUENCE so a calendar app takes the newest. */
   updatedAt: Date;
 };
@@ -73,8 +78,9 @@ export function buildCalendar(args: { name: string; events: CalendarEvent[]; now
       `LOCATION:${escapeText(e.location)}`,
       `DESCRIPTION:${escapeText(e.description)}`,
       `LAST-MODIFIED:${utc(e.updatedAt)}`,
-      `SEQUENCE:${Math.floor(e.updatedAt.getTime() / 1000)}`,
-      "STATUS:CONFIRMED",
+      // A cancellation always outranks the confirmed version it ends, even within the same second.
+      `SEQUENCE:${Math.floor(e.updatedAt.getTime() / 1000) + (e.status === "cancelled" ? 1 : 0)}`,
+      `STATUS:${e.status === "cancelled" ? "CANCELLED" : "CONFIRMED"}`,
       "END:VEVENT",
     );
   }

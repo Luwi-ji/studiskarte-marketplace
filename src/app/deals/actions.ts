@@ -7,7 +7,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { confirmHandover } from "@/lib/deals/confirm";
-import { answerCash, askToPay, confirmPayment, markPaid, rejectPayment, requestCash, type PaymentConfirmResult } from "@/lib/deals/payment";
+import { answerCash, askToPay, confirmPayment, giveCash, markPaid, receiveCash, rejectCash, rejectPayment, requestCash, type PaymentConfirmResult } from "@/lib/deals/payment";
 import { reportDeal } from "@/lib/deals/report";
 import { answerProposal, proposeHandover, type HandoverResult } from "@/lib/deals/schedule";
 import { declineOffer, makeOffer, OFFER_NOT_FOUND, withdrawOffer, type DecisionResult, type OfferResult } from "@/lib/deals/offers";
@@ -112,5 +112,11 @@ export const rejectPaymentAction = async (dealId: unknown) => act("payment-rejec
 export const requestCashAction = async (dealId: unknown) => act("cash-request", dealId, requestCash);
 /** The one being paid agrees to or declines paying cash in person. */
 export const answerCashAction = async (dealId: unknown, agree: unknown) => act("cash-answer", dealId, (a) => answerCash({ ...a, agree: agree === true }));
+/** The one paying says they gave the cash, as it changes hands at the handover. */
+export const giveCashAction = async (dealId: unknown) => act("cash-given", dealId, giveCash);
+/** The one being paid says they received the cash. */
+export const receiveCashAction = async (dealId: unknown) => act("cash-received", dealId, receiveCash);
+/** The one being paid says they did not receive the cash the payer says they gave. */
+export const rejectCashAction = async (dealId: unknown) => act("cash-rejected", dealId, rejectCash);
 /** Either person reports what went wrong with a secured reservation. */
 export const reportDealAction = async (dealId: unknown, input: unknown) => act("report", dealId, (a) => reportDeal({ ...a, input }));

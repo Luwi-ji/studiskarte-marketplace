@@ -123,15 +123,14 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             {detail.exchangeDelivery ? (
               <li>
                 <p className="font-medium">Delivery</p>
-                <p className="text-zinc-600 dark:text-zinc-400">{detail.deliveryArea}</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-zinc-600 dark:text-zinc-400">
                   {services
-                    ? "Finished work is handed over or sent."
+                    ? "Finished work is sent via third-party delivery apps like Grab or Lalamove."
                     : wishlist
-                      ? "Brought by the seller, or sent by Grab, Lalamove and similar."
-                      : "The seller brings it, or sends it by Grab, Lalamove and similar."}{" "}
-                  Any delivery fee is agreed between you.
+                      ? "The poster wants it brought, via third-party delivery apps like Grab or Lalamove."
+                      : "Use third-party delivery apps like Grab or Lalamove."}
                 </p>
+                <p className="text-xs text-zinc-500">Any delivery fee is agreed between you.</p>
               </li>
             ) : null}
           </ul>

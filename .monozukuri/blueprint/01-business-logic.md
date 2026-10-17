@@ -151,8 +151,8 @@ Societies (group chat), Events, and AI listing tools are recorded at the end as 
 - A student can turn alerts on or off for each device. Signing out removes that device's subscription.
 - A student without working alerts still sees everything in the app, with an unread count. Alerts are never the only way to learn of something.
 - A student whose verification is revoked, or who is suspended, receives no alerts.
-- A scheduled deal produces reminders before the meeting. [Assumed: one day and one hour before.]
-- Each scheduled deal can be added to a calendar as a calendar file. Each student also has a private feed link that Google Calendar and iPhone Calendar can subscribe to. (Decided.) The feed lists only that student's scheduled deals, with the post title, time, and place. The student can regenerate the link, which stops the old one working.
+- A scheduled deal produces reminders before the meeting. [Assumed: one day and two hours before.] Each carries the agreed time and place.
+- Each scheduled deal can be added to a calendar as a calendar file. Each student also has a private feed link that Google Calendar and iPhone Calendar can subscribe to, named "Studiskarte transactions". (Decided.) The feed lists only that student's scheduled deals, with the post title, time, place, and whether they hand it over or receive it (no names or amounts); a deal cancelled or disputed in the last 30 days stays as a cancelled event so the calendar drops it. The student can regenerate the link, which stops the old one working.
 - A lock-screen live calendar is not part of this product. A reminder alert takes its place. (Decided.)
 
 ### Safety

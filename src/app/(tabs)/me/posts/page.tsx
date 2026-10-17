@@ -6,6 +6,8 @@ import { getObjectStore } from "@/lib/images/store";
 import { expiryNotice, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
 import { listOwnPosts } from "@/lib/posts/mine";
 import { OPEN_POSTS_MAX } from "@/lib/posts/schema";
+import { EXPIRED_KEEP_DAYS } from "@/lib/jobs/purge-posts";
+import { DeleteButton } from "./delete-button";
 import { WithdrawButton } from "./withdraw-button";
 
 export const metadata = { title: "My posts · Studiskarte Marketplace" };
@@ -73,13 +75,26 @@ async function Posts() {
                 </p>
                 {p.status === "open" ? <ExpiryLine expiresAt={p.expiresAt} views={p.viewCount} hearts={p.heartCount} offers={p.pendingOffers} /> : null}
                 {quantityLine(p.kind, p.quantity, p.unitsTaken) ? <p className="text-xs font-medium text-brand">{quantityLine(p.kind, p.quantity, p.unitsTaken)}</p> : null}
-                {p.status === "expired" ? <p className="text-xs text-amber-700 dark:text-amber-400">Expired {dateFormat.format(p.expiresAt)}</p> : null}
+                {p.status === "expired" ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Expired {dateFormat.format(p.expiresAt)}. Relist within {EXPIRED_KEEP_DAYS} days or it is deleted automatically.
+                  </p>
+                ) : null}
+                {p.status === "withdrawn" ? <p className="text-xs text-zinc-500">Withdrawn. It will be removed from this list soon.</p> : null}
               </div>
             </Link>
             {p.status === "expired" ? (
-              <Link href={`/posts/${p.id}/edit`} className="mt-2 flex h-11 items-center justify-center rounded-lg bg-brand text-sm font-medium text-white">
-                Relist for 30 days
-              </Link>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Link href={`/posts/${p.id}/edit`} className="flex h-11 items-center justify-center rounded-lg bg-brand text-sm font-medium text-white">
+                  Relist for 30 days
+                </Link>
+                <DeleteButton postId={p.id} title={p.title} />
+              </div>
+            ) : null}
+            {p.status === "withdrawn" ? (
+              <div className="mt-2">
+                <DeleteButton postId={p.id} title={p.title} />
+              </div>
             ) : null}
             {p.status === "open" ? (
               <div className="mt-2 grid grid-cols-2 gap-2">

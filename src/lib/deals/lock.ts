@@ -2,6 +2,13 @@ import { eq } from "drizzle-orm";
 import { deal, offer, post } from "@/db/schema";
 import type { DbTransaction } from "@/lib/db";
 
+/**
+ * What every change to a deal also sets: `updatedAt`, and `activityAt`, the last
+ * thing that happened on it. The thread shows deals by it, so every step spreads
+ * this into its update rather than setting `updatedAt` alone.
+ */
+export const touched = (now: Date) => ({ updatedAt: now, activityAt: now });
+
 export type LockedDeal = {
   id: string;
   postId: string;
@@ -14,6 +21,8 @@ export type LockedDeal = {
   proposedMethod: string | null;
   proposedAt: Date | null;
   proposedPlace: string | null;
+  /** The agreed place. */
+  place: string | null;
   ownerConfirmedAt: Date | null;
   responderConfirmedAt: Date | null;
   conversationId: string;
@@ -27,6 +36,8 @@ export type LockedDeal = {
   paymentAskMethod: string | null;
   cashRequestedAt: Date | null;
   cashAgreedAt: Date | null;
+  cashGivenAt: Date | null;
+  cashReceivedAt: Date | null;
   postKind: string;
   exchangeMeetup: boolean;
   exchangeDelivery: boolean;
@@ -67,6 +78,7 @@ export async function lockDeal(tx: DbTransaction, dealId: string): Promise<Locke
       createdAt: deal.createdAt,
       scheduledAt: deal.scheduledAt,
       proposedBy: deal.proposedBy,
+      place: deal.place,
       proposedMethod: deal.proposedMethod,
       proposedAt: deal.proposedAt,
       proposedPlace: deal.proposedPlace,
@@ -82,6 +94,8 @@ export async function lockDeal(tx: DbTransaction, dealId: string): Promise<Locke
       paymentAskMethod: deal.paymentAskMethod,
       cashRequestedAt: deal.cashRequestedAt,
       cashAgreedAt: deal.cashAgreedAt,
+      cashGivenAt: deal.cashGivenAt,
+      cashReceivedAt: deal.cashReceivedAt,
     })
     .from(deal)
     .innerJoin(offer, eq(offer.id, deal.offerId))

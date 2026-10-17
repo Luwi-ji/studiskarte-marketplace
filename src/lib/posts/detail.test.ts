@@ -38,7 +38,6 @@ async function newPost(title: string, captions: string[] = ["", ""]): Promise<st
       exchangeMeetup: true,
       exchangeDelivery: true,
       meetupLocation: "Main gate",
-      deliveryArea: "Metro Manila",
       availability: [
         { kind: "date", date: "2099-01-02", startTime: "09:00", endTime: "10:00" },
         { kind: "weekly", weekday: 0, startTime: "13:00", endTime: "15:00" },
@@ -77,7 +76,6 @@ describe("getPostDetail", () => {
       condition: "used_good",
       priceAmount: 650,
       meetupLocation: "Main gate",
-      deliveryArea: "Metro Manila",
       isOwner: false,
       seller: { handle: `da_${run}`, displayName: "Seller", school: "testschool.edu.ph" },
     });

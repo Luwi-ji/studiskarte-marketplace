@@ -3,7 +3,8 @@ import { deal } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
 import { CONFIRM_IDLE_DAYS, SCHEDULE_IDLE_DAYS } from "@/lib/deals/handover";
-import { lockDeal } from "@/lib/deals/lock";
+import { lockDeal, touched } from "@/lib/deals/lock";
+import { noticeDetail } from "@/lib/deals/notice-detail";
 import { isSecured } from "@/lib/deals/slot";
 import { recordNotification, type AlertSink } from "@/lib/notifications/record";
 
@@ -12,8 +13,9 @@ const DAY_MS = 86_400_000;
 /**
  * Closes reservations nobody carried out: one not scheduled within 7 days of
  * being accepted, or one not completed within 7 days after its time. An
- * unsecured one is cancelled. A secured one (paid, or cash in person agreed)
- * cannot be cancelled, so it becomes "disputed" for a look instead. Either way
+ * unsecured one is cancelled. A secured one (paid, cash in person agreed, or a
+ * handover said) cannot be cancelled, so it becomes "disputed" for a look
+ * instead. Either way
  * the units go back to the post (reopened with at least a week left), both
  * people are told once, and no count or review results. Safe to run twice: a
  * second run finds nothing active and idle.
@@ -41,7 +43,7 @@ export async function expireDeals(now = new Date(), alert?: AlertSink): Promise<
           (found.status === "scheduled" && found.scheduledAt !== null && found.scheduledAt.getTime() <= now.getTime() - CONFIRM_IDLE_DAYS * DAY_MS));
       if (!found || !stale) return [];
       const secured = isSecured(found);
-      await tx.update(deal).set({ status: secured ? "disputed" : "cancelled", updatedAt: now }).where(eq(deal.id, id));
+      await tx.update(deal).set({ status: secured ? "disputed" : "cancelled", ...touched(now) }).where(eq(deal.id, id));
       await syncAvailability(tx, found.postId, now);
       const notices = [];
       for (const recipientId of [found.ownerId, found.responderId]) {
@@ -52,6 +54,8 @@ export async function expireDeals(now = new Date(), alert?: AlertSink): Promise<
             postId: found.postId,
             conversationId: found.conversationId,
             onceKey: `deal:${id}:${secured ? "disputed" : "expired"}`,
+            // The time it had been scheduled for, so they can take it off their calendar.
+            detail: noticeDetail(found, secured ? "deal_disputed" : "deal_expired"),
           }),
         );
       }

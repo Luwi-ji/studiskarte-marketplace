@@ -13,6 +13,8 @@ export type NotificationItem = {
   at: Date;
   /** The post's title as it is now. */
   postTitle: string | null;
+  /** The agreed time and place, for a deal notice. */
+  detail: string | null;
   href: string;
 };
 
@@ -28,6 +30,7 @@ export async function listNotifications(studentId: string): Promise<Notification
       postId: notification.postId,
       conversationId: notification.conversationId,
       postTitle: post.title,
+      detail: notification.detail,
     })
     .from(notification)
     .leftJoin(post, eq(post.id, notification.postId))
@@ -43,6 +46,7 @@ export async function listNotifications(studentId: string): Promise<Notification
       read: row.readAt !== null,
       at: row.at,
       postTitle: row.postTitle,
+      detail: row.detail,
       href: notificationHref({ type, postId: row.postId, conversationId: row.conversationId }),
     };
   });

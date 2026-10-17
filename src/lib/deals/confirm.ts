@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { deal } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
-import { lockDeal } from "@/lib/deals/lock";
+import { lockDeal, touched } from "@/lib/deals/lock";
 import { readyToComplete } from "@/lib/deals/slot";
 import { activeFor, tellOther, type HandoverResult } from "@/lib/deals/schedule";
 import type { AlertSink, Recorded } from "@/lib/notifications/record";
@@ -12,13 +12,16 @@ export type ConfirmResult = HandoverResult | { ok: true; conversationId: string;
 export const NOT_SCHEDULED = "Agree a time and place first.";
 
 /**
- * One of the two says the handover happened. It can be said at any time once a
- * time and place are agreed, so a handover that happens earlier, or somewhere else,
- * can be confirmed right away. The deal completes when both
- * have said so and the payment is settled (confirmed, or cash in person agreed, or
- * there was nothing to pay), and
- * in no other way (the database refuses it otherwise): the post is then fulfilled if every unit has been handed over. The other person
- * is told either way. Saying it twice changes nothing.
+ * One of the two says the handover happened (the one handing it over says they
+ * did, the one receiving says they received it). It can be said at any time once
+ * a time and place are agreed, so a handover that happens earlier, or somewhere
+ * else, can be confirmed right away; from then on the reservation can no longer
+ * be cancelled, only completed or reported. The deal completes when both have
+ * said so and the payment is settled (confirmed by the payee, or the cash in
+ * person received, or there was nothing to pay), and in no other way (the
+ * database refuses it otherwise): the post is then fulfilled if every unit has
+ * been handed over. The other person is told either way. Saying it twice
+ * changes nothing.
  */
 export async function confirmHandover(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }): Promise<ConfirmResult> {
   const now = args.now ?? new Date();
@@ -40,7 +43,7 @@ export async function confirmHandover(args: { actorId: string; dealId: string; a
     });
     await tx
       .update(deal)
-      .set({ ...(asOwner ? { ownerConfirmedAt: now } : { responderConfirmedAt: now }), ...(completed ? { status: "completed" } : {}), updatedAt: now })
+      .set({ ...(asOwner ? { ownerConfirmedAt: now } : { responderConfirmedAt: now }), ...(completed ? { status: "completed" } : {}), ...touched(now) })
       .where(eq(deal.id, found.id));
     if (completed) await syncAvailability(tx, found.postId, now);
     recorded = await tellOther(tx, found, args.actorId, completed ? "deal_completed" : "deal_confirmed", `${completed ? "completed" : "confirmed"}:${args.actorId}`);

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { acceptOfferAction, cancelDealAction, declineOfferAction, withdrawOfferAction } from "@/app/deals/actions";
 import { ProductCard } from "@/components/product-card";
 import { formatPrice } from "@/lib/posts/format";
+import { CalendarActions } from "./calendar-actions";
 import { HandoverPanel, type DealCardData } from "./handover-panel";
 import type { PostCardData } from "./transactions";
 
@@ -40,16 +41,34 @@ type Props = {
   offer: OfferCardData;
   /** Who made it, as the viewer should read it. */
   responderName: string;
+  /** "message": the card where the offer was made. "pinned": the reservation at the bottom of the thread. */
+  placement: "message" | "pinned";
+  /** For a "message" card: its reservation is shown at the bottom, so only the offer text stays here. */
+  dealPinned?: boolean;
 };
 
-/**
+const DEAL_LABEL: Record<string, string> = { agreed: "Reserved", scheduled: "Scheduled", completed: "Completed", cancelled: "Cancelled", disputed: "Reported · closed" };
+
+/** "just now", "5 min ago", "3 hours ago", "2 days ago". */
+function updatedAgo(iso: string, now = Date.now()): string {
+  const minutes = Math.floor((now - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
+}
+
 /**
  * An offer inside the conversation, with the listing it is on (tap it to open
  * the listing). Its state is always the current one. The owner can accept
  * (after a confirming tap) or decline a pending offer; the one who made it can
- * withdraw it.
+ * withdraw it. Once accepted, its reservation (time and place, payment, cancel,
+ * report) is shown as a card at the bottom of the thread, where it never gets
+ * buried; the offer's own card then only points to it.
  */
-export function OfferCardView({ offer, responderName }: Props) {
+export function OfferCardView({ offer, responderName, placement, dealPinned = false }: Props) {
   const { viewerIsOwner } = offer;
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -120,14 +139,29 @@ export function OfferCardView({ offer, responderName }: Props) {
   const reported = status === "accepted" && dealStatus === "disputed";
   const canCancel = status === "accepted" && offer.deal !== null && (dealStatus === "agreed" || dealStatus === "scheduled") && !offer.deal.secured;
   const settled = status !== "pending";
+  // The interactive reservation is at the bottom of the chat: this card in the message list only points to it.
+  const pointer = placement === "message" && dealPinned && status === "accepted" && offer.deal !== null;
   return (
-    <div className={`w-[85%] rounded-2xl border p-3 ${reported ? "border-amber-500" : status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
+    <div className={`${placement === "pinned" ? "w-full" : "w-[85%]"} rounded-2xl border p-3 ${reported ? "border-amber-500" : status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
       <p className="text-xs text-zinc-500">{who}</p>
       <div className="mb-1">
         <ProductCard post={offer.listing.post} thumbUrl={offer.listing.thumbUrl} compact />
       </div>
       <p className="text-lg font-semibold">{title}</p>
-      <p className={`text-sm ${(settled && status !== "accepted") || cancelled ? "text-zinc-500" : ""}`}>{cancelled ? "Reservation cancelled. The units went back to the post." : reported ? "Reservation reported." : (statusText[status] ?? "")}</p>
+      <p className={`text-sm ${(settled && status !== "accepted") || cancelled || pointer ? "text-zinc-500" : ""}`}>
+        {pointer
+          ? "This reservation is shown at the bottom of the chat."
+          : cancelled
+            ? "Cancelled. The units went back to the post."
+            : reported
+              ? "Reservation reported."
+              : (statusText[status] ?? "")}
+      </p>
+      {placement === "pinned" && offer.deal && dealStatus ? (
+        <p className="text-xs text-zinc-500">
+          <span className="font-medium">{DEAL_LABEL[dealStatus] ?? dealStatus}</span> · Updated <span suppressHydrationWarning>{updatedAgo(offer.deal.activityAt)}</span>
+        </p>
+      ) : null}
 
       {status === "pending" && viewerIsOwner ? (
         confirming ? (
@@ -162,12 +196,15 @@ export function OfferCardView({ offer, responderName }: Props) {
         </button>
       ) : null}
 
-      {status === "accepted" && offer.deal && !cancelled ? <HandoverPanel deal={offer.deal} viewerIsOwner={viewerIsOwner} otherName={responderName} /> : null}
+      {status === "accepted" && offer.deal && !cancelled && !pointer ? <HandoverPanel deal={offer.deal} viewerIsOwner={viewerIsOwner} otherName={responderName} /> : null}
 
-      {canCancel && !cancelled ? (
+      {/* A cancelled or reported reservation that had a time: the calendar says to remove it. */}
+      {placement === "pinned" && (cancelled || reported) && offer.deal?.handover ? <CalendarActions deal={{ ...offer.deal, status: cancelled ? "cancelled" : offer.deal.status }} /> : null}
+
+      {canCancel && !cancelled && !pointer ? (
         confirmingCancel ? (
           <div className="mt-3 flex flex-col gap-2">
-            <p className="text-sm">Cancel this reservation? {viewerIsOwner ? "The units go back to your post." : "The seller is told."}</p>
+            <p className="text-sm">Cancel this reservation? {viewerIsOwner ? "The units go back to your post." : "They are told."}</p>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" disabled={busy !== null} onClick={() => setConfirmingCancel(false)} className="h-11 rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
                 Keep it

@@ -66,7 +66,6 @@ async function input(overrides: Partial<NewPostInput> = {}): Promise<NewPostInpu
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Main gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "12:00" }],
     photos: photosOf([await photoOf(owner)]),
     ...overrides,
@@ -252,7 +251,6 @@ describe("database rules (exit check: bad input is refused even if the app is by
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Gate" as string | null,
-    deliveryArea: null as string | null,
   });
 
   /** Inserts a post with a photo and a window in one transaction, so only the rule under test can fail. */
@@ -290,7 +288,6 @@ describe("database rules (exit check: bad input is refused even if the app is by
     ["a payment note with cash only", { paymentNote: "GCash" }, "post_payment_note"],
     ["meet-up without a place", { meetupLocation: null }, "post_meetup_location"],
     ["a blank meet-up place", { meetupLocation: "   " }, "post_meetup_location"],
-    ["delivery without an area", { exchangeDelivery: true, deliveryArea: null }, "post_delivery_area"],
     ["no exchange option", { exchangeMeetup: false, meetupLocation: null }, "post_exchange_any"],
     ["an unknown condition", { condition: "broken" }, "post_condition_value"],
     ["a blank description", { description: " " }, "post_description_length"],

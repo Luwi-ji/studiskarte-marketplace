@@ -45,12 +45,15 @@ const dayFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZo
 export function Chat({
   conversationId,
   messages,
+  pinned,
   unread,
   readOnlyReason,
   otherName,
 }: {
   conversationId: string;
   messages: ChatMessageData[];
+  /** The reservations to show after the last message. */
+  pinned: OfferCardData[];
   unread: number;
   readOnlyReason: string | null;
   otherName: string;
@@ -93,6 +96,12 @@ export function Chat({
     if (following.current || lastMine) scrollToBottom();
   }, [lastId, lastMine]);
 
+  // A reservation changed (a step by either person, a new one): stay at the bottom with it, unless the reader scrolled up.
+  const pinnedKey = pinned.map((o) => `${o.id}:${o.deal?.activityAt}:${o.deal?.status}`).join("|");
+  useEffect(() => {
+    if (following.current) scrollToBottom();
+  }, [pinnedKey]);
+
   // Messages from the other person that are on screen are read.
   useEffect(() => {
     if (unread > 0) void markReadAction(conversationId).catch(() => {});
@@ -105,9 +114,11 @@ export function Chat({
 
   // A date line above the first message of each day.
   const days = messages.map((m) => dayFormat.format(new Date(m.createdAt)));
+  // The reservations shown at the bottom: their offer cards in the list only point to them.
+  const pinnedDealIds = new Set(pinned.flatMap((o) => (o.deal ? [o.deal.id] : [])));
   return (
     <>
-      <ul className="flex flex-1 flex-col gap-1.5 px-3 py-3" aria-label="Messages">
+      <ul className="flex flex-col gap-1.5 px-3 py-3" aria-label="Messages">
         {messages.map((m, index) => {
           const when = new Date(m.createdAt);
           const day = days[index];
@@ -139,7 +150,7 @@ export function Chat({
                     <ProductCard post={m.listing.post} thumbUrl={m.listing.thumbUrl} state={m.listing.state} compact />
                   </div>
                 ) : null}
-                {m.offer ? <OfferCardView offer={m.offer} responderName={otherName} /> : null}
+                {m.offer ? <OfferCardView offer={m.offer} responderName={otherName} placement="message" dealPinned={m.offer.deal !== null && pinnedDealIds.has(m.offer.deal.id)} /> : null}
                 {m.body ? (
                   <p className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 ${m.mine ? "bg-brand text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>{m.body}</p>
                 ) : null}
@@ -149,6 +160,19 @@ export function Chat({
           );
         })}
       </ul>
+
+      {/* The reservations being carried out (or just finished) sit here, after the last message, the most recently active last. */}
+      <div className="flex flex-1 flex-col">
+        {pinned.length > 0 ? (
+          <ul className="flex flex-col gap-3 px-3 pb-3" aria-label="Reservations">
+            {pinned.map((o) => (
+              <li key={o.id} className="flex">
+                <OfferCardView offer={o} responderName={otherName} placement="pinned" />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
 
       <div className="sticky bottom-0 z-10 border-t border-zinc-200 bg-[var(--background)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 dark:border-zinc-800">
         {behind ? (

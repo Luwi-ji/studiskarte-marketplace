@@ -8,10 +8,10 @@ export const CONFIRM_IDLE_DAYS = 7;
 /** A handover can be planned this far ahead, no further. */
 export const PLAN_AHEAD_DAYS = 60;
 export const PLACE_MAX = 200;
-/** Reminders before the meeting, in minutes. [Assumed: one day and one hour.] */
+/** Reminders before the meeting, in minutes. [Assumed: one day and two hours.] */
 export const BEFORE_REMINDERS = [
   { key: "1d", minutes: 24 * 60 },
-  { key: "1h", minutes: 60 },
+  { key: "2h", minutes: 2 * 60 },
 ] as const;
 /** Reminders to confirm after the meeting, in days, for the one who has not confirmed yet. [Assumed: 1 and 3 days.] */
 export const CONFIRM_REMINDER_DAYS = [1, 3] as const;

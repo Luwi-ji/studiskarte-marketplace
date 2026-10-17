@@ -15,7 +15,7 @@ import {
 import { deliverAlert, type PushSender } from "@/lib/notifications/push/notify";
 import { buildPayload } from "@/lib/notifications/push/payload";
 import { removeSubscription, saveSubscription, SUBSCRIPTIONS_MAX } from "@/lib/notifications/push/subscriptions";
-import { expiryKey } from "@/lib/notifications/record";
+import { expiryKey, recordNotification } from "@/lib/notifications/record";
 import { headline, notificationHref } from "@/lib/notifications/text";
 import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
@@ -49,7 +49,6 @@ async function newPost(): Promise<string> {
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
   };
@@ -359,5 +358,33 @@ describe("alerts", () => {
   it("builds an alert from the type alone: a title line, the post title, and where to go", () => {
     const payload = buildPayload({ type: "post_expiring", count: 1, postTitle: "Desk lamp", postId: "p1", conversationId: null });
     expect(payload).toEqual({ title: "Your post expires soon", body: "Desk lamp", url: "/posts/p1", tag: "post_expiring:/posts/p1" });
+  });
+
+  it("adds the agreed time and place under the post title of a handover alert and in the list, and nothing else", async () => {
+    const postId = await newPost();
+    const started = await startConversation({ senderId: ana, postId, input: say("hello") });
+    if (!started.ok) throw new Error(started.error);
+    const detail = "Sat, Oct 18, 3:00 PM · Library steps";
+    const recorded = await recordNotification(db, { type: "deal_reminder", recipientId: seller, postId, conversationId: started.conversationId, onceKey: `t:${run}`, detail });
+    if (!recorded) throw new Error("not recorded");
+    expect((await listNotifications(seller)).find((n) => n.id === recorded.id)?.detail).toBe(detail);
+
+    await saveSubscription(seller, subscription());
+    const { calls, send } = recorder();
+    expect(await deliverAlert(recorded.id, send)).toEqual({ sent: 1, removed: 0 });
+    const payload = JSON.parse(calls[0].payload);
+    expect(payload.title).toBe("Your handover is coming up");
+    expect(payload.body.split("\n")).toEqual([expect.stringContaining("Notify post"), detail]);
+    expect(payload.url).toBe(`/messages/${started.conversationId}`);
+    expect(buildPayload({ type: "deal_reminder", count: 1, postTitle: "Lamp", detail: null, postId, conversationId: null }).body).toBe("Lamp");
+  });
+
+  it("tells the user what to do about the calendar", () => {
+    expect(headline("deal_scheduled", 1, "Sat, Oct 18, 3:00 PM · Gate")).toBe("Handover scheduled. Add it to your calendar");
+    expect(headline("deal_cancelled", 1, "Sat, Oct 18, 3:00 PM · Gate")).toBe("A reservation was cancelled. Remove it from your calendar");
+    // A reservation that never had a time has nothing in a calendar.
+    expect(headline("deal_cancelled", 1, null)).toBe("A reservation was cancelled");
+    expect(headline("deal_cancelled", 1)).toBe("A reservation was cancelled");
+    expect(headline("deal_reminder", 1)).toBe("Your handover is coming up");
   });
 });

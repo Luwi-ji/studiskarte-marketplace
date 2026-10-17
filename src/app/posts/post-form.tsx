@@ -38,7 +38,6 @@ const EMPTY: PostFormValues = {
   exchangeMeetup: true,
   exchangeDelivery: false,
   meetupLocation: "",
-  deliveryArea: "",
   paymentCash: true,
   paymentOnline: false,
   paymentOther: false,
@@ -58,9 +57,8 @@ const ANSWERS: Record<keyof PostFormValues, string[]> = {
   quantity: ["quantity"],
   unlimited: ["quantity"],
   exchangeMeetup: ["exchange", "meetupLocation"],
-  exchangeDelivery: ["exchange", "deliveryArea"],
+  exchangeDelivery: ["exchange"],
   meetupLocation: ["meetupLocation"],
-  deliveryArea: ["deliveryArea"],
   paymentCash: ["payment"],
   paymentOnline: ["payment", "paymentNote"],
   paymentOther: ["payment", "paymentNote"],
@@ -425,18 +423,13 @@ export function PostForm(props: Props) {
         <label className="flex min-h-11 items-center gap-3">
           <input className="h-5 w-5 shrink-0" type="checkbox" name="exchangeDelivery" checked={values.exchangeDelivery} onChange={(e) => set("exchangeDelivery", e.target.checked)} />
           {services
-            ? "Delivery (finished work is handed over or sent)"
+            ? "Delivery (finished work is sent via third-party delivery apps like Grab or Lalamove)"
             : wishlist
-              ? "Delivery (brought to you, or sent by Grab, Lalamove, etc.)"
-              : "Delivery (you bring it, or send it by Grab, Lalamove, etc.)"}
+              ? "Delivery (the poster wants it brought, via third-party delivery apps like Grab or Lalamove)"
+              : "Delivery (use third-party delivery apps like Grab or Lalamove)"}
         </label>
         {values.exchangeDelivery ? (
-          <label className="flex flex-col gap-1 pl-6">
-            <span className="text-sm">Delivery area</span>
-            <input name="deliveryArea" enterKeyHint="next" value={values.deliveryArea} onChange={(e) => set("deliveryArea", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. within campus, or anywhere in Metro Manila" className={field} />
-            <span className={hint}>Any delivery fee is agreed between you. The app never handles payment.</span>
-            <FieldError message={errors.deliveryArea} />
-          </label>
+          <span className={`${hint} pl-6`}>Any delivery fee is agreed between you. The app never handles payment.</span>
         ) : null}
         <FieldError message={errors.exchange} />
       </fieldset>

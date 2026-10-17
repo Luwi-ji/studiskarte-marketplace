@@ -3,7 +3,8 @@ import { deal } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { ACTIVE_STATUSES } from "@/lib/deals/capacity";
 import { DEAL_CLOSED, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
-import { lockDeal, type LockedDeal } from "@/lib/deals/lock";
+import { lockDeal, touched, type LockedDeal } from "@/lib/deals/lock";
+import { noticeDetail } from "@/lib/deals/notice-detail";
 import { parseProposal, type HandoverMethod } from "@/lib/deals/handover";
 import { loadAvailability } from "@/lib/posts/availability";
 import { recordNotification, type AlertSink, type DealNoticeType, type Recorded } from "@/lib/notifications/record";
@@ -21,7 +22,11 @@ export function activeFor(found: LockedDeal | null, actorId: string): { found: L
   return { found };
 }
 
-/** Tells the other person once per event. `key` names the event so a repeat is not told twice. */
+/**
+ * Tells the other person once per event, with the agreed time and place under
+ * the headline (`found` carries the schedule the notice is about). `key` names
+ * the event so a repeat is not told twice.
+ */
 export async function tellOther(tx: Executor, found: LockedDeal, actorId: string, type: DealNoticeType, key: string): Promise<Recorded | null> {
   return recordNotification(tx, {
     type,
@@ -29,6 +34,7 @@ export async function tellOther(tx: Executor, found: LockedDeal, actorId: string
     postId: found.postId,
     conversationId: found.conversationId,
     onceKey: `deal:${found.id}:${key}`,
+    detail: noticeDetail(found, type),
   });
 }
 
@@ -52,9 +58,9 @@ export async function proposeHandover(args: { actorId: string; dealId: string; i
 
     await tx
       .update(deal)
-      .set({ proposedBy: args.actorId, proposedMethod: parsed.data.method, proposedAt: parsed.data.at, proposedPlace: parsed.data.place, updatedAt: now })
+      .set({ proposedBy: args.actorId, proposedMethod: parsed.data.method, proposedAt: parsed.data.at, proposedPlace: parsed.data.place, ...touched(now) })
       .where(eq(deal.id, found.id));
-    recorded = await tellOther(tx, found, args.actorId, "deal_proposed", `proposed:${now.getTime()}`);
+    recorded = await tellOther(tx, { ...found, proposedAt: parsed.data.at, proposedPlace: parsed.data.place }, args.actorId, "deal_proposed", `proposed:${now.getTime()}`);
     return { ok: true, conversationId: found.conversationId };
   });
   if (result.ok && recorded?.alert) args.alert?.(recorded.id);
@@ -63,8 +69,10 @@ export async function proposeHandover(args: { actorId: string; dealId: string; i
 
 /**
  * The person who did not propose agrees or declines. Agreeing makes the deal
- * scheduled for that method, time and place (clearing any earlier
- * confirmation if it was rescheduled); declining just clears the proposal.
+ * scheduled for that method, time and place. A reschedule clears the earlier
+ * handover confirmations and a cash handover the payer said but the payee had
+ * not confirmed (what was already paid or received stays); declining just
+ * clears the proposal.
  */
 export async function answerProposal(args: { actorId: string; dealId: string; agree: boolean; alert?: AlertSink; now?: Date }): Promise<HandoverResult> {
   const now = args.now ?? new Date();
@@ -76,7 +84,7 @@ export async function answerProposal(args: { actorId: string; dealId: string; ag
     if (!found.proposedBy || !found.proposedAt || !found.proposedMethod || !found.proposedPlace || found.proposedBy === args.actorId) {
       return { ok: false, error: NO_PROPOSAL };
     }
-    const cleared = { proposedBy: null, proposedMethod: null, proposedAt: null, proposedPlace: null, updatedAt: now };
+    const cleared = { proposedBy: null, proposedMethod: null, proposedAt: null, proposedPlace: null, ...touched(now) };
     if (!args.agree) {
       await tx.update(deal).set(cleared).where(eq(deal.id, found.id));
       return { ok: true, conversationId: found.conversationId };
@@ -95,9 +103,11 @@ export async function answerProposal(args: { actorId: string; dealId: string; ag
         place: found.proposedPlace,
         ownerConfirmedAt: null,
         responderConfirmedAt: null,
+        // A cash handover said but not yet confirmed was about the old time; the payer says it again at the new one.
+        ...(found.cashReceivedAt ? {} : { cashGivenAt: null }),
       })
       .where(eq(deal.id, found.id));
-    recorded = await tellOther(tx, found, args.actorId, "deal_scheduled", `scheduled:${found.proposedAt.getTime()}:${now.getTime()}`);
+    recorded = await tellOther(tx, { ...found, scheduledAt: found.proposedAt, place: found.proposedPlace }, args.actorId, "deal_scheduled", `scheduled:${found.proposedAt.getTime()}:${now.getTime()}`);
     return { ok: true, conversationId: found.conversationId };
   });
   if (result.ok && recorded?.alert) args.alert?.(recorded.id);

@@ -22,7 +22,6 @@ function valid(overrides: Partial<NewPostInput> = {}): NewPostInput {
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "TUP main gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "13:00", endTime: "17:00" }],
     photos: photosOf([photo]),
     ...overrides,
@@ -46,7 +45,6 @@ describe("parseNewPost", () => {
         priceKind: "amount",
         priceAmount: 1200,
         meetupLocation: "TUP main gate",
-        deliveryArea: null,
         availability: [{ kind: "weekly", weekday: 1, startTime: "13:00", endTime: "17:00" }],
       }),
     });
@@ -64,7 +62,6 @@ describe("parseNewPost", () => {
     ["amount over ₱1,000,000", { priceAmount: "1000001" }, "priceAmount"],
     ["no exchange option", { exchangeMeetup: false, exchangeDelivery: false }, "exchange"],
     ["meet-up without a place", { meetupLocation: "  " }, "meetupLocation"],
-    ["delivery without an area", { exchangeDelivery: true, deliveryArea: "" }, "deliveryArea"],
     ["condition missing where needed", { condition: null }, "condition"],
     ["unknown category", { categoryId: "no-such-category" }, "categoryId"],
     ["no kind", { kind: undefined }, "kind"],
@@ -97,9 +94,9 @@ describe("parseNewPost", () => {
     );
   });
 
-  it("drops the place of an exchange option that was not chosen", () => {
-    const result = parseNewPost(valid({ exchangeMeetup: false, exchangeDelivery: true, deliveryArea: "Within Ermita" }), lookup, now);
-    expect(result.ok && result.data).toMatchObject({ meetupLocation: null, deliveryArea: "Within Ermita" });
+  it("accepts delivery alone, with no meet-up place", () => {
+    const result = parseNewPost(valid({ exchangeMeetup: false, exchangeDelivery: true, meetupLocation: "" }), lookup, now);
+    expect(result.ok && result.data).toMatchObject({ meetupLocation: null, exchangeMeetup: false, exchangeDelivery: true });
   });
 
   it("treats free as its own price, never as an amount", () => {

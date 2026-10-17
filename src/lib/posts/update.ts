@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, notInArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability, unitsTaken } from "@/lib/deals/capacity";
@@ -53,7 +53,7 @@ export async function updatePost(args: {
       const [current] = await tx
         .select({ id: post.id })
         .from(post)
-        .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), inArray(post.status, relist ? ["expired"] : ["open", "reserved"])))
+        .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), isNull(post.ownerDeletedAt), inArray(post.status, relist ? ["expired"] : ["open", "reserved"])))
         .for("update");
       if (!current) return null;
       // A change under someone's offer or reservation would surprise them: decline or cancel first.
@@ -147,7 +147,7 @@ export async function getEditablePost(ownerId: string, postId: string, now = new
   const [row] = await db
     .select()
     .from(post)
-    .where(and(eq(post.id, postId), eq(post.ownerId, ownerId)));
+    .where(and(eq(post.id, postId), eq(post.ownerId, ownerId), isNull(post.ownerDeletedAt)));
   if (!row || (row.status !== "open" && row.status !== "reserved" && row.status !== "expired")) return null;
   const photos = await db
     .select({ id: image.id, thumbKey: image.thumbKey, caption: postPhoto.caption })

@@ -212,7 +212,7 @@ Design choices: Showcase and Wishlist share the `post` table with a `kind` colum
 | Alerts toggled per device. Sign-out removes it | rule | `notifications/push/subscriptions.ts`, called by the sign-out action | |
 | App shows everything without alerts, with unread counts | rule | `notifications/unread.ts` and `messaging/unread.ts` | |
 | No alerts when suspended or revoked | rule | `notifications/push/notify.ts` filters on the recipient | |
-| Reminders one day and one hour before | rule | `jobs/reminders.ts`, `reminder_log` UNIQUE (`deal_id`, `kind`) | Called by GitHub Actions every 15 minutes |
+| Reminders one day and two hours before | rule | `jobs/reminders.ts`, `reminder_log` UNIQUE (`deal_id`, `kind`) | Called by GitHub Actions every 15 minutes |
 | `.ics` file per deal | rule | `calendar/ics.ts` and the `/deals/[id]/calendar.ics` route | |
 | Private feed link, regenerable | rule | `calendar/feed.ts`, route `src/app/calendar/[token]/`, `student.calendar_token_hash` | Regenerating replaces the hash |
 | Feed lists only own scheduled deals with title, time, place | rule | `calendar/feed.ts` | |

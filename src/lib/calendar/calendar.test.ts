@@ -2,12 +2,10 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { conversation, deal, image, notification, post, rateLimitEvent, student } from "@/db/schema";
-import { renderFeed } from "@/lib/calendar/feed";
+import { listHandovers, renderFeed } from "@/lib/calendar/feed";
 import { createCalendarToken, hashToken, revokeCalendarToken } from "@/lib/calendar/token";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
-import { confirmHandover } from "@/lib/deals/confirm";
-import { answerCash, requestCash } from "@/lib/deals/payment";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerProposal, proposeHandover } from "@/lib/deals/schedule";
 import { getDb, getPool } from "@/lib/db";
@@ -32,7 +30,7 @@ const HOUR = 3_600_000;
 const hashes = new Set<string>();
 let counter = 0;
 
-async function newPost(): Promise<string> {
+async function newPost(wishlist = false): Promise<string> {
   counter += 1;
   const name = randomUUID();
   const [img] = await db
@@ -40,7 +38,7 @@ async function newPost(): Promise<string> {
     .values({ ownerId: seller, purpose: "post_photo", key: `t/${name}`, thumbKey: `t/${name}-t`, width: 1, height: 1, bytes: 1 })
     .returning({ id: image.id });
   const input: NewPostInput = {
-    kind: "showcase",
+    kind: wishlist ? "wishlist" : "showcase",
     title: `Calendar post ${run} #${counter}`,
     description: "A post to hand over.",
     categoryId: "other",
@@ -55,7 +53,6 @@ async function newPost(): Promise<string> {
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Main gate",
-    deliveryArea: "",
     // Mondays 09:00 to 10:00, Philippine time.
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
@@ -89,8 +86,8 @@ function mondaySlot(weeksAhead = 0): { date: string; time: string; at: Date } {
 const slot = mondaySlot();
 const proposal = (s = slot) => ({ method: "meetup", date: s.date, time: s.time, place: "Library steps" });
 
-async function scheduled(buyer = ana): Promise<{ dealId: string; conversationId: string; title: string }> {
-  const postId = await newPost();
+async function scheduled(buyer = ana, wishlist = false): Promise<{ dealId: string; conversationId: string; title: string }> {
+  const postId = await newPost(wishlist);
   const r = await reserved(buyer, postId);
   expect(await proposeHandover({ actorId: buyer, dealId: r.dealId, input: proposal() })).toMatchObject({ ok: true });
   expect(await answerProposal({ actorId: seller, dealId: r.dealId, agree: true })).toMatchObject({ ok: true });
@@ -183,16 +180,33 @@ describe("the private link", () => {
 });
 
 describe("what the feed lists", () => {
+  const stamp = (at: Date) => at.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const field = (text: string, name: string) => new RegExp(`${name}:(.*)`).exec(text)?.[1];
+
   it("has one event for a scheduled deal with the title, place and conversation, and no names or price", async () => {
     const d = await scheduled();
     const text = unfold(await body(await link(ana)));
     expect(eventCount(text)).toBe(1);
+    expect(text).toContain("X-WR-CALNAME:Studiskarte transactions");
     expect(text).toContain(`UID:deal-${d.dealId}@studiskarte`);
-    expect(text).toContain(`SUMMARY:Handover: ${d.title}`);
+    expect(text).toContain(`SUMMARY:Studiskarte: ${d.title}`);
+    expect(text).toContain("STATUS:CONFIRMED");
     expect(text).toContain("LOCATION:Library steps");
     expect(text).toContain(`${origin}/messages/${d.conversationId}`);
-    expect(text).toContain(`DTSTART:${slot.at.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`);
+    expect(text).toContain(`DTSTART:${stamp(slot.at)}`);
     expect(text).not.toMatch(/Seller|Buyer|Third|₱|PHP|\b500\b/);
+  });
+
+  it("says whether the person hands it over or receives it: the seller hands over a Showcase, the poster receives a Wishlist", async () => {
+    await scheduled();
+    const showcase = unfold(await body(await link(seller)));
+    expect(showcase).toContain("You hand it over (Meet-up)");
+    expect(unfold(await body(await link(ana)))).toContain("You receive it (Meet-up)");
+
+    await db.delete(post).where(eq(post.ownerId, seller));
+    await scheduled(ana, true);
+    expect(unfold(await body(await link(seller)))).toContain("You receive it (Meet-up)");
+    expect(unfold(await body(await link(ana)))).toContain("You hand it over (Meet-up)");
   });
 
   it("shows it to both people of the deal and nothing to a third student", async () => {
@@ -204,25 +218,66 @@ describe("what the feed lists", () => {
     expect(other).toContain("BEGIN:VCALENDAR");
   });
 
-  it("leaves out deals that are agreed, cancelled or completed", async () => {
+  it("leaves out deals that are agreed or completed", async () => {
     const token = await link(ana);
-    const agreed = await reserved(ana, await newPost());
-    expect(eventCount(await body(token))).toBe(0);
-
-    const cancelled = await scheduled();
-    expect(eventCount(await body(token))).toBe(1);
-    expect(await cancelDeal({ actorId: ana, dealId: cancelled.dealId })).toMatchObject({ ok: true });
+    await reserved(ana, await newPost());
     expect(eventCount(await body(token))).toBe(0);
 
     const done = await scheduled();
-    const after = new Date(slot.at.getTime() + HOUR);
-    await requestCash({ actorId: ana, dealId: done.dealId });
-    await answerCash({ actorId: seller, dealId: done.dealId, agree: true });
-    await confirmHandover({ actorId: ana, dealId: done.dealId, now: after });
-    await confirmHandover({ actorId: seller, dealId: done.dealId, now: after });
-    expect((await db.select({ s: deal.status }).from(deal).where(eq(deal.id, done.dealId)))[0].s).toBe("completed");
+    const at = new Date();
+    await db
+      .update(deal)
+      .set({ status: "completed", ownerConfirmedAt: at, responderConfirmedAt: at, paidAt: at, paymentMethod: "cash", paymentConfirmedAt: at })
+      .where(eq(deal.id, done.dealId));
     expect(eventCount(await body(token))).toBe(0);
-    expect(agreed.dealId).toBeTruthy();
+  });
+
+  it("keeps a cancelled or disputed deal for 30 days as a cancelled event with the same UID and a higher SEQUENCE", async () => {
+    const token = await link(ana);
+    const first = await scheduled();
+    const before = await body(token);
+    expect(eventCount(before)).toBe(1);
+
+    expect(await cancelDeal({ actorId: ana, dealId: first.dealId })).toMatchObject({ ok: true });
+    const after = unfold(await body(token));
+    expect(eventCount(after)).toBe(1);
+    expect(field(after, "UID")).toBe(field(before, "UID"));
+    expect(after).toContain("STATUS:CANCELLED");
+    expect(after).not.toContain("STATUS:CONFIRMED");
+    expect(after).toContain(`SUMMARY:Cancelled: Studiskarte: ${first.title}`);
+    expect(sequenceOf(after)).toBeGreaterThan(sequenceOf(before));
+    // The seller's calendar drops it the same way.
+    expect(unfold(await body(await link(seller)))).toContain("STATUS:CANCELLED");
+
+    const second = await scheduled();
+    await db.update(deal).set({ status: "disputed" }).where(eq(deal.id, second.dealId));
+    const both = await body(token);
+    expect(eventCount(both)).toBe(2);
+    expect(both.match(/STATUS:CANCELLED/g)).toHaveLength(2);
+
+    // Thirty days after it ended, it is gone from the feed.
+    await db.update(deal).set({ activityAt: new Date(Date.now() - 31 * DAY) }).where(eq(deal.id, first.dealId));
+    const later = unfold(await body(token));
+    expect(eventCount(later)).toBe(1);
+    expect(later).toContain(`UID:deal-${second.dealId}@studiskarte`);
+  });
+
+  it("downloads one deal for its people, cancelled ones included, and for nobody else", async () => {
+    const d = await scheduled();
+    const one = { dealId: d.dealId };
+    expect(await listHandovers(ana, origin, one)).toHaveLength(1);
+    expect(await listHandovers(seller, origin, one)).toHaveLength(1);
+    expect(await listHandovers(cat, origin, one)).toEqual([]);
+
+    expect(await cancelDeal({ actorId: ana, dealId: d.dealId })).toMatchObject({ ok: true });
+    await db.update(deal).set({ activityAt: new Date(Date.now() - 90 * DAY) }).where(eq(deal.id, d.dealId));
+    const [event] = await listHandovers(ana, origin, one);
+    expect(event.status).toBe("cancelled");
+    expect(await listHandovers(cat, origin, one)).toEqual([]);
+
+    // A deal that never had a time has nothing to download.
+    const agreed = await reserved(ben, await newPost());
+    expect(await listHandovers(ben, origin, { dealId: agreed.dealId })).toEqual([]);
   });
 
   it("moves the same event and raises SEQUENCE when the time is changed", async () => {
@@ -238,10 +293,9 @@ describe("what the feed lists", () => {
     expect(await answerProposal({ actorId: seller, dealId: d.dealId, agree: true })).toMatchObject({ ok: true });
     const after = await body(token);
 
-    const field = (text: string, name: string) => new RegExp(`${name}:(.*)`).exec(text)?.[1];
     expect(field(after, "UID")).toBe(field(before, "UID"));
     expect(field(after, "DTSTART")).not.toBe(field(older, "DTSTART"));
-    expect(field(after, "DTSTART")).toBe(later.at.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""));
+    expect(field(after, "DTSTART")).toBe(stamp(later.at));
     expect(sequenceOf(after)).toBeGreaterThan(sequenceOf(older));
   });
 });

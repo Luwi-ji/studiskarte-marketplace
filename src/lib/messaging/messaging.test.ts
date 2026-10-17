@@ -41,7 +41,6 @@ async function newPost(): Promise<string> {
     exchangeMeetup: true,
     exchangeDelivery: false,
     meetupLocation: "Gate",
-    deliveryArea: "",
     availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }],
     photos: photosOf([img.id]),
   };
@@ -250,7 +249,7 @@ describe("one conversation for a pair, however many listings", () => {
       ownerId: ben,
       input: {
         kind: "showcase", title: `Ben's post ${run}`, description: "Not theirs.", categoryId: "other", condition: null, priceKind: "free", priceAmount: "",
-        exchangeMeetup: true, exchangeDelivery: false, meetupLocation: "Gate", deliveryArea: "",
+        exchangeMeetup: true, exchangeDelivery: false, meetupLocation: "Gate",
         availability: [{ kind: "weekly", weekday: 1, startTime: "09:00", endTime: "10:00" }], photos: photosOf([elsewhere.id]),
       },
     });

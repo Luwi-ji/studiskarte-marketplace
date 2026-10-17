@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 const TABS = [
   { href: "/", label: "Feed", icon: "M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" },
   { href: "/messages", label: "Messages", icon: "M4 5h16v11H9l-5 4z" },
-  { href: "/posts/new", label: "Sell", icon: "M12 5v14M5 12h14", primary: true },
+  { href: "/posts/new", label: "Create", icon: "M12 5v14M5 12h14", primary: true },
   { href: "/me/posts", label: "My posts", icon: "M4 6h16M4 12h16M4 18h10" },
   { href: "/me/settings", label: "Me", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" },
 ] as const;

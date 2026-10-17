@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { listNotifications } from "@/lib/notifications/list";
 import { headline } from "@/lib/notifications/text";
+import { AlertsToggle } from "@/components/alerts-toggle";
+import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { NotificationList } from "../../notifications/notification-list";
 
 export const metadata = { title: "Notifications · Studiskarte Marketplace" };
@@ -32,19 +34,26 @@ export default function NotificationsPage() {
 async function Notifications() {
   const me = await requireActiveStudent();
   const items = await listNotifications(me.id);
+  const banner = <AlertsToggle banner publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />;
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-        <p className="text-zinc-600 dark:text-zinc-400">Nothing yet. New messages, hearts on your posts and expiring posts show up here.</p>
-        <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
-          Browse the feed
-        </Link>
-      </div>
+      <>
+        {banner}
+        <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
+          <p className="text-zinc-600 dark:text-zinc-400">Nothing yet. New messages, reservations, handover reminders and hearts on your posts show up here.</p>
+          <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+            Browse the feed
+          </Link>
+        </div>
+      </>
     );
   }
   return (
-    <NotificationList
-      rows={items.map((n) => ({ id: n.id, headline: headline(n.type, n.count), postTitle: n.postTitle, read: n.read, when: when(n.at), href: n.href }))}
-    />
+    <>
+      {banner}
+      <NotificationList
+        rows={items.map((n) => ({ id: n.id, headline: headline(n.type, n.count, n.detail), postTitle: n.postTitle, detail: n.detail, read: n.read, when: when(n.at), href: n.href }))}
+      />
+    </>
   );
 }

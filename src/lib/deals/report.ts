@@ -4,12 +4,12 @@ import { deal, dealReport } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
 import { DEAL_CLOSED, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
-import { lockDeal } from "@/lib/deals/lock";
+import { lockDeal, touched } from "@/lib/deals/lock";
 import { tellOther, type HandoverResult } from "@/lib/deals/schedule";
 import { canReport, DETAILS_MAX, REPORT_REASONS } from "@/lib/deals/slot";
 import type { AlertSink, Recorded } from "@/lib/notifications/record";
 
-export const TOO_EARLY = "You can report a problem once the slot is secured (paid, or cash in person agreed) or the time has passed. Until then you can cancel.";
+export const TOO_EARLY = "You can report a problem once it can no longer be cancelled (paid, cash in person agreed, or a handover said) or the time has passed. Until then you can cancel.";
 export const ALREADY_REPORTED = "You already reported this.";
 
 const inputSchema = z.object({
@@ -47,10 +47,11 @@ export async function reportDeal(args: { actorId: string; dealId: string; input:
     if (mine) return { ok: false, error: ALREADY_REPORTED };
 
     await tx.insert(dealReport).values({ dealId: found.id, reporterId: args.actorId, faultPartyId, reason: parsed.data.reason, details: details || null });
-    if (active) {
-      await tx.update(deal).set({ status: "disputed", updatedAt: now }).where(eq(deal.id, found.id));
-      await syncAvailability(tx, found.postId, now);
-    }
+    await tx
+      .update(deal)
+      .set({ ...(active ? { status: "disputed" } : {}), ...touched(now) })
+      .where(eq(deal.id, found.id));
+    if (active) await syncAvailability(tx, found.postId, now);
     recorded = await tellOther(tx, found, args.actorId, "deal_reported", `reported:${args.actorId}`);
     return { ok: true, conversationId: found.conversationId };
   });

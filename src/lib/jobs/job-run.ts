@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 export const JOBS = {
   // Run every 15 minutes (GitHub Actions) and daily (Vercel cron).
   "expire-posts": { maxAgeMinutes: 3 * 60 },
+  "purge-posts": { maxAgeMinutes: 3 * 60 },
   "expiry-warnings": { maxAgeMinutes: 3 * 60 },
   "expire-offers": { maxAgeMinutes: 3 * 60 },
   "expire-deals": { maxAgeMinutes: 3 * 60 },

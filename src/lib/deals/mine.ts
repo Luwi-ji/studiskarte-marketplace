@@ -65,7 +65,9 @@ function dealState(d: PaymentFields & {
     cash_requested: [" · waiting for them to agree to cash", " · answer their cash request"],
     paid: [" · paid, waiting for them to confirm", " · confirm the payment you received"],
     confirmed: ["", ""],
-    cash_agreed: [" · cash in person agreed", " · cash in person agreed"],
+    cash_agreed: [" · cash in person agreed, give it at the handover", " · cash in person agreed, you get it at the handover"],
+    cash_given: [" · you gave the cash, waiting for them to confirm", " · confirm you received the cash"],
+    cash_received: ["", ""],
   };
   const stage = paymentStage(d);
   const payment = secure[stage][viewerPays ? 0 : 1];
@@ -105,6 +107,8 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
         paymentAskedAt: deal.paymentAskedAt,
         cashRequestedAt: deal.cashRequestedAt,
         cashAgreedAt: deal.cashAgreedAt,
+        cashGivenAt: deal.cashGivenAt,
+        cashReceivedAt: deal.cashReceivedAt,
         postKind: post.kind,
         conversationId: offer.conversationId,
         at: deal.updatedAt,

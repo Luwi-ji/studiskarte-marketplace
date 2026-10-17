@@ -4,8 +4,9 @@ import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
-import { getConversation } from "@/lib/messaging/read";
+import { getConversation, type OfferCard } from "@/lib/messaging/read";
 import { Chat, type ChatMessageData } from "./chat";
+import type { OfferCardData } from "./offer-card";
 import { ErrorBanner } from "./error-banner";
 import { Transactions, type ListingCardData } from "./transactions";
 
@@ -37,6 +38,20 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
     ...l,
     thumbUrl: thumbUrls.get(l.post.id) ?? "",
   });
+  /** An offer (and its reservation) as the browser gets it: times as text, the listing with its picture link. */
+  const offerData = (o: OfferCard): OfferCardData => ({
+    ...o,
+    expiresAt: o.expiresAt.toISOString(),
+    deal: o.deal
+      ? {
+          ...o.deal,
+          activityAt: o.deal.activityAt.toISOString(),
+          handover: o.deal.handover ? { ...o.deal.handover, at: o.deal.handover.at.toISOString() } : null,
+          proposal: o.deal.proposal ? { ...o.deal.proposal, at: o.deal.proposal.at.toISOString() } : null,
+        }
+      : null,
+    listing: { post: o.post, thumbUrl: thumbUrls.get(o.post.id) ?? "" },
+  });
   const messages = await Promise.all(
     view.messages.map(
       async (m): Promise<ChatMessageData> => ({
@@ -45,20 +60,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
         body: m.body,
         createdAt: m.createdAt.toISOString(),
         listing: m.listing ? withThumb(m.listing) : null,
-        offer: m.offer
-          ? {
-              ...m.offer,
-              expiresAt: m.offer.expiresAt.toISOString(),
-              deal: m.offer.deal
-                ? {
-                    ...m.offer.deal,
-                    handover: m.offer.deal.handover ? { ...m.offer.deal.handover, at: m.offer.deal.handover.at.toISOString() } : null,
-                    proposal: m.offer.deal.proposal ? { ...m.offer.deal.proposal, at: m.offer.deal.proposal.at.toISOString() } : null,
-                  }
-                : null,
-              listing: { post: m.offer.post, thumbUrl: thumbUrls.get(m.offer.post.id) ?? "" },
-            }
-          : null,
+        offer: m.offer ? offerData(m.offer) : null,
         pictures: await Promise.all(
           m.pictures.map(async (p) => ({
             url: await store.signedUrl(p.key, PICTURE_LINK_SECONDS),
@@ -81,7 +83,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
           <Transactions listings={view.listings.map(withThumb)} />
         </div>
         <ErrorBanner />
-        <Chat conversationId={view.id} messages={messages} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
+        <Chat conversationId={view.id} messages={messages} pinned={view.pinned.map(offerData)} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
       </main>
     </div>
   );

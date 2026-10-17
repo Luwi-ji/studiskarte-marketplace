@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { deal, heart, image, offer, post, postPhoto, postView } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { unitsTakenSql } from "@/lib/deals/capacity";
@@ -49,6 +49,6 @@ export async function listOwnPosts(ownerId: string): Promise<OwnPost[]> {
     .from(post)
     .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
     .innerJoin(image, eq(image.id, postPhoto.imageId))
-    .where(eq(post.ownerId, ownerId))
+    .where(and(eq(post.ownerId, ownerId), isNull(post.ownerDeletedAt)))
     .orderBy(desc(post.listedAt));
 }

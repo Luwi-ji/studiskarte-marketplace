@@ -7,6 +7,8 @@ export type NotificationRow = {
   id: string;
   headline: string;
   postTitle: string | null;
+  /** The agreed time and place, for a deal notice. */
+  detail: string | null;
   read: boolean;
   when: string;
   href: string;
@@ -40,8 +42,9 @@ export function NotificationList({ rows }: { rows: NotificationRow[] }) {
             >
               <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${row.read ? "bg-transparent" : "bg-brand"}`} />
               <div className="min-w-0 flex-1">
-                <p className={`truncate ${row.read ? "" : "font-semibold"}`}>{row.headline}</p>
+                <p className={row.read ? "" : "font-semibold"}>{row.headline}</p>
                 {row.postTitle ? <p className="truncate text-sm text-zinc-600 dark:text-zinc-400">{row.postTitle}</p> : null}
+                {row.detail ? <p className="truncate text-sm text-zinc-600 dark:text-zinc-400">{row.detail}</p> : null}
               </div>
               <span className="shrink-0 text-xs text-zinc-500">{row.when}</span>
             </Link>

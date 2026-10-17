@@ -357,16 +357,24 @@ export const deal = pgTable(
     paymentMethod: text("payment_method"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
+    // Cash in person: the payer says they gave it, the payee says they received it.
+    cashGivenAt: timestamp("cash_given_at", { withTimezone: true }),
+    cashReceivedAt: timestamp("cash_received_at", { withTimezone: true }),
     // Each side says the handover happened. Both set: the deal is completed.
     ownerConfirmedAt: timestamp("owner_confirmed_at", { withTimezone: true }),
     responderConfirmedAt: timestamp("responder_confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    // The last thing that happened on this deal (a step, a reminder). The thread shows the busiest deals at the bottom.
+    activityAt: timestamp("activity_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check("deal_status", sql`${t.status} in ('agreed', 'scheduled', 'completed', 'cancelled', 'disputed')`),
     check("deal_ask_method", sql`(${t.paymentAskedAt} is null) = (${t.paymentAskMethod} is null) and (${t.paymentAskMethod} is null or ${t.paymentAskMethod} in ('online', 'other'))`),
     check("deal_cash_order", sql`${t.cashAgreedAt} is null or ${t.cashRequestedAt} is not null`),
+    // Cash in person is a handshake too: the payer says the cash was given, then the payee says it was received.
+    check("deal_cash_given_order", sql`${t.cashGivenAt} is null or ${t.cashAgreedAt} is not null`),
+    check("deal_cash_received_order", sql`${t.cashReceivedAt} is null or ${t.cashGivenAt} is not null`),
     check("deal_handover", sql`${t.handoverMethod} is null or ${t.handoverMethod} in ('meetup', 'delivery')`),
     check("deal_distinct_people", sql`${t.ownerId} <> ${t.responderId}`),
     check("deal_quantity", sql`${t.quantity} between 1 and 1000`),
@@ -386,7 +394,7 @@ export const deal = pgTable(
     check("deal_payment_method", sql`(${t.paidAt} is null) = (${t.paymentMethod} is null) and (${t.paymentMethod} is null or ${t.paymentMethod} in ('cash', 'online', 'other'))`),
     check("deal_payment_order", sql`${t.paymentConfirmedAt} is null or ${t.paidAt} is not null`),
     // Completed needs the payment confirmed, unless there was nothing to pay.
-    check("deal_completed_paid", sql`${t.status} <> 'completed' or ${t.amount} = 0 or ${t.paymentConfirmedAt} is not null or ${t.cashAgreedAt} is not null`),
+    check("deal_completed_paid", sql`${t.status} <> 'completed' or ${t.amount} = 0 or ${t.paymentConfirmedAt} is not null or ${t.cashReceivedAt} is not null`),
     check(
       "deal_confirm_after_schedule",
       sql`(${t.ownerConfirmedAt} is null and ${t.responderConfirmedAt} is null) or ${t.scheduledAt} is not null`,
@@ -467,9 +475,11 @@ export const notification = pgTable(
     foldKey: text("fold_key"),
     // Once ever per (recipient, once_key).
     onceKey: text("once_key"),
+    // Short extra line for a deal notice: the agreed time and place. Null for the rest.
+    detail: text("detail"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
@@ -552,7 +562,6 @@ export const post = pgTable(
     exchangeMeetup: boolean("exchange_meetup").notNull(),
     exchangeDelivery: boolean("exchange_delivery").notNull(),
     meetupLocation: text("meetup_location"),
-    deliveryArea: text("delivery_area"),
     // How payment is made: cash, online payment, others (at least one unless the post is free).
     paymentCash: boolean("payment_cash").notNull().default(false),
     paymentOnline: boolean("payment_online").notNull().default(false),
@@ -568,6 +577,8 @@ export const post = pgTable(
       .default(sql`now() + interval '30 days'`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    // The owner deleted it (or an old withdrawn or expired post was cleared out): gone from My posts. Deals and their history stay.
+    ownerDeletedAt: timestamp("owner_deleted_at", { withTimezone: true }),
   },
   (t) => [
     check("post_kind", sql`${t.kind} in ('showcase', 'wishlist')`),
@@ -602,12 +613,6 @@ export const post = pgTable(
       sql`case when ${t.exchangeMeetup}
         then char_length(btrim(coalesce(${t.meetupLocation}, ''))) between 1 and 120
         else ${t.meetupLocation} is null end`,
-    ),
-    check(
-      "post_delivery_area",
-      sql`case when ${t.exchangeDelivery}
-        then char_length(btrim(coalesce(${t.deliveryArea}, ''))) between 1 and 120
-        else ${t.deliveryArea} is null end`,
     ),
     check(
       "post_open_expiry",

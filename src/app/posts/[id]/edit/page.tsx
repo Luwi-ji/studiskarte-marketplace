@@ -66,7 +66,6 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
         exchangeMeetup: post.exchangeMeetup,
         exchangeDelivery: post.exchangeDelivery,
         meetupLocation: post.meetupLocation ?? "",
-        deliveryArea: post.deliveryArea ?? "",
         paymentCash: post.paymentCash,
         paymentOnline: post.paymentOnline,
         paymentOther: post.paymentOther,

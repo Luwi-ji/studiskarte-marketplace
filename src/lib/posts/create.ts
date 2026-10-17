@@ -42,7 +42,6 @@ export function postColumns(data: PostData) {
     exchangeMeetup: data.exchangeMeetup,
     exchangeDelivery: data.exchangeDelivery,
     meetupLocation: data.meetupLocation,
-    deliveryArea: data.deliveryArea,
     paymentCash: data.paymentCash,
     paymentOnline: data.paymentOnline,
     paymentOther: data.paymentOther,

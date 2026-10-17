@@ -75,9 +75,11 @@ export function CalendarLink({ active }: { active: boolean }) {
     ) : null;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div id="calendar" className="flex scroll-mt-16 flex-col gap-2">
       <h2 className="text-sm font-medium">Calendar</h2>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">Add your scheduled handovers to Google or iPhone Calendar. Only you can use the link.</p>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Add your scheduled handovers to Google or iPhone Calendar, as &ldquo;Studiskarte transactions&rdquo;. Changes and cancellations update by themselves (Google Calendar can take several hours). Only you can use the link.
+      </p>
 
       {link ? (
         <div className="flex flex-col gap-2">
