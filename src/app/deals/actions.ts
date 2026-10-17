@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
+import { confirmHandover, type ConfirmResult } from "@/lib/deals/confirm";
+import { answerProposal, proposeHandover, type HandoverResult } from "@/lib/deals/schedule";
 import { declineOffer, makeOffer, OFFER_NOT_FOUND, withdrawOffer, type DecisionResult, type OfferResult } from "@/lib/deals/offers";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 
@@ -57,6 +59,38 @@ export async function cancelDealAction(dealId: unknown): Promise<DecisionResult>
   const id = idSchema.safeParse(dealId);
   if (!id.success) return { ok: false, error: DEAL_NOT_FOUND };
   const result = await cancelDeal({ actorId: me.id, dealId: id.data, alert: sendAlertAfterResponse });
+  refresh();
+  return result;
+}
+
+const NO_DEAL: HandoverResult = { ok: false, error: DEAL_NOT_FOUND };
+
+/** Proposes a way, time and place to hand it over; the other person is told. */
+export async function proposeHandoverAction(dealId: unknown, input: unknown): Promise<HandoverResult> {
+  const me = await requireActiveStudent();
+  const id = idSchema.safeParse(dealId);
+  if (!id.success) return NO_DEAL;
+  const result = await proposeHandover({ actorId: me.id, dealId: id.data, input, alert: sendAlertAfterResponse });
+  refresh();
+  return result;
+}
+
+/** Agrees to or declines the other person's proposal. */
+export async function answerProposalAction(dealId: unknown, agree: unknown): Promise<HandoverResult> {
+  const me = await requireActiveStudent();
+  const id = idSchema.safeParse(dealId);
+  if (!id.success || typeof agree !== "boolean") return NO_DEAL;
+  const result = await answerProposal({ actorId: me.id, dealId: id.data, agree, alert: sendAlertAfterResponse });
+  refresh();
+  return result;
+}
+
+/** Says the handover happened. The reservation completes when both have said so. */
+export async function confirmHandoverAction(dealId: unknown): Promise<ConfirmResult> {
+  const me = await requireActiveStudent();
+  const id = idSchema.safeParse(dealId);
+  if (!id.success) return NO_DEAL;
+  const result = await confirmHandover({ actorId: me.id, dealId: id.data, alert: sendAlertAfterResponse });
   refresh();
   return result;
 }

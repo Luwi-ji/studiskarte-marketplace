@@ -48,6 +48,13 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
           ? {
               ...m.offer,
               expiresAt: m.offer.expiresAt.toISOString(),
+              deal: m.offer.deal
+                ? {
+                    ...m.offer.deal,
+                    handover: m.offer.deal.handover ? { ...m.offer.deal.handover, at: m.offer.deal.handover.at.toISOString() } : null,
+                    proposal: m.offer.deal.proposal ? { ...m.offer.deal.proposal, at: m.offer.deal.proposal.at.toISOString() } : null,
+                  }
+                : null,
               listing: { post: m.offer.post, thumbUrl: thumbUrls.get(m.offer.post.id) ?? "" },
             }
           : null,

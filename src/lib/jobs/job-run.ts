@@ -11,6 +11,8 @@ export const JOBS = {
   "expire-posts": { maxAgeMinutes: 3 * 60 },
   "expiry-warnings": { maxAgeMinutes: 3 * 60 },
   "expire-offers": { maxAgeMinutes: 3 * 60 },
+  "expire-deals": { maxAgeMinutes: 3 * 60 },
+  "handover-reminders": { maxAgeMinutes: 3 * 60 },
   // Runs daily (Vercel cron).
   cleanup: { maxAgeMinutes: 36 * 60 },
 } as const;

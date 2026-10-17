@@ -332,6 +332,15 @@ export const deal = pgTable(
     handoverMethod: text("handover_method"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
     place: text("place"),
+    // A time and place one of the two has proposed and the other has not yet answered.
+    // Agreeing copies it to the three columns above and the deal becomes scheduled.
+    proposedBy: text("proposed_by").references(() => student.id),
+    proposedMethod: text("proposed_method"),
+    proposedAt: timestamp("proposed_at", { withTimezone: true }),
+    proposedPlace: text("proposed_place"),
+    // Each side says the handover happened. Both set: the deal is completed.
+    ownerConfirmedAt: timestamp("owner_confirmed_at", { withTimezone: true }),
+    responderConfirmedAt: timestamp("responder_confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -340,6 +349,23 @@ export const deal = pgTable(
     check("deal_handover", sql`${t.handoverMethod} is null or ${t.handoverMethod} in ('meetup', 'delivery')`),
     check("deal_distinct_people", sql`${t.ownerId} <> ${t.responderId}`),
     check("deal_quantity", sql`${t.quantity} between 1 and 1000`),
+    check("deal_place_length", sql`${t.place} is null or char_length(btrim(${t.place})) between 1 and 200`),
+    check(
+      "deal_proposal",
+      sql`(${t.proposedBy} is null and ${t.proposedMethod} is null and ${t.proposedAt} is null and ${t.proposedPlace} is null)
+        or (${t.proposedBy} is not null and ${t.proposedMethod} in ('meetup', 'delivery') and ${t.proposedAt} is not null and char_length(btrim(${t.proposedPlace})) between 1 and 200)`,
+    ),
+    // Scheduled and completed deals have a method, a time and a place.
+    check(
+      "deal_scheduled_fields",
+      sql`${t.status} not in ('scheduled', 'completed') or (${t.handoverMethod} is not null and ${t.scheduledAt} is not null and ${t.place} is not null)`,
+    ),
+    // The only way to completed is both confirmations; confirming needs a schedule.
+    check("deal_completed_confirmed", sql`${t.status} <> 'completed' or (${t.ownerConfirmedAt} is not null and ${t.responderConfirmedAt} is not null)`),
+    check(
+      "deal_confirm_after_schedule",
+      sql`(${t.ownerConfirmedAt} is null and ${t.responderConfirmedAt} is null) or ${t.scheduledAt} is not null`,
+    ),
     // One active deal per post and buyer: each buyer's deal is separate from the others.
     uniqueIndex("deal_one_active_idx").on(t.postId, t.responderId).where(sql`${t.status} in ('agreed', 'scheduled')`),
     index("deal_owner_idx").on(t.ownerId),
@@ -392,7 +418,7 @@ export const notification = pgTable(
     onceKey: text("once_key"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),

@@ -3,6 +3,9 @@ import { alias } from "drizzle-orm/pg-core";
 import { conversation, conversationListing, deal, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { transactionLabel } from "@/lib/deals/rules";
+import { loadAvailability } from "@/lib/posts/availability";
+import type { Availability } from "@/lib/posts/schema";
+import type { HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
 
 /** Messages shown in a conversation: the latest this many. */
@@ -42,6 +45,18 @@ export type ConversationSummary = {
   unread: number;
 };
 
+/** A reservation as the viewer sees it: the agreed handover, a proposal waiting for an answer, who has confirmed. */
+export type DealCard = {
+  id: string;
+  status: string;
+  handover: { method: HandoverMethod; at: Date; place: string } | null;
+  proposal: { byMe: boolean; method: HandoverMethod; at: Date; place: string } | null;
+  confirmedByMe: boolean;
+  confirmedByOther: boolean;
+  /** For proposing: what the post offers, where it says to meet or deliver, and when it is available. Only while the reservation is active. */
+  options: { methods: HandoverMethod[]; meetupPlace: string | null; deliveryPlace: string | null; windows: Availability[] } | null;
+};
+
 /** An offer as it stands now, shown as a card in the thread. */
 export type OfferCard = {
   id: string;
@@ -52,7 +67,7 @@ export type OfferCard = {
   status: string;
   expiresAt: Date;
   /** The reservation made from this offer when it was accepted, with its own state. */
-  deal: { id: string; status: string } | null;
+  deal: DealCard | null;
   /** The listing it is on. */
   post: PostCard;
   /** The viewer owns that listing, so the offer is theirs to decide. */
@@ -258,6 +273,54 @@ async function threadListings(viewerId: string, conversationId: string): Promise
   }));
 }
 
+type DealRow = {
+  dealId: string | null;
+  dealStatus: string | null;
+  handoverMethod: string | null;
+  scheduledAt: Date | null;
+  place: string | null;
+  proposedBy: string | null;
+  proposedMethod: string | null;
+  proposedAt: Date | null;
+  proposedPlace: string | null;
+  ownerConfirmedAt: Date | null;
+  responderConfirmedAt: Date | null;
+  exchangeMeetup: boolean;
+  exchangeDelivery: boolean;
+  meetupLocation: string | null;
+  deliveryArea: string | null;
+};
+
+/** A stored method name as the type; the database allows only these two. */
+function asMethod(value: string): HandoverMethod {
+  return value === "delivery" ? "delivery" : "meetup";
+}
+
+function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows: Availability[] | undefined): DealCard | null {
+  if (!o.dealId || !o.dealStatus) return null;
+  const mine = viewerIsOwner ? o.ownerConfirmedAt : o.responderConfirmedAt;
+  const theirs = viewerIsOwner ? o.responderConfirmedAt : o.ownerConfirmedAt;
+  return {
+    id: o.dealId,
+    status: o.dealStatus,
+    handover: o.handoverMethod && o.scheduledAt && o.place ? { method: asMethod(o.handoverMethod), at: o.scheduledAt, place: o.place } : null,
+    proposal:
+      o.proposedBy && o.proposedMethod && o.proposedAt && o.proposedPlace
+        ? { byMe: o.proposedBy === viewerId, method: asMethod(o.proposedMethod), at: o.proposedAt, place: o.proposedPlace }
+        : null,
+    confirmedByMe: mine !== null,
+    confirmedByOther: theirs !== null,
+    options: windows
+      ? {
+          methods: [...(o.exchangeMeetup ? (["meetup"] as const) : []), ...(o.exchangeDelivery ? (["delivery"] as const) : [])],
+          meetupPlace: o.meetupLocation,
+          deliveryPlace: o.deliveryArea,
+          windows,
+        }
+      : null,
+  };
+}
+
 /**
  * One conversation with its latest messages, or null unless the viewer is one
  * of its two participants. Picture keys are only ever returned here, so only a
@@ -302,10 +365,27 @@ export async function getConversation(viewerId: string, conversationId: string):
             expiresAt: offer.expiresAt,
             dealId: deal.id,
             dealStatus: deal.status,
+            handoverMethod: deal.handoverMethod,
+            scheduledAt: deal.scheduledAt,
+            place: deal.place,
+            proposedBy: deal.proposedBy,
+            proposedMethod: deal.proposedMethod,
+            proposedAt: deal.proposedAt,
+            proposedPlace: deal.proposedPlace,
+            ownerConfirmedAt: deal.ownerConfirmedAt,
+            responderConfirmedAt: deal.responderConfirmedAt,
+            exchangeMeetup: post.exchangeMeetup,
+            exchangeDelivery: post.exchangeDelivery,
+            meetupLocation: post.meetupLocation,
+            deliveryArea: post.deliveryArea,
           })
           .from(offer)
+          .innerJoin(post, eq(post.id, offer.postId))
           .leftJoin(deal, eq(deal.offerId, offer.id))
           .where(inArray(offer.id, offerIds));
+  // Only reservations still being carried out can be rescheduled, so only they need the post's availability.
+  const activePostIds = [...new Set(offers.filter((o) => o.dealStatus === "agreed" || o.dealStatus === "scheduled").map((o) => o.postId))];
+  const windowsByPost = new Map(await Promise.all(activePostIds.map(async (id): Promise<[string, Availability[]]> => [id, await loadAvailability(id)])));
   // A pending offer past its time is shown as expired even before the job has swept it.
   const now = Date.now();
   const offerById = new Map<string, OfferCard>();
@@ -319,7 +399,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       isReserve: o.isReserve,
       status: o.status === "pending" && o.expiresAt.getTime() <= now ? "expired" : o.status,
       expiresAt: o.expiresAt,
-      deal: o.dealId && o.dealStatus ? { id: o.dealId, status: o.dealStatus } : null,
+      deal: o.dealId && o.dealStatus ? dealCard(o, listing.viewerIsOwner, viewerId, windowsByPost.get(o.postId)) : null,
       post: listing.post,
       viewerIsOwner: listing.viewerIsOwner,
     });

@@ -1,9 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cleanupUnusedPhotos } from "@/lib/jobs/cleanup";
+import { expireDeals } from "@/lib/jobs/expire-deals";
 import { expireOffers } from "@/lib/jobs/expire-offers";
 import { expirePosts } from "@/lib/jobs/expire-posts";
 import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
+import { sendHandoverReminders } from "@/lib/jobs/reminders";
 import { deliverAlert } from "@/lib/notifications/push/notify";
 import { isJobName, JOBS, runJob, staleJobs, type JobName } from "@/lib/jobs/job-run";
 import { getObjectStore } from "@/lib/images/store";
@@ -40,6 +42,20 @@ async function runNamed(name: JobName): Promise<string> {
       return `expired ${n} offers`;
     });
   }
+  if (name === "expire-deals") {
+    return runJob(name, async () => {
+      const n = await expireDeals(new Date(), alert);
+      await Promise.all(alerts);
+      return `cancelled ${n} idle reservations`;
+    });
+  }
+  if (name === "handover-reminders") {
+    return runJob(name, async () => {
+      const n = await sendHandoverReminders(new Date(), alert);
+      await Promise.all(alerts);
+      return `sent ${n} reminders`;
+    });
+  }
   if (name === "expiry-warnings") {
     return runJob(name, async () => {
       const n = await warnExpiringPosts(new Date(), alert);
@@ -51,7 +67,7 @@ async function runNamed(name: JobName): Promise<string> {
 }
 
 /**
- * ?job=expire-posts,expire-offers,expiry-warnings,cleanup (any, comma-separated) | all (default). Also reports jobs that have
+ * ?job=expire-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,cleanup (any, comma-separated) | all (default). Also reports jobs that have
  * stopped running, so a dead scheduler shows up in the response.
  */
 export async function GET(request: Request) {

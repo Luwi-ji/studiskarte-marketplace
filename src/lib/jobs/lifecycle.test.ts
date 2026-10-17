@@ -8,7 +8,7 @@ import { listFeed } from "@/lib/discovery/feed";
 import type { ObjectStore } from "@/lib/images/store";
 import { cleanupUnusedPhotos } from "@/lib/jobs/cleanup";
 import { expirePosts } from "@/lib/jobs/expire-posts";
-import { JOBS, runJob, staleJobs } from "@/lib/jobs/job-run";
+import { isJobName, JOBS, runJob, staleJobs } from "@/lib/jobs/job-run";
 import { createPost } from "@/lib/posts/create";
 import { getPostDetail } from "@/lib/posts/detail";
 import { expiryNotice } from "@/lib/posts/format";
@@ -317,18 +317,17 @@ describe("job runs and the scheduler check", () => {
     const saved = await originalRows();
     try {
       await db.delete(jobRun);
-      expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual(
-        expect.arrayContaining([["expire-posts", "never_ran"], ["expiry-warnings", "never_ran"], ["expire-offers", "never_ran"], ["cleanup", "never_ran"]]),
-      );
+      const names = Object.keys(JOBS).filter(isJobName);
+      const frequent = names.filter((name) => name !== "cleanup");
+      expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual(expect.arrayContaining(names.map((name) => [name, "never_ran"])));
 
-      await runJob("expire-posts", async () => "ok");
-      await runJob("expiry-warnings", async () => "ok");
-      await runJob("expire-offers", async () => "ok");
-      await runJob("cleanup", async () => "ok");
+      for (const name of names) await runJob(name, async () => "ok");
       expect(await staleJobs()).toEqual([]);
 
+      // The frequent jobs go stale after a few hours; the daily cleanup has longer.
       const later = new Date(Date.now() + (JOBS["expire-posts"].maxAgeMinutes + 5) * 60_000);
-      expect((await staleJobs(later)).map((j) => [j.name, j.reason])).toEqual([["expire-posts", "too_old"], ["expiry-warnings", "too_old"], ["expire-offers", "too_old"]]);
+      expect((await staleJobs(later)).map((j) => [j.name, j.reason])).toEqual(expect.arrayContaining(frequent.map((name) => [name, "too_old"])));
+      expect((await staleJobs(later)).map((j) => j.name)).not.toContain("cleanup");
 
       await expect(runJob("cleanup", async () => Promise.reject(new Error("boom")))).rejects.toThrow();
       expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual([["cleanup", "last_failed"]]);

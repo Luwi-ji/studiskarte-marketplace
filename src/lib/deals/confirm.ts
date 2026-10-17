@@ -1,0 +1,47 @@
+import { eq } from "drizzle-orm";
+import { deal } from "@/db/schema";
+import { getDb } from "@/lib/db";
+import { syncAvailability } from "@/lib/deals/capacity";
+import { canConfirmNow, formatHandoverTime } from "@/lib/deals/handover";
+import { lockDeal } from "@/lib/deals/lock";
+import { activeFor, tellOther, type HandoverResult } from "@/lib/deals/schedule";
+import type { AlertSink, Recorded } from "@/lib/notifications/record";
+
+export type ConfirmResult = HandoverResult | { ok: true; conversationId: string; completed: boolean };
+
+export const NOT_SCHEDULED = "Agree a time and place first.";
+
+/**
+ * One of the two says the handover happened. It can be said from the agreed
+ * time on, and only once the deal is scheduled. The deal completes when both
+ * have said so, and in no other way (the database refuses it otherwise): the
+ * post is then fulfilled if every unit has been handed over. The other person
+ * is told either way. Saying it twice changes nothing.
+ */
+export async function confirmHandover(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }): Promise<ConfirmResult> {
+  const now = args.now ?? new Date();
+  let recorded = null as Recorded | null;
+  const result = await getDb().transaction(async (tx): Promise<ConfirmResult> => {
+    const checked = activeFor(await lockDeal(tx, args.dealId), args.actorId);
+    if ("error" in checked) return checked.error;
+    const { found } = checked;
+    if (found.status !== "scheduled" || !found.scheduledAt) return { ok: false, error: NOT_SCHEDULED };
+    if (!canConfirmNow(found.scheduledAt, now)) return { ok: false, error: `You can confirm from ${formatHandoverTime(found.scheduledAt)}, when the handover is due.` };
+
+    const asOwner = found.ownerId === args.actorId;
+    const mineBefore = asOwner ? found.ownerConfirmedAt : found.responderConfirmedAt;
+    const otherBefore = asOwner ? found.responderConfirmedAt : found.ownerConfirmedAt;
+    if (mineBefore) return { ok: true, conversationId: found.conversationId, completed: false };
+
+    const completed = otherBefore !== null;
+    await tx
+      .update(deal)
+      .set({ ...(asOwner ? { ownerConfirmedAt: now } : { responderConfirmedAt: now }), ...(completed ? { status: "completed" } : {}), updatedAt: now })
+      .where(eq(deal.id, found.id));
+    if (completed) await syncAvailability(tx, found.postId, now);
+    recorded = await tellOther(tx, found, args.actorId, completed ? "deal_completed" : "deal_confirmed", `${completed ? "completed" : "confirmed"}:${args.actorId}`);
+    return { ok: true, conversationId: found.conversationId, completed };
+  });
+  if (result.ok && recorded?.alert) args.alert?.(recorded.id);
+  return result;
+}

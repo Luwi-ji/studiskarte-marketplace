@@ -5,6 +5,7 @@ import { useState } from "react";
 import { acceptOfferAction, cancelDealAction, declineOfferAction, withdrawOfferAction } from "@/app/deals/actions";
 import { ProductCard } from "@/components/product-card";
 import { formatPrice } from "@/lib/posts/format";
+import { HandoverPanel, type DealCardData } from "./handover-panel";
 import type { PostCardData } from "./transactions";
 
 export type OfferCardData = {
@@ -16,7 +17,7 @@ export type OfferCardData = {
   status: string;
   expiresAt: string;
   /** The reservation made when this offer was accepted. */
-  deal: { id: string; status: string } | null;
+  deal: DealCardData | null;
   /** The listing it is on. */
   listing: PostCardData;
   /** The viewer is the listing's owner (decides the offer); otherwise they made it. */
@@ -106,8 +107,8 @@ export function OfferCardView({ offer, responderName }: Props) {
   const statusText: Record<string, string> = {
     pending: viewerIsOwner ? `Waiting for you. Expires ${timeLeft(offer.expiresAt)}.` : `Waiting for the owner. Expires ${timeLeft(offer.expiresAt)}.`,
     accepted: viewerIsOwner
-      ? `Accepted. ${many ? `${qty} are reserved for ${responderName}.` : "Reserved for them."} Agree a time and place in this chat.`
-      : `Accepted! ${many ? `${qty} are reserved for you.` : "It is reserved for you."} Agree a time and place in this chat.`,
+      ? `Accepted. ${many ? `${qty} are reserved for ${responderName}.` : "Reserved for them."}`
+      : `Accepted! ${many ? `${qty} are reserved for you.` : "It is reserved for you."}`,
     declined: viewerIsOwner ? "You declined this." : "The owner declined this.",
     withdrawn: viewerIsOwner ? `${responderName} withdrew this.` : "You withdrew this.",
     expired: "This offer expired.",
@@ -159,6 +160,8 @@ export function OfferCardView({ offer, responderName }: Props) {
           {busy === "withdraw" ? "Withdrawing…" : "Withdraw offer"}
         </button>
       ) : null}
+
+      {status === "accepted" && offer.deal && !cancelled ? <HandoverPanel deal={offer.deal} viewerIsOwner={viewerIsOwner} otherName={responderName} /> : null}
 
       {canCancel && !cancelled ? (
         confirmingCancel ? (

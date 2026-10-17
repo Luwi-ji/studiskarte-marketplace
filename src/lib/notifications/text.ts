@@ -9,6 +9,13 @@ export const NOTIFICATION_TYPES = [
   "offer_declined",
   "offer_expired",
   "deal_cancelled",
+  "deal_proposed",
+  "deal_scheduled",
+  "deal_confirmed",
+  "deal_completed",
+  "deal_reminder",
+  "deal_confirm_reminder",
+  "deal_expired",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -26,6 +33,13 @@ const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> =
   offer_declined: "Your offer was declined",
   offer_expired: "Your offer expired",
   deal_cancelled: "A reservation was cancelled",
+  deal_proposed: "A time and place was proposed",
+  deal_scheduled: "Handover scheduled",
+  deal_confirmed: "The other student confirmed the handover",
+  deal_completed: "Handover complete",
+  deal_reminder: "Your handover is coming up",
+  deal_confirm_reminder: "Please confirm your handover",
+  deal_expired: "A reservation was cancelled for inactivity",
 };
 
 /** The headline: what happened. The post's title goes under it. */

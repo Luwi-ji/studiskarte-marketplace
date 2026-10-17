@@ -45,7 +45,7 @@ async function Settings() {
           @{profile.handle} · {profile.school}
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Link href={`/u/${profile.handle}`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
           My profile
         </Link>
@@ -54,6 +54,9 @@ async function Settings() {
         </Link>
         <Link href="/notifications" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
           Notifications
+        </Link>
+        <Link href="/me/transactions" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+          Transactions
         </Link>
       </div>
       <AvatarForm pictureUrl={pictureUrl} />

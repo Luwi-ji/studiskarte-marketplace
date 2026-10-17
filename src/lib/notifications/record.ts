@@ -2,12 +2,15 @@ import { eq, sql } from "drizzle-orm";
 import { notification, student } from "@/db/schema";
 import type { Executor } from "@/lib/db";
 
+/** What happens to a reservation after it is accepted. */
+export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_scheduled" | "deal_confirmed" | "deal_completed" | "deal_reminder" | "deal_confirm_reminder" | "deal_expired";
+
 export type NotificationSpec =
   | { type: "message"; recipientId: string; postId: string | null; conversationId: string }
   | { type: "heart"; recipientId: string; postId: string }
   | { type: "post_expiring" | "post_expired"; recipientId: string; postId: string; onceKey: string }
   | {
-      type: "offer_received" | "offer_accepted" | "offer_declined" | "offer_expired" | "deal_cancelled";
+      type: DealNoticeType | "offer_received" | "offer_accepted" | "offer_declined" | "offer_expired";
       recipientId: string;
       postId: string;
       conversationId: string;
