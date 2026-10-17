@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
 import { canConfirmNow, formatHandoverTime } from "@/lib/deals/handover";
 import { lockDeal } from "@/lib/deals/lock";
+import { readyToComplete } from "@/lib/deals/payment";
 import { activeFor, tellOther, type HandoverResult } from "@/lib/deals/schedule";
 import type { AlertSink, Recorded } from "@/lib/notifications/record";
 
@@ -14,8 +15,8 @@ export const NOT_SCHEDULED = "Agree a time and place first.";
 /**
  * One of the two says the handover happened. It can be said from the agreed
  * time on, and only once the deal is scheduled. The deal completes when both
- * have said so, and in no other way (the database refuses it otherwise): the
- * post is then fulfilled if every unit has been handed over. The other person
+ * have said so and the payment is confirmed (or there was nothing to pay), and
+ * in no other way (the database refuses it otherwise): the post is then fulfilled if every unit has been handed over. The other person
  * is told either way. Saying it twice changes nothing.
  */
 export async function confirmHandover(args: { actorId: string; dealId: string; alert?: AlertSink; now?: Date }): Promise<ConfirmResult> {
@@ -30,10 +31,14 @@ export async function confirmHandover(args: { actorId: string; dealId: string; a
 
     const asOwner = found.ownerId === args.actorId;
     const mineBefore = asOwner ? found.ownerConfirmedAt : found.responderConfirmedAt;
-    const otherBefore = asOwner ? found.responderConfirmedAt : found.ownerConfirmedAt;
     if (mineBefore) return { ok: true, conversationId: found.conversationId, completed: false };
 
-    const completed = otherBefore !== null;
+    const completed = readyToComplete({
+      ownerConfirmedAt: asOwner ? now : found.ownerConfirmedAt,
+      responderConfirmedAt: asOwner ? found.responderConfirmedAt : now,
+      amount: found.amount,
+      paymentConfirmedAt: found.paymentConfirmedAt,
+    });
     await tx
       .update(deal)
       .set({ ...(asOwner ? { ownerConfirmedAt: now } : { responderConfirmedAt: now }), ...(completed ? { status: "completed" } : {}), updatedAt: now })

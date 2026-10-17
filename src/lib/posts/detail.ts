@@ -8,6 +8,7 @@ import { countPendingOffers, editLockReason, findMyTransaction, hasActiveReserva
 import { countViews } from "@/lib/posts/views";
 import { countHearts, hasHearted } from "@/lib/social/heart";
 import { visibleToOthers } from "@/lib/discovery/visibility";
+import { paymentModesOf, type PaymentMode } from "@/lib/payment";
 import type { Availability } from "@/lib/posts/schema";
 
 /** Everything the post page shows. The seller's email is never selected. */
@@ -26,6 +27,8 @@ export type PostDetail = {
   exchangeDelivery: boolean;
   meetupLocation: string | null;
   deliveryArea: string | null;
+  /** How payment is made (none for a free post). The note is only for the people in a reservation. */
+  paymentModes: PaymentMode[];
   listedAt: Date;
   expiresAt: Date;
   isOwner: boolean;
@@ -77,6 +80,9 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       exchangeDelivery: post.exchangeDelivery,
       meetupLocation: post.meetupLocation,
       deliveryArea: post.deliveryArea,
+      paymentCash: post.paymentCash,
+      paymentOnline: post.paymentOnline,
+      paymentOther: post.paymentOther,
       quantity: post.quantity,
       listedAt: post.listedAt,
       expiresAt: post.expiresAt,
@@ -128,6 +134,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     exchangeDelivery: row.exchangeDelivery,
     meetupLocation: row.meetupLocation,
     deliveryArea: row.deliveryArea,
+    paymentModes: paymentModesOf(row),
     listedAt: row.listedAt,
     expiresAt: row.expiresAt,
     isOwner: row.ownerId === viewerId,

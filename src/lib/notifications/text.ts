@@ -16,6 +16,8 @@ export const NOTIFICATION_TYPES = [
   "deal_reminder",
   "deal_confirm_reminder",
   "deal_expired",
+  "deal_paid",
+  "deal_payment_confirmed",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -40,6 +42,8 @@ const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> =
   deal_reminder: "Your handover is coming up",
   deal_confirm_reminder: "Please confirm your handover",
   deal_expired: "A reservation was cancelled for inactivity",
+  deal_paid: "Payment marked as paid",
+  deal_payment_confirmed: "Payment confirmed",
 };
 
 /** The headline: what happened. The post's title goes under it. */

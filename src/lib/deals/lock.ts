@@ -17,8 +17,19 @@ export type LockedDeal = {
   ownerConfirmedAt: Date | null;
   responderConfirmedAt: Date | null;
   conversationId: string;
+  /** Per unit. */
+  amount: number;
+  quantity: number;
+  paymentMethod: string | null;
+  paidAt: Date | null;
+  paymentConfirmedAt: Date | null;
+  postKind: string;
   exchangeMeetup: boolean;
   exchangeDelivery: boolean;
+  paymentCash: boolean;
+  paymentOnline: boolean;
+  paymentOther: boolean;
+  paymentNote: string | null;
 };
 
 /**
@@ -30,7 +41,15 @@ export async function lockDeal(tx: DbTransaction, dealId: string): Promise<Locke
   const [ref] = await tx.select({ postId: deal.postId }).from(deal).where(eq(deal.id, dealId));
   if (!ref) return null;
   const [lockedPost] = await tx
-    .select({ exchangeMeetup: post.exchangeMeetup, exchangeDelivery: post.exchangeDelivery })
+    .select({
+      postKind: post.kind,
+      exchangeMeetup: post.exchangeMeetup,
+      exchangeDelivery: post.exchangeDelivery,
+      paymentCash: post.paymentCash,
+      paymentOnline: post.paymentOnline,
+      paymentOther: post.paymentOther,
+      paymentNote: post.paymentNote,
+    })
     .from(post)
     .where(eq(post.id, ref.postId))
     .for("update");
@@ -50,6 +69,11 @@ export async function lockDeal(tx: DbTransaction, dealId: string): Promise<Locke
       ownerConfirmedAt: deal.ownerConfirmedAt,
       responderConfirmedAt: deal.responderConfirmedAt,
       conversationId: offer.conversationId,
+      amount: deal.amount,
+      quantity: deal.quantity,
+      paymentMethod: deal.paymentMethod,
+      paidAt: deal.paidAt,
+      paymentConfirmedAt: deal.paymentConfirmedAt,
     })
     .from(deal)
     .innerJoin(offer, eq(offer.id, deal.offerId))

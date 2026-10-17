@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { uploadPhoto } from "@/lib/images/prepare-photo";
+import { PAYMENT_LABEL, PAYMENT_NOTE_MAX, type PaymentMode } from "@/lib/payment";
 import type { Category } from "@/lib/posts/categories";
 import type { SaveResult } from "@/lib/posts/create";
 import {
@@ -23,7 +24,7 @@ import { createPostAction, relistPostAction, updatePostAction } from "./actions"
 import { AvailabilityPicker } from "./availability-picker";
 
 export type FormPhoto = { id: string; thumbUrl: string; caption: string };
-export type PostFormValues = Omit<PostFields, "photos"> & { photos: FormPhoto[] };
+export type PostFormValues = Required<Omit<PostFields, "photos">> & { photos: FormPhoto[] };
 
 const EMPTY: PostFormValues = {
   title: "",
@@ -38,6 +39,10 @@ const EMPTY: PostFormValues = {
   exchangeDelivery: false,
   meetupLocation: "",
   deliveryArea: "",
+  paymentCash: true,
+  paymentOnline: false,
+  paymentOther: false,
+  paymentNote: "",
   availability: [],
   photos: [],
 };
@@ -56,6 +61,10 @@ const ANSWERS: Record<keyof PostFormValues, string[]> = {
   exchangeDelivery: ["exchange", "deliveryArea"],
   meetupLocation: ["meetupLocation"],
   deliveryArea: ["deliveryArea"],
+  paymentCash: ["payment"],
+  paymentOnline: ["payment", "paymentNote"],
+  paymentOther: ["payment", "paymentNote"],
+  paymentNote: ["paymentNote"],
   availability: ["availability"],
   photos: ["photos"],
 };
@@ -431,6 +440,33 @@ export function PostForm(props: Props) {
         ) : null}
         <FieldError message={errors.exchange} />
       </fieldset>
+
+      {values.priceKind !== "free" ? (
+        <fieldset className="flex flex-col gap-3">
+          <legend className={label}>{wishlist ? "How you will pay" : "How you accept payment"}</legend>
+          {(
+            [
+              ["cash", "paymentCash"],
+              ["online", "paymentOnline"],
+              ["other", "paymentOther"],
+            ] satisfies [PaymentMode, "paymentCash" | "paymentOnline" | "paymentOther"][]
+          ).map(([mode, key]) => (
+            <label key={mode} className="flex min-h-11 items-center gap-3">
+              <input className="h-5 w-5 shrink-0" type="checkbox" name={key} checked={values[key]} onChange={(e) => set(key, e.target.checked)} />
+              {PAYMENT_LABEL[mode]}
+            </label>
+          ))}
+          {values.paymentOnline || values.paymentOther ? (
+            <label className="flex flex-col gap-1 pl-6">
+              <span className="text-sm">Note (optional)</span>
+              <input name="paymentNote" enterKeyHint="next" value={values.paymentNote} onChange={(e) => set("paymentNote", e.target.value)} maxLength={PAYMENT_NOTE_MAX} placeholder="e.g. GCash 09xx xxx xxxx, or bank transfer" className={field} />
+              <span className={hint}>Only the two of you see this, once a reservation is accepted. The app never handles the money.</span>
+              <FieldError message={errors.paymentNote} />
+            </label>
+          ) : null}
+          <FieldError message={errors.payment} />
+        </fieldset>
+      ) : null}
 
       <fieldset className="flex flex-col gap-3">
         <legend className={label}>When you are available</legend>

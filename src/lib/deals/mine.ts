@@ -43,21 +43,37 @@ function dealState(d: {
   proposedBy: string | null;
   ownerConfirmedAt: Date | null;
   responderConfirmedAt: Date | null;
+  amount: number;
+  paidAt: Date | null;
+  paymentConfirmedAt: Date | null;
+  postKind: string;
   viewerIsOwner: boolean;
   viewerId: string;
 }): string {
+  // Payment, when there is something to pay: what the viewer or the other still has to do.
+  const viewerPays = d.postKind === "wishlist" ? d.viewerIsOwner : !d.viewerIsOwner;
+  const payment =
+    d.amount === 0 || d.paymentConfirmedAt
+      ? ""
+      : !d.paidAt
+        ? viewerPays
+          ? " · you still need to pay"
+          : " · waiting for them to pay"
+        : viewerPays
+          ? " · payment waiting for them to confirm"
+          : " · confirm the payment you received";
   if (d.status === "completed") return "Completed";
   if (d.status === "cancelled") return "Cancelled";
   if (d.status === "agreed") {
-    if (!d.proposedBy) return "Reserved · agree a time and place";
-    return d.proposedBy === d.viewerId ? "Reserved · waiting for them to answer your time" : "Reserved · answer their proposed time";
+    if (!d.proposedBy) return `Reserved · agree a time and place${payment}`;
+    return `${d.proposedBy === d.viewerId ? "Reserved · waiting for them to answer your time" : "Reserved · answer their proposed time"}${payment}`;
   }
   const mine = d.viewerIsOwner ? d.ownerConfirmedAt : d.responderConfirmedAt;
   const theirs = d.viewerIsOwner ? d.responderConfirmedAt : d.ownerConfirmedAt;
   const when = d.scheduledAt ? formatHandoverTime(d.scheduledAt) : "";
-  if (mine) return `Scheduled ${when} · you confirmed, waiting for them`;
-  if (theirs) return `Scheduled ${when} · they confirmed, your turn`;
-  return `Scheduled ${when}`;
+  if (mine) return `Scheduled ${when} · you confirmed, waiting for them${payment}`;
+  if (theirs) return `Scheduled ${when} · they confirmed, your turn${payment}`;
+  return `Scheduled ${when}${payment}`;
 }
 
 /** All of a student's offers waiting for an answer, and reservations (any state), most recently changed first. */
@@ -83,6 +99,9 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
         proposedBy: deal.proposedBy,
         ownerConfirmedAt: deal.ownerConfirmedAt,
         responderConfirmedAt: deal.responderConfirmedAt,
+        paidAt: deal.paidAt,
+        paymentConfirmedAt: deal.paymentConfirmedAt,
+        postKind: post.kind,
         conversationId: offer.conversationId,
         at: deal.updatedAt,
       })

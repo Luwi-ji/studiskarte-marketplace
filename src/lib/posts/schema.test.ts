@@ -194,6 +194,36 @@ describe("how many are available", () => {
   });
 });
 
+describe("how payment is made", () => {
+  const paymentOf = (overrides: Partial<NewPostInput>) => {
+    const result = parseNewPost(valid(overrides), lookup, now);
+    return result.ok
+      ? { cash: result.data.paymentCash, online: result.data.paymentOnline, other: result.data.paymentOther, note: result.data.paymentNote }
+      : result.errors;
+  };
+
+  it("takes cash unless said otherwise, and any mix of cash, online payment and others", () => {
+    expect(paymentOf({})).toEqual({ cash: true, online: false, other: false, note: null });
+    expect(paymentOf({ paymentCash: false, paymentOnline: true, paymentOther: true })).toEqual({ cash: false, online: true, other: true, note: null });
+  });
+
+  it("needs at least one way for a post with a price, but none for a free one", () => {
+    expect(paymentOf({ paymentCash: false })).toMatchObject({ payment: expect.stringContaining("Choose how") });
+    expect(paymentOf({ priceKind: "negotiable", paymentCash: false })).toMatchObject({ payment: expect.any(String) });
+    // Free: whatever was ticked is dropped.
+    expect(paymentOf({ priceKind: "free", paymentCash: true, paymentOnline: true, paymentNote: "GCash" })).toEqual({ cash: false, online: false, other: false, note: null });
+  });
+
+  it("keeps a trimmed note of up to 100 characters only with online or others", () => {
+    expect(paymentOf({ paymentOnline: true, paymentNote: "  GCash 0917  " })).toMatchObject({ online: true, note: "GCash 0917" });
+    expect(paymentOf({ paymentOther: true, paymentNote: "x".repeat(100) })).toMatchObject({ note: "x".repeat(100) });
+    expect(paymentOf({ paymentOnline: true, paymentNote: "x".repeat(101) })).toMatchObject({ paymentNote: expect.stringContaining("at most 100") });
+    // A note with cash only has nothing to describe, so it is dropped rather than refused.
+    expect(paymentOf({ paymentNote: "GCash" })).toMatchObject({ cash: true, note: null });
+    expect(paymentOf({ paymentOnline: true, paymentNote: "   " })).toMatchObject({ note: null });
+  });
+});
+
 describe("photo captions", () => {
   const second = "6c1d3b8f-7e4a-4d2b-8f9c-2a3b4c5d6e7f";
   it("trims captions and treats a blank one as none", () => {

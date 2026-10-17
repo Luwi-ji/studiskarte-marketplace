@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PAYMENT_NOTE_MAX } from "@/lib/payment";
 
 // Post input rules (business logic "Posts", decided 2026-10-16). One schema
 // for the form and the server; the database CHECKs and triggers repeat the
@@ -89,6 +90,11 @@ export const postFieldsSchema = z.object({
   exchangeDelivery: z.boolean(),
   meetupLocation: z.string(),
   deliveryArea: z.string(),
+  // How payment is made (ignored for a free post). Cash unless said otherwise.
+  paymentCash: z.boolean().default(true),
+  paymentOnline: z.boolean().default(false),
+  paymentOther: z.boolean().default(false),
+  paymentNote: z.string().default(""),
   availability: z.array(
     z.discriminatedUnion("kind", [
       z.object({ kind: z.literal("weekly"), weekday: z.number(), startTime: z.string(), endTime: z.string() }),
@@ -117,6 +123,10 @@ export type PostData = {
   exchangeDelivery: boolean;
   meetupLocation: string | null;
   deliveryArea: string | null;
+  paymentCash: boolean;
+  paymentOnline: boolean;
+  paymentOther: boolean;
+  paymentNote: string | null;
   availability: Availability[];
   photos: { id: string; caption: string | null }[];
 };
@@ -186,6 +196,12 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     errors.deliveryArea = "Say where you deliver (for example, within campus).";
   }
 
+  // A free post has no payment. Otherwise at least one way, and a note only with online or others.
+  const pays = raw.priceKind !== "free";
+  const paymentNote = raw.paymentNote.trim();
+  if (pays && !raw.paymentCash && !raw.paymentOnline && !raw.paymentOther) errors.payment = "Choose how payment is made.";
+  if (pays && (raw.paymentOnline || raw.paymentOther) && paymentNote.length > PAYMENT_NOTE_MAX) errors.paymentNote = `Use at most ${PAYMENT_NOTE_MAX} characters.`;
+
   if (raw.availability.length === 0) errors.availability = "Choose at least one day or date you are available.";
   else if (raw.availability.length > AVAILABILITY_MAX) errors.availability = `Choose at most ${AVAILABILITY_MAX} days or dates.`;
   const today = manilaToday(now);
@@ -245,6 +261,10 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     exchangeDelivery: raw.exchangeDelivery,
     meetupLocation: raw.exchangeMeetup ? meetupLocation : null,
     deliveryArea: raw.exchangeDelivery ? deliveryArea : null,
+    paymentCash: pays && raw.paymentCash,
+    paymentOnline: pays && raw.paymentOnline,
+    paymentOther: pays && raw.paymentOther,
+    paymentNote: pays && (raw.paymentOnline || raw.paymentOther) && paymentNote.length > 0 ? paymentNote : null,
     availability,
     photos,
   };

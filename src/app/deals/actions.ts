@@ -6,6 +6,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { confirmHandover, type ConfirmResult } from "@/lib/deals/confirm";
+import { confirmPayment, markPaid, type PaymentConfirmResult } from "@/lib/deals/payment";
 import { answerProposal, proposeHandover, type HandoverResult } from "@/lib/deals/schedule";
 import { declineOffer, makeOffer, OFFER_NOT_FOUND, withdrawOffer, type DecisionResult, type OfferResult } from "@/lib/deals/offers";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
@@ -91,6 +92,26 @@ export async function confirmHandoverAction(dealId: unknown): Promise<ConfirmRes
   const id = idSchema.safeParse(dealId);
   if (!id.success) return NO_DEAL;
   const result = await confirmHandover({ actorId: me.id, dealId: id.data, alert: sendAlertAfterResponse });
+  refresh();
+  return result;
+}
+
+/** The one paying says it was paid, and how. The one being paid is told. */
+export async function markPaidAction(dealId: unknown, input: unknown): Promise<HandoverResult> {
+  const me = await requireActiveStudent();
+  const id = idSchema.safeParse(dealId);
+  if (!id.success) return NO_DEAL;
+  const result = await markPaid({ actorId: me.id, dealId: id.data, input, alert: sendAlertAfterResponse });
+  refresh();
+  return result;
+}
+
+/** The one being paid confirms they received it. */
+export async function confirmPaymentAction(dealId: unknown): Promise<PaymentConfirmResult> {
+  const me = await requireActiveStudent();
+  const id = idSchema.safeParse(dealId);
+  if (!id.success) return NO_DEAL;
+  const result = await confirmPayment({ actorId: me.id, dealId: id.data, alert: sendAlertAfterResponse });
   refresh();
   return result;
 }

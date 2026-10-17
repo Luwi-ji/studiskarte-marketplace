@@ -5,6 +5,7 @@ import { conversation, deal, image, notification, post, rateLimitEvent } from "@
 import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
 import { confirmHandover, NOT_SCHEDULED } from "@/lib/deals/confirm";
+import { confirmPayment, markPaid, NOT_PAID_YET, NOT_PAYEE, NOT_PAYER, NOTHING_TO_PAY, payerOf } from "@/lib/deals/payment";
 import { chooseableDays, parseProposal, time12, to24h } from "@/lib/deals/handover";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerProposal, NO_PROPOSAL, proposeHandover } from "@/lib/deals/schedule";
@@ -30,7 +31,7 @@ const DAY = 86_400_000;
 const HOUR = 3_600_000;
 let counter = 0;
 
-async function newPost(opts: { quantity?: string; meetup?: boolean; delivery?: boolean } = {}): Promise<string> {
+async function newPost(opts: { quantity?: string; meetup?: boolean; delivery?: boolean; free?: boolean; wishlist?: boolean; online?: boolean; other?: boolean; cash?: boolean } = {}): Promise<string> {
   counter += 1;
   const name = randomUUID();
   const [img] = await db
@@ -40,13 +41,17 @@ async function newPost(opts: { quantity?: string; meetup?: boolean; delivery?: b
   const meetup = opts.meetup ?? true;
   const delivery = opts.delivery ?? false;
   const input: NewPostInput = {
-    kind: "showcase",
+    kind: opts.wishlist ? "wishlist" : "showcase",
     title: `Handover post ${run} #${counter}`,
     description: "A post to hand over.",
     categoryId: "other",
     condition: null,
-    priceKind: "amount",
-    priceAmount: "500",
+    priceKind: opts.free ? "free" : "amount",
+    priceAmount: opts.free ? "" : "500",
+    paymentCash: opts.cash ?? true,
+    paymentOnline: opts.online ?? false,
+    paymentOther: opts.other ?? false,
+    paymentNote: opts.online || opts.other ? "GCash 0917 000 0000" : "",
     quantity: opts.quantity ?? "1",
     exchangeMeetup: meetup,
     exchangeDelivery: delivery,
@@ -69,6 +74,14 @@ async function reserved(buyer: string, postId: string): Promise<{ dealId: string
   if (!accepted.ok) throw new Error(accepted.error);
   const [row] = await db.select({ id: deal.id }).from(deal).where(eq(deal.offerId, offer.offerId));
   return { dealId: row.id, conversationId: offer.conversationId };
+}
+
+/** Both confirm the handover, then the payment goes through: the buyer pays, the seller confirms. */
+async function finish(dealId: string, buyer = ana, now = new Date(slot.at.getTime() + HOUR)) {
+  await confirmHandover({ actorId: buyer, dealId, now });
+  await confirmHandover({ actorId: seller, dealId, now });
+  await markPaid({ actorId: buyer, dealId });
+  await confirmPayment({ actorId: seller, dealId });
 }
 
 /** A coming Monday at 09:30 in the Philippines: inside the post's availability. */
@@ -297,10 +310,15 @@ describe("confirming the handover", () => {
     const viewed = (await getConversation(seller, conversationId))?.messages[0].offer?.deal;
     expect(viewed).toMatchObject({ status: "scheduled", confirmedByMe: false, confirmedByOther: true });
 
-    expect(await confirmHandover({ actorId: seller, dealId, now: after })).toEqual({ ok: true, conversationId, completed: true });
+    // Both have confirmed the handover, but the payment is not confirmed: not complete yet.
+    expect(await confirmHandover({ actorId: seller, dealId, now: after })).toEqual({ ok: true, conversationId, completed: false });
+    expect(await dealRow(dealId)).toMatchObject({ status: "scheduled" });
+    expect(await markPaid({ actorId: ana, dealId })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ status: "scheduled" });
+    expect(await confirmPayment({ actorId: seller, dealId })).toEqual({ ok: true, conversationId, completed: true });
     expect(await dealRow(dealId)).toMatchObject({ status: "completed" });
     expect(await postStatus(postId)).toBe("fulfilled");
-    expect(await noticesFor(ana)).toEqual(["deal_completed"]);
+    expect(await noticesFor(ana)).toEqual(["deal_completed", "deal_confirmed"]);
     // Completed is final.
     expect(await confirmHandover({ actorId: seller, dealId, now: after })).toMatchObject({ ok: false });
     expect(await cancelDeal({ actorId: seller, dealId })).toMatchObject({ ok: false });
@@ -311,15 +329,105 @@ describe("confirming the handover", () => {
     const a = await scheduled(ana, postId);
     await scheduled(ben, postId);
     const after = new Date(slot.at.getTime() + HOUR);
-    await confirmHandover({ actorId: ana, dealId: a.dealId, now: after });
-    await confirmHandover({ actorId: seller, dealId: a.dealId, now: after });
+    await finish(a.dealId, ana, after);
     expect((await dealRow(a.dealId)).status).toBe("completed");
     // One unit is still being arranged, so the post is not fulfilled.
     expect(await postStatus(postId)).toBe("reserved");
   });
 });
 
+describe("confirming payment", () => {
+  it("is said by the payer, with the way chosen from those the post takes, and confirmed by the one being paid", async () => {
+    const { dealId, postId } = await scheduled(ana, await newPost({ cash: true, online: true }));
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+
+    expect(await markPaid({ actorId: seller, dealId })).toEqual({ ok: false, error: NOT_PAYER });
+    expect(await confirmPayment({ actorId: seller, dealId })).toEqual({ ok: false, error: NOT_PAID_YET });
+    // Two ways are taken, so one must be chosen, and only from those.
+    expect(await markPaid({ actorId: ana, dealId })).toMatchObject({ ok: false });
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "other" } })).toMatchObject({ ok: false, error: expect.stringContaining("does not take") });
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "online" } })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ paymentMethod: "online", paymentConfirmedAt: null });
+    expect(await noticesFor(seller)).toEqual(["deal_paid"]);
+    // Saying it twice changes nothing.
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "cash" } })).toMatchObject({ ok: true });
+    expect((await dealRow(dealId)).paymentMethod).toBe("online");
+
+    expect(await confirmPayment({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
+    expect(await confirmPayment({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: false });
+    expect(await noticesFor(ana)).toEqual(["deal_payment_confirmed"]);
+    expect((await dealRow(dealId)).status).toBe("scheduled");
+    expect(await postStatus(postId)).toBe("reserved");
+  });
+
+  it("takes the only way a post offers without being told", async () => {
+    const { dealId } = await scheduled();
+    expect(await markPaid({ actorId: ana, dealId })).toMatchObject({ ok: true });
+    expect((await dealRow(dealId)).paymentMethod).toBe("cash");
+  });
+
+  it("completes on whichever comes last: the payment or the second handover confirmation", async () => {
+    const after = new Date(slot.at.getTime() + HOUR);
+    const paidFirst = await scheduled();
+    await markPaid({ actorId: ana, dealId: paidFirst.dealId });
+    await confirmPayment({ actorId: seller, dealId: paidFirst.dealId });
+    await confirmHandover({ actorId: ana, dealId: paidFirst.dealId, now: after });
+    expect((await dealRow(paidFirst.dealId)).status).toBe("scheduled");
+    expect(await confirmHandover({ actorId: seller, dealId: paidFirst.dealId, now: after })).toMatchObject({ ok: true, completed: true });
+    expect((await dealRow(paidFirst.dealId)).status).toBe("completed");
+    expect(await postStatus(paidFirst.postId)).toBe("fulfilled");
+  });
+
+  it("is not needed for a free post, which completes on the two handover confirmations", async () => {
+    const postId = await newPost({ free: true });
+    const { dealId, conversationId } = await scheduled(ana, postId);
+    const after = new Date(slot.at.getTime() + HOUR);
+    expect(await markPaid({ actorId: ana, dealId })).toEqual({ ok: false, error: NOTHING_TO_PAY });
+    expect(await confirmPayment({ actorId: seller, dealId })).toEqual({ ok: false, error: NOTHING_TO_PAY });
+    await confirmHandover({ actorId: ana, dealId, now: after });
+    expect(await confirmHandover({ actorId: seller, dealId, now: after })).toMatchObject({ ok: true, completed: true });
+    expect((await dealRow(dealId)).status).toBe("completed");
+    expect((await getConversation(ana, conversationId))?.messages[0].offer?.deal?.payment).toBeNull();
+  });
+
+  it("is made by the one who posted a Wishlist, to the one who supplies it", async () => {
+    const postId = await newPost({ wishlist: true });
+    const { dealId } = await scheduled(ana, postId);
+    const [row] = await db.select().from(deal).where(eq(deal.id, dealId));
+    expect(payerOf({ postKind: "wishlist", ownerId: row.ownerId, responderId: row.responderId })).toBe(seller);
+    expect(await markPaid({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_PAYER });
+    expect(await markPaid({ actorId: seller, dealId })).toMatchObject({ ok: true });
+    expect(await confirmPayment({ actorId: seller, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
+    expect(await confirmPayment({ actorId: ana, dealId })).toMatchObject({ ok: true });
+  });
+
+  it("shows each side what is theirs to do, and the total", async () => {
+    const postId = await newPost({ online: true });
+    const { dealId, conversationId } = await scheduled(ana, postId);
+    const card = async (who: string) => (await getConversation(who, conversationId))?.messages[0].offer?.deal?.payment;
+    expect(await card(ana)).toMatchObject({ viewerPays: true, total: 500, paid: false, confirmed: false, note: "GCash 0917 000 0000", modes: ["cash", "online"] });
+    expect(await card(seller)).toMatchObject({ viewerPays: false });
+    await markPaid({ actorId: ana, dealId, input: { method: "cash" } });
+    expect(await card(seller)).toMatchObject({ paid: true, method: "cash", confirmed: false });
+  });
+});
+
 describe("rules the database keeps", () => {
+  it("refuses completing without a confirmed payment, a confirmation before payment, a way the post does not take, and bad payment modes on a post", async () => {
+    const { dealId, postId } = await scheduled();
+    const now = new Date();
+    await expect(
+      db.update(deal).set({ status: "completed", ownerConfirmedAt: now, responderConfirmedAt: now }).where(eq(deal.id, dealId)),
+    ).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.update(deal).set({ paymentConfirmedAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.update(deal).set({ paymentMethod: "online", paidAt: now }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // the post takes cash only
+    await expect(db.update(deal).set({ paymentMethod: "cash" }).where(eq(deal.id, dealId))).rejects.toMatchObject({ cause: { code: "23514" } }); // a method with no time
+    await expect(db.update(post).set({ paymentCash: false }).where(eq(post.id, postId))).rejects.toMatchObject({ cause: { code: "23514" } }); // priced, none left
+    await expect(db.update(post).set({ paymentNote: "GCash" }).where(eq(post.id, postId))).rejects.toMatchObject({ cause: { code: "23514" } }); // a note with cash only
+    const freePost = await newPost({ free: true });
+    await expect(db.update(post).set({ paymentCash: true }).where(eq(post.id, freePost))).rejects.toMatchObject({ cause: { code: "23514" } });
+  });
+
   it("lets a deal complete only from scheduled and only with both confirmations, and never leave a final state", async () => {
     const { dealId } = await scheduled();
     const plain = await reserved(ben, await newPost());
@@ -367,8 +475,7 @@ describe("reservations nobody carried out", () => {
     const recent = await scheduled(ben);
     const done = await scheduled(ben, (await newPost()));
     const after = new Date(slot.at.getTime() + HOUR);
-    await confirmHandover({ actorId: ben, dealId: done.dealId, now: after });
-    await confirmHandover({ actorId: seller, dealId: done.dealId, now: after });
+    await finish(done.dealId, ben, after);
     // Move the stale deal's time to 8 days ago, and the recent one to 6 days ago, keeping the rest valid.
     await db.update(deal).set({ scheduledAt: new Date(Date.now() - 8 * DAY) }).where(eq(deal.id, stale.dealId));
     await db.update(deal).set({ scheduledAt: new Date(Date.now() - 6 * DAY) }).where(eq(deal.id, recent.dealId));

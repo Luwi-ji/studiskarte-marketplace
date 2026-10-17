@@ -7,6 +7,7 @@ import { loadAvailability } from "@/lib/posts/availability";
 import type { Availability } from "@/lib/posts/schema";
 import type { HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
+import { paymentModesOf, type PaymentMode } from "@/lib/payment";
 
 /** Messages shown in a conversation: the latest this many. */
 export const MESSAGES_SHOWN = 200;
@@ -53,6 +54,19 @@ export type DealCard = {
   proposal: { byMe: boolean; method: HandoverMethod; at: Date; place: string } | null;
   confirmedByMe: boolean;
   confirmedByOther: boolean;
+  /** Paying for it, from the viewer's side. Null when there is nothing to pay (a free deal). */
+  payment: {
+    /** The viewer is the one paying (on a Wishlist, the one who posted it). */
+    viewerPays: boolean;
+    modes: PaymentMode[];
+    /** Where to pay online, or what "others" means. */
+    note: string | null;
+    /** The total: the price each times the units. */
+    total: number;
+    method: PaymentMode | null;
+    paid: boolean;
+    confirmed: boolean;
+  } | null;
   /** For proposing: what the post offers, where it says to meet or deliver, and when it is available. Only while the reservation is active. */
   options: { methods: HandoverMethod[]; meetupPlace: string | null; deliveryPlace: string | null; windows: Availability[] } | null;
 };
@@ -289,6 +303,16 @@ type DealRow = {
   exchangeDelivery: boolean;
   meetupLocation: string | null;
   deliveryArea: string | null;
+  postKind: string;
+  paymentCash: boolean;
+  paymentOnline: boolean;
+  paymentOther: boolean;
+  paymentNote: string | null;
+  dealAmount: number | null;
+  dealQuantity: number | null;
+  paymentMethod: string | null;
+  paidAt: Date | null;
+  paymentConfirmedAt: Date | null;
 };
 
 /** A stored method name as the type; the database allows only these two. */
@@ -308,6 +332,18 @@ function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows:
       o.proposedBy && o.proposedMethod && o.proposedAt && o.proposedPlace
         ? { byMe: o.proposedBy === viewerId, method: asMethod(o.proposedMethod), at: o.proposedAt, place: o.proposedPlace }
         : null,
+    payment:
+      o.dealAmount === null || o.dealQuantity === null || o.dealAmount === 0
+        ? null
+        : {
+            viewerPays: o.postKind === "wishlist" ? viewerIsOwner : !viewerIsOwner,
+            modes: paymentModesOf(o),
+            note: o.paymentNote,
+            total: o.dealAmount * o.dealQuantity,
+            method: o.paymentMethod === "online" ? "online" : o.paymentMethod === "other" ? "other" : o.paymentMethod === "cash" ? "cash" : null,
+            paid: o.paidAt !== null,
+            confirmed: o.paymentConfirmedAt !== null,
+          },
     confirmedByMe: mine !== null,
     confirmedByOther: theirs !== null,
     options: windows
@@ -378,6 +414,16 @@ export async function getConversation(viewerId: string, conversationId: string):
             exchangeDelivery: post.exchangeDelivery,
             meetupLocation: post.meetupLocation,
             deliveryArea: post.deliveryArea,
+            postKind: post.kind,
+            paymentCash: post.paymentCash,
+            paymentOnline: post.paymentOnline,
+            paymentOther: post.paymentOther,
+            paymentNote: post.paymentNote,
+            dealAmount: deal.amount,
+            dealQuantity: deal.quantity,
+            paymentMethod: deal.paymentMethod,
+            paidAt: deal.paidAt,
+            paymentConfirmedAt: deal.paymentConfirmedAt,
           })
           .from(offer)
           .innerJoin(post, eq(post.id, offer.postId))

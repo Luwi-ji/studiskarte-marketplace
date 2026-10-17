@@ -11,6 +11,7 @@ import { getPostDetail } from "@/lib/posts/detail";
 import { expiryNotice, formatAvailability, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
 import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
+import { PAYMENT_LABEL } from "@/lib/payment";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
 import { BuyerShortcuts } from "./buyer-shortcuts";
@@ -135,6 +136,13 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             ) : null}
           </ul>
         </Section>
+
+        {detail.paymentModes.length > 0 ? (
+          <Section title={wishlist ? "How they will pay" : "Payment"}>
+            <p>{detail.paymentModes.map((mode) => PAYMENT_LABEL[mode]).join(", ")}</p>
+            <p className="text-xs text-zinc-500">The app never handles the money. You pay each other directly.</p>
+          </Section>
+        ) : null}
 
         <Section title="Available">
           <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">

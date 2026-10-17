@@ -338,6 +338,10 @@ export const deal = pgTable(
     proposedMethod: text("proposed_method"),
     proposedAt: timestamp("proposed_at", { withTimezone: true }),
     proposedPlace: text("proposed_place"),
+    // How it was paid: the payer says so (and how), then the payee confirms receiving it. A free deal needs neither.
+    paymentMethod: text("payment_method"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
     // Each side says the handover happened. Both set: the deal is completed.
     ownerConfirmedAt: timestamp("owner_confirmed_at", { withTimezone: true }),
     responderConfirmedAt: timestamp("responder_confirmed_at", { withTimezone: true }),
@@ -362,6 +366,10 @@ export const deal = pgTable(
     ),
     // The only way to completed is both confirmations; confirming needs a schedule.
     check("deal_completed_confirmed", sql`${t.status} <> 'completed' or (${t.ownerConfirmedAt} is not null and ${t.responderConfirmedAt} is not null)`),
+    check("deal_payment_method", sql`(${t.paidAt} is null) = (${t.paymentMethod} is null) and (${t.paymentMethod} is null or ${t.paymentMethod} in ('cash', 'online', 'other'))`),
+    check("deal_payment_order", sql`${t.paymentConfirmedAt} is null or ${t.paidAt} is not null`),
+    // Completed needs the payment confirmed, unless there was nothing to pay.
+    check("deal_completed_paid", sql`${t.status} <> 'completed' or ${t.amount} = 0 or ${t.paymentConfirmedAt} is not null`),
     check(
       "deal_confirm_after_schedule",
       sql`(${t.ownerConfirmedAt} is null and ${t.responderConfirmedAt} is null) or ${t.scheduledAt} is not null`,
@@ -418,7 +426,7 @@ export const notification = pgTable(
     onceKey: text("once_key"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
@@ -502,6 +510,12 @@ export const post = pgTable(
     exchangeDelivery: boolean("exchange_delivery").notNull(),
     meetupLocation: text("meetup_location"),
     deliveryArea: text("delivery_area"),
+    // How payment is made: cash, online payment, others (at least one unless the post is free).
+    paymentCash: boolean("payment_cash").notNull().default(false),
+    paymentOnline: boolean("payment_online").notNull().default(false),
+    paymentOther: boolean("payment_other").notNull().default(false),
+    // Where to pay online, or what "others" means (e.g. "GCash 09xx"); shown only to a student with a reservation.
+    paymentNote: text("payment_note"),
     // How many are available (or needed, for a Wishlist). Null means ongoing: no limit.
     quantity: integer("quantity").default(1),
     status: text("status").notNull().default("open"),
@@ -533,6 +547,12 @@ export const post = pgTable(
         or (${t.priceKind} in ('free', 'negotiable') and ${t.priceAmount} is null)`,
     ),
     check("post_exchange_any", sql`${t.exchangeMeetup} or ${t.exchangeDelivery}`),
+    // A free post has no payment; any other has at least one mode, and a note only goes with online or others.
+    check("post_payment_modes", sql`(${t.priceKind} = 'free') = (not (${t.paymentCash} or ${t.paymentOnline} or ${t.paymentOther}))`),
+    check(
+      "post_payment_note",
+      sql`${t.paymentNote} is null or ((${t.paymentOnline} or ${t.paymentOther}) and char_length(btrim(${t.paymentNote})) between 1 and 100)`,
+    ),
     // A place exactly when its exchange option is chosen.
     check(
       "post_meetup_location",
