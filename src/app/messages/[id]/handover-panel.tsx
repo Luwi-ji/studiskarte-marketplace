@@ -60,8 +60,9 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // What the viewer just confirmed, shown at once; the refreshed page then says the same.
-  const [justConfirmed, setJustConfirmed] = useState<"waiting" | "completed" | null>(null);
+  // What the viewer just confirmed, shown at once until the refreshed page says the same. It only holds while the
+  // reservation has had no newer step (`at`): if the other person took the confirmation back, the page wins.
+  const [justConfirmed, setJustConfirmed] = useState<{ kind: "waiting" | "completed"; at: string } | null>(null);
 
   async function run(kind: string, action: () => Promise<{ ok: boolean; error?: string; completed?: boolean }>) {
     setBusy(kind);
@@ -70,7 +71,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       const result = await action();
       if (!result.ok) setError(result.error ?? "Could not do that.");
       else {
-        if (kind === "confirm") setJustConfirmed(result.completed ? "completed" : "waiting");
+        if (kind === "confirm") setJustConfirmed({ kind: result.completed ? "completed" : "waiting", at: deal.activityAt });
         setEditing(false);
         setDay("");
         router.refresh();
@@ -109,7 +110,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const prefill = chosen === "meetup" ? options?.meetupPlace : null;
   const them = viewerIsOwner ? otherName : "the owner";
 
-  if (deal.status === "completed" || justConfirmed === "completed") {
+  if (deal.status === "completed" || justConfirmed?.kind === "completed") {
     return <p className="mt-2 text-sm font-medium text-green-600">Completed. The handover{deal.payment ? " and the payment are" : " is"} confirmed.</p>;
   }
   if (deal.status === "disputed") return <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800"><ReportBox deal={deal} otherName={otherName} /></div>;
@@ -155,7 +156,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
       <PaymentSteps deal={deal} viewerIsOwner={viewerIsOwner} otherName={otherName} />
 
       {deal.status === "scheduled" ? (
-        deal.confirmedByMe || justConfirmed === "waiting" ? (
+        deal.confirmedByMe || (justConfirmed?.kind === "waiting" && justConfirmed.at === deal.activityAt) ? (
           <p className="text-sm">
             {deal.confirmedByOther && deal.payment && !isSettled(deal.payment.stage)
               ? `Both of you confirmed the handover. ${waitingFor(deal.payment)}`
