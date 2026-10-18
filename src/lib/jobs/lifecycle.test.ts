@@ -388,16 +388,18 @@ describe("job runs and the scheduler check", () => {
     try {
       await db.delete(jobRun);
       const names = Object.keys(JOBS).filter(isJobName);
-      const frequent = names.filter((name) => name !== "cleanup");
+      // Frequent jobs go stale after a few hours; daily ones (cleanup, review reminders) have longer.
+      const frequent = names.filter((name) => JOBS[name].maxAgeMinutes <= JOBS["expire-posts"].maxAgeMinutes);
+      const daily = names.filter((name) => !frequent.includes(name));
       expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual(expect.arrayContaining(names.map((name) => [name, "never_ran"])));
 
       for (const name of names) await runJob(name, async () => "ok");
       expect(await staleJobs()).toEqual([]);
 
-      // The frequent jobs go stale after a few hours; the daily cleanup has longer.
+      // Past the frequent jobs' limit, only they are stale.
       const later = new Date(Date.now() + (JOBS["expire-posts"].maxAgeMinutes + 5) * 60_000);
       expect((await staleJobs(later)).map((j) => [j.name, j.reason])).toEqual(expect.arrayContaining(frequent.map((name) => [name, "too_old"])));
-      expect((await staleJobs(later)).map((j) => j.name)).not.toContain("cleanup");
+      for (const name of daily) expect((await staleJobs(later)).map((j) => j.name)).not.toContain(name);
 
       await expect(runJob("cleanup", async () => Promise.reject(new Error("boom")))).rejects.toThrow();
       expect((await staleJobs()).map((j) => [j.name, j.reason])).toEqual([["cleanup", "last_failed"]]);
