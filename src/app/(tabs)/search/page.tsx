@@ -70,9 +70,9 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
       ) : tab === "posts" ? (
         <PostResults meId={me.id} params={params} q={q} />
       ) : tab === "people" ? (
-        <PeopleResults q={q} />
+        <PeopleResults meId={me.id} q={q} />
       ) : (
-        <SchoolResults q={q} />
+        <SchoolResults meId={me.id} q={q} />
       )}
     </div>
   );
@@ -81,7 +81,7 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
 async function PostResults({ meId, params, q }: { meId: string; params: Record<string, string>; q: string }) {
   const filters = parseFilters(params);
   if (filters.terms.length === 0) return <Hint>Type at least 2 letters.</Hint>;
-  const [{ items, nextCursor }, options] = await Promise.all([listFeed(meId, { filters }), filterOptions()]);
+  const [{ items, nextCursor }, options] = await Promise.all([listFeed(meId, { filters }), filterOptions(meId)]);
   const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
 
   return (
@@ -102,8 +102,8 @@ async function PostResults({ meId, params, q }: { meId: string; params: Record<s
   );
 }
 
-async function PeopleResults({ q }: { q: string }) {
-  const people = await searchPeople(q);
+async function PeopleResults({ meId, q }: { meId: string; q: string }) {
+  const people = await searchPeople(meId, q);
   if (people.length === 0) return <Hint>{q.replace("@", "").length < 2 ? "Type at least 2 letters." : `No one found for “${q}”.`}</Hint>;
   const store = getObjectStore();
   const pictures = await Promise.all(people.map((p) => (p.avatarThumbKey ? store.signedUrl(p.avatarThumbKey, AVATAR_LINK_SECONDS) : null)));
@@ -137,8 +137,8 @@ async function PeopleResults({ q }: { q: string }) {
   );
 }
 
-async function SchoolResults({ q }: { q: string }) {
-  const schools = await searchSchools(q);
+async function SchoolResults({ meId, q }: { meId: string; q: string }) {
+  const schools = await searchSchools(meId, q);
   if (schools.length === 0) return <Hint>{q.length < 2 ? "Type at least 2 letters." : `No schools found for “${q}”.`}</Hint>;
 
   return (

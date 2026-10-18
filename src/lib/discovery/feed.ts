@@ -124,7 +124,7 @@ export async function listFeed(
   const { key, dir } = orderFor(filters.sort, filters.query !== undefined, viewerId);
 
   const rows = await visibleCards({ sortKey: sql<number>`${key}`, listedKey: sql<string>`${post.listedAt}::text` })
-    .where(and(visibleToOthers(), allFilterConditions(filters), cursor ? after(key, dir, cursor) : undefined))
+    .where(and(visibleToOthers(viewerId), allFilterConditions(filters), cursor ? after(key, dir, cursor) : undefined))
     .orderBy(dir === "asc" ? asc(key) : desc(key), desc(post.listedAt), desc(post.id))
     .limit(limit + 1);
 
@@ -147,10 +147,10 @@ export async function listFeed(
   };
 }
 
-/** A student's active listings, newest first (their public profile). */
-export async function listPostsBy(ownerId: string, limit = 60): Promise<FeedItem[]> {
+/** A student's active listings as the viewer may see them, newest first (their public profile). */
+export async function listPostsBy(viewerId: string, ownerId: string, limit = 60): Promise<FeedItem[]> {
   return visibleCards({})
-    .where(and(visibleToOthers(), eq(post.ownerId, ownerId)))
+    .where(and(visibleToOthers(viewerId), eq(post.ownerId, ownerId)))
     .orderBy(desc(post.listedAt), desc(post.id))
     .limit(limit);
 }
@@ -159,6 +159,6 @@ export async function listPostsBy(ownerId: string, limit = 60): Promise<FeedItem
 export async function listHeartedBy(studentId: string): Promise<FeedItem[]> {
   return visibleCards({})
     .innerJoin(heart, and(eq(heart.postId, post.id), eq(heart.studentId, studentId)))
-    .where(visibleToOthers())
+    .where(visibleToOthers(studentId))
     .orderBy(desc(heart.createdAt), desc(post.id));
 }

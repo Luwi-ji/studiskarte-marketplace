@@ -58,6 +58,8 @@ export const student = pgTable(
     // link. The token itself is never stored.
     calendarTokenHash: text("calendar_token_hash"),
     accountStatus: text("account_status").notNull().default("active"),
+    // Set by the owner directly in the database (scripts/make-admin.mjs); never by the app.
+    isAdmin: boolean("is_admin").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -507,7 +509,7 @@ export const notification = pgTable(
     detail: text("detail"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_handover_rejected', 'deal_review_reminder', 'deal_proposal_declined', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'post_hidden', 'post_restored', 'post_removed', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_handover_rejected', 'deal_review_reminder', 'deal_proposal_declined', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
@@ -607,6 +609,8 @@ export const post = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     // The owner deleted it (or an old withdrawn or expired post was cleared out): gone from My posts. Deals and their history stay.
     ownerDeletedAt: timestamp("owner_deleted_at", { withTimezone: true }),
+    // The status a post had when it was hidden by reports, so the admin can restore it exactly. Null otherwise.
+    statusBeforeHidden: text("status_before_hidden"),
   },
   (t) => [
     check("post_kind", sql`${t.kind} in ('showcase', 'wishlist')`),
@@ -646,6 +650,7 @@ export const post = pgTable(
       "post_open_expiry",
       sql`${t.status} <> 'open' or ${t.expiresAt} > ${t.listedAt}`,
     ),
+    check("post_status_before_hidden", sql`${t.statusBeforeHidden} is null or ${t.statusBeforeHidden} in ('open', 'reserved')`),
     index("post_owner_idx").on(t.ownerId, t.status),
     index("post_feed_idx").on(t.status, t.listedAt.desc()),
     // The expiry job looks for open posts whose time has passed.
@@ -788,5 +793,60 @@ export const perk = pgTable(
       sql`(${t.limitPerStudent} is null and ${t.limitPeriod} is null) or (${t.limitPerStudent} > 0 and ${t.limitPeriod} in ('day', 'week', 'month', 'ever'))`,
     ),
     check("perk_dates", sql`${t.endsAt} is null or ${t.endsAt} > ${t.startsAt}`),
+  ],
+);
+
+// A student's report of a post or of another student. Three different students reporting
+// one post hide it at once (src/lib/safety/report.ts); the admin decides the rest.
+// A student can have one open report per target; after the admin decides, they may report again.
+export const report = pgTable(
+  "report",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => student.id),
+    // Exactly one of these is set.
+    postId: uuid("post_id").references(() => post.id, { onDelete: "cascade" }),
+    studentId: text("student_id").references(() => student.id),
+    reason: text("reason").notNull(),
+    details: text("details"),
+    // open, then dismissed (nothing to do) or actioned (the admin acted on it).
+    status: text("status").notNull().default("open"),
+    handledBy: text("handled_by").references(() => student.id),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("report_one_target", sql`(${t.postId} is not null) <> (${t.studentId} is not null)`),
+    check("report_not_self", sql`${t.studentId} is null or ${t.studentId} <> ${t.reporterId}`),
+    check("report_reason", sql`${t.reason} in ('spam', 'scam', 'prohibited', 'offensive', 'harassment', 'impersonation', 'other')`),
+    check("report_details_length", sql`${t.details} is null or char_length(btrim(${t.details})) between 1 and 500`),
+    check("report_status", sql`${t.status} in ('open', 'dismissed', 'actioned')`),
+    check("report_handled", sql`(${t.status} = 'open') = (${t.handledAt} is null)`),
+    uniqueIndex("report_open_post").on(t.reporterId, t.postId).where(sql`${t.status} = 'open' and ${t.postId} is not null`),
+    uniqueIndex("report_open_student").on(t.reporterId, t.studentId).where(sql`${t.status} = 'open' and ${t.studentId} is not null`),
+    index("report_queue_idx").on(t.status, t.createdAt),
+    index("report_post_idx").on(t.postId),
+  ],
+);
+
+// One student blocking another. Private: the blocked student is never told. Neither
+// side sees the other's posts or profile or can message them.
+export const block = pgTable(
+  "block",
+  {
+    blockerId: text("blocker_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    blockedId: text("blocked_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.blockerId, t.blockedId] }),
+    check("block_not_self", sql`${t.blockerId} <> ${t.blockedId}`),
+    index("block_blocked_idx").on(t.blockedId),
   ],
 );

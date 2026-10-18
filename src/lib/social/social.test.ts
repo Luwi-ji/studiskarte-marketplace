@@ -122,7 +122,7 @@ describe("public profile", () => {
     const withdrawn = await newPost(ben, `Ben withdrawn ${run}`);
     const other = await newPost(cy, `Cy open ${run}`);
     await db.update(post).set({ status: "withdrawn" }).where(eq(post.id, withdrawn));
-    const ids = (await listPostsBy(ben)).map((item) => item.id);
+    const ids = (await listPostsBy(ana, ben)).map((item) => item.id);
     expect(ids).toContain(mine);
     expect(ids).not.toContain(withdrawn);
     expect(ids).not.toContain(other);

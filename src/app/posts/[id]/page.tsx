@@ -17,6 +17,7 @@ import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
 import { BuyerShortcuts } from "./buyer-shortcuts";
 import { ViewTracker } from "./view-tracker";
+import { ReportControl } from "@/app/safety/report-control";
 
 export const metadata = { title: "Post · Studiskarte Marketplace" };
 
@@ -207,6 +208,11 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           {detail.heartCount !== null ? ` · ${detail.heartCount} ${detail.heartCount === 1 ? "heart" : "hearts"}` : ""}
           {detail.pendingOffers ? ` · ${detail.pendingOffers} ${detail.pendingOffers === 1 ? "offer" : "offers"} waiting` : ""}
         </p>
+        {detail.isOwner ? null : (
+          <div className="pb-24">
+            <ReportControl target={{ kind: "post", postId: detail.id }} label="Report this post" />
+          </div>
+        )}
       </div>
 
       {canMessage ? (

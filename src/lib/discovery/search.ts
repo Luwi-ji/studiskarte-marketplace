@@ -3,6 +3,7 @@ import { image, post, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { escapeLike } from "@/lib/discovery/filters";
 import { visibleToOthers } from "@/lib/discovery/visibility";
+import { blockedEitherWaySql } from "@/lib/safety/block";
 
 export type PersonResult = {
   handle: string;
@@ -21,7 +22,7 @@ const PEOPLE_MAX = 30;
  * students who finished sign-up; never anyone suspended or deleted. Never
  * selects an email.
  */
-export async function searchPeople(rawQuery: string): Promise<PersonResult[]> {
+export async function searchPeople(viewerId: string, rawQuery: string): Promise<PersonResult[]> {
   const text = rawQuery.replace(/\s+/g, " ").trim().slice(0, 100).toLowerCase();
   if (text.replace("@", "").length < 2) return [];
   const needle = text.replace(/^@/, "");
@@ -42,6 +43,7 @@ export async function searchPeople(rawQuery: string): Promise<PersonResult[]> {
     .where(
       and(
         eq(student.accountStatus, "active"),
+        sql`not ${blockedEitherWaySql(viewerId, student.id)}`,
         sql`${student.handle} is not null`,
         sql`(${student.handle} ilike ${like} or ${student.name} ilike ${like} or ${student.handle} % ${needle} or lower(${student.name}) % ${needle})`,
       ),
@@ -63,12 +65,12 @@ export async function searchPeople(rawQuery: string): Promise<PersonResult[]> {
 }
 
 /** How many posts each school has that other students can see. */
-async function listingCounts(): Promise<Map<string, number>> {
+async function listingCounts(viewerId: string): Promise<Map<string, number>> {
   const rows = await getDb()
     .select({ domain: student.schoolDomain, n: count() })
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
-    .where(visibleToOthers())
+    .where(visibleToOthers(viewerId))
     .groupBy(student.schoolDomain);
   return new Map(rows.map((row) => [row.domain, row.n]));
 }
@@ -78,7 +80,7 @@ async function listingCounts(): Promise<Map<string, number>> {
  * with how many posts they have right now. Only schools that have an active
  * student.
  */
-export async function searchSchools(rawQuery: string): Promise<SchoolResult[]> {
+export async function searchSchools(viewerId: string, rawQuery: string): Promise<SchoolResult[]> {
   const needle = rawQuery.replace(/\s+/g, " ").trim().slice(0, 100).toLowerCase();
   if (needle.length < 2) return [];
   const like = `%${escapeLike(needle)}%`;
@@ -94,14 +96,14 @@ export async function searchSchools(rawQuery: string): Promise<SchoolResult[]> {
       )
       .orderBy(school.name, school.domain)
       .limit(20),
-    listingCounts(),
+    listingCounts(viewerId),
   ]);
   return rows.map((row) => ({ domain: row.domain, name: row.name ?? row.domain, listings: counts.get(row.domain) ?? 0 }));
 }
 
 /** Schools that have posts right now, for the filter list, by name. */
-export async function listSchoolsWithPosts(): Promise<{ domain: string; name: string }[]> {
-  const counts = await listingCounts();
+export async function listSchoolsWithPosts(viewerId: string): Promise<{ domain: string; name: string }[]> {
+  const counts = await listingCounts(viewerId);
   if (counts.size === 0) return [];
   const rows = await getDb().select({ domain: school.domain, name: school.name }).from(school);
   return rows

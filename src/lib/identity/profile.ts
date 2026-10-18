@@ -10,6 +10,7 @@ import {
 } from "@/lib/identity/names";
 import type { ObjectStore } from "@/lib/images/store";
 import { discardImage, storeImage } from "@/lib/images/upload";
+import { isBlockedEitherWay } from "@/lib/safety/block";
 
 /** What a student sees about themselves. Never includes the school email. */
 export type OwnProfile = {
@@ -63,7 +64,7 @@ export type PublicProfile = {
 /**
  * A student's public profile by handle (case-insensitive), or null when there
  * is no such student, or they have not finished sign-up, or they are suspended
- * or deleted.
+ * or deleted, or the viewer and they have blocked each other (either way).
  */
 export async function getPublicProfile(viewerId: string, rawHandle: string): Promise<PublicProfile | null> {
   const db = getDb();
@@ -82,6 +83,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     .leftJoin(image, eq(image.id, student.avatarImageId))
     .where(and(eq(student.handle, handle), eq(student.accountStatus, "active")));
   if (!row?.handle) return null;
+  if (row.id !== viewerId && (await isBlockedEitherWay(viewerId, row.id))) return null;
 
   const [followers] = await db.select({ n: count() }).from(follow).where(eq(follow.followeeId, row.id));
   const [mine] = await db

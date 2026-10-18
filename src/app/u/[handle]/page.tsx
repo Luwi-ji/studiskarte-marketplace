@@ -14,6 +14,8 @@ import { getReplyTime, REPLY_LABEL } from "@/lib/messaging/response-time";
 import { listOwnPosts } from "@/lib/posts/mine";
 import { OPEN_POSTS_MAX, type PostKind } from "@/lib/posts/schema";
 import { FollowControls } from "./follow-controls";
+import { BlockButton } from "@/app/safety/block-button";
+import { ReportControl } from "@/app/safety/report-control";
 import { OwnPosts } from "./own-posts";
 
 export const metadata = { title: "Profile · Studiskarte Marketplace" };
@@ -54,7 +56,7 @@ async function Profile({
   // Your own profile lists everything you posted, with its controls; anyone else's lists what is open.
   const [own, others, pictureUrl, rep, reply, reviews] = await Promise.all([
     profile.isSelf ? listOwnPosts(profile.id) : null,
-    profile.isSelf ? null : listPostsBy(profile.id),
+    profile.isSelf ? null : listPostsBy(me.id, profile.id),
     profile.avatarKey ? getObjectStore().signedUrl(profile.avatarKey, PICTURE_LINK_SECONDS) : null,
     getReputation(profile.id),
     getReplyTime(profile.id),
@@ -106,7 +108,13 @@ async function Profile({
             </div>
           </>
         ) : (
-          <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount} />
+          <>
+            <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount} />
+            <div className="flex w-full flex-col gap-2">
+              <ReportControl target={{ kind: "student", handle: profile.handle }} label="Report this student" className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700" />
+              <BlockButton handle={profile.handle} className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium disabled:opacity-60 dark:border-zinc-700" />
+            </div>
+          </>
         )}
       </section>
 

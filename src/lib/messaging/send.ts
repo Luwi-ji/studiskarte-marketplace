@@ -4,6 +4,7 @@ import { conversation, conversationListing, image, message, messageImage, post, 
 import { getDb, type DbTransaction } from "@/lib/db";
 import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
+import { isBlockedEitherWay } from "@/lib/safety/block";
 import { listingClosedReason, MESSAGES_PER_MINUTE, orderedPair, parseMessage, readOnlyReason, type MessageData } from "@/lib/messaging/rules";
 
 export type SendResult = { ok: true; conversationId: string } | { ok: false; error: string };
@@ -107,6 +108,8 @@ export async function startConversation(args: { senderId: string; postId: string
       const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.senderId));
       if (!target || !me) return { ok: false, error: "That post could not be found." };
       if (target.ownerId === args.senderId) return { ok: false, error: "You can't message your own post." };
+      // Blocked either way reads as a post that is not there, so the blocked person learns nothing.
+      if (await isBlockedEitherWay(args.senderId, target.ownerId, tx)) return { ok: false, error: "That post could not be found." };
       const blocked = listingClosedReason({
         postStatus: target.status,
         postExpiresAt: target.expiresAt,
@@ -154,7 +157,7 @@ export async function sendMessage(args: { senderId: string; conversationId: stri
         .where(eq(conversation.id, args.conversationId))
         .for("update", { of: conversation });
       if (!found || (found.aId !== args.senderId && found.bId !== args.senderId)) return NOT_FOUND;
-      const blocked = readOnlyReason({ aStatus: found.aStatus, bStatus: found.bStatus });
+      const blocked = readOnlyReason({ aStatus: found.aStatus, bStatus: found.bStatus, blocked: await isBlockedEitherWay(found.aId, found.bId, tx) });
       if (blocked) return { ok: false, error: blocked };
       if (!(await writeMessage(tx, { conversationId: args.conversationId, senderId: args.senderId, data: parsed.data }))) {
         throw new PhotoMissingError();

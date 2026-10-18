@@ -61,6 +61,14 @@ async function Settings() {
         <Link href="/me/transactions" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
           Transactions
         </Link>
+        <Link href="/me/blocked" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+          Blocked students
+        </Link>
+        {me.isAdmin ? (
+          <Link href="/admin" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
+            Admin
+          </Link>
+        ) : null}
       </div>
       <AvatarForm pictureUrl={pictureUrl} />
       <DisplayNameForm current={profile.displayName} />

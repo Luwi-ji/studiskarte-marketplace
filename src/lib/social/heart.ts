@@ -16,7 +16,7 @@ export async function heartPost(studentId: string, postId: string, alert?: Alert
     .select({ id: post.id, ownerId: post.ownerId })
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
-    .where(and(eq(post.id, postId), visibleToOthers()));
+    .where(and(eq(post.id, postId), visibleToOthers(studentId)));
   if (!target) return "not_found";
   if (target.ownerId === studentId) return "own_post";
   const added = await db.insert(heart).values({ studentId, postId }).onConflictDoNothing().returning({ postId: heart.postId });

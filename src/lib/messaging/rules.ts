@@ -42,10 +42,12 @@ export const CLOSED_ACCOUNT = "This conversation is closed.";
 /**
  * Why a conversation takes no new messages, or null when it does. The thread
  * belongs to the two people, not to any one listing, so a closed listing does
- * not close it. A suspended or deleted student on either side does.
+ * not close it. A suspended or deleted student on either side does, and so
+ * does a block either way, with the same words so the blocked person learns
+ * nothing.
  */
-export function readOnlyReason(args: { aStatus: string; bStatus: string }): string | null {
-  return args.aStatus === "active" && args.bStatus === "active" ? null : CLOSED_ACCOUNT;
+export function readOnlyReason(args: { aStatus: string; bStatus: string; blocked: boolean }): string | null {
+  return args.aStatus === "active" && args.bStatus === "active" && !args.blocked ? null : CLOSED_ACCOUNT;
 }
 
 /**

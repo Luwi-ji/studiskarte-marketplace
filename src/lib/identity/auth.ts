@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { eq } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { APIError, createAuthMiddleware, getIP, isAPIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
@@ -112,6 +113,18 @@ const authOptions = {
           code: SIGN_IN_ERROR.tooManyRequests,
           message: "Too many attempts. Try again later.",
         });
+      }
+
+      // A suspended or deleted account cannot sign in. The answer matches what an
+      // ordinary address gets (a request looks accepted, a code looks wrong), so
+      // it does not reveal the account's state, and no mail leaves.
+      const [account] = await getDb()
+        .select({ status: schema.student.accountStatus })
+        .from(schema.student)
+        .where(eq(schema.student.email, school.email));
+      if (account && account.status !== "active") {
+        if (ctx.path === REQUEST_PATH) return ctx.json({ success: true });
+        throw APIError.from("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" });
       }
     }),
   },

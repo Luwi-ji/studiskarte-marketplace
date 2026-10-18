@@ -28,7 +28,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
   const raw = await searchParams;
   const params = firstValues(raw);
   const filters = parseFilters(raw);
-  const [{ items, nextCursor }, options] = await Promise.all([listFeed(me.id, { filters }), filterOptions()]);
+  const [{ items, nextCursor }, options] = await Promise.all([listFeed(me.id, { filters }), filterOptions(me.id)]);
   const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
 
   return (

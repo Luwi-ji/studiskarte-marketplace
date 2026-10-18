@@ -7,6 +7,7 @@ import { loadAvailability } from "@/lib/posts/availability";
 import type { Availability } from "@/lib/posts/schema";
 import { asMethod, type HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
+import { isBlockedEitherWay } from "@/lib/safety/block";
 import { getReplyTime, type ReplyBucket } from "@/lib/messaging/response-time";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
 import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
@@ -122,7 +123,8 @@ export type PinnedOffer = OfferCard & { deal: DealCard };
 
 export type ConversationView = {
   id: string;
-  other: Person;
+  /** The other person, with their student id (for blocking and reporting them). */
+  other: Person & { id: string };
   messages: ChatMessage[];
   /** Every listing the two have dealt about, the one with the newest message first. */
   listings: ThreadListing[];
@@ -187,12 +189,13 @@ function participantWhere(viewerId: string) {
 }
 
 /** The other person, and how far the viewer has read. */
-function split(row: Row, viewerId: string): { other: Person; readUpTo: number } {
+function split(row: Row, viewerId: string): { other: Person; otherId: string; readUpTo: number } {
   const viewerIsA = row.aId === viewerId;
   return {
     other: viewerIsA
       ? { handle: row.bHandle, displayName: row.bName, avatarThumbKey: row.bAvatarThumbKey }
       : { handle: row.aHandle, displayName: row.aName, avatarThumbKey: row.aAvatarThumbKey },
+    otherId: viewerIsA ? row.bId : row.aId,
     readUpTo: viewerIsA ? row.aReadUpTo : row.bReadUpTo,
   };
 }
@@ -548,11 +551,11 @@ export async function getConversation(viewerId: string, conversationId: string):
   }
   pinned.sort((a, b) => a.deal.activityAt.getTime() - b.deal.activityAt.getTime());
 
-  const { other, readUpTo } = split(row, viewerId);
-  const replyTime = await getReplyTime(row.aId === viewerId ? row.bId : row.aId);
+  const { other, otherId, readUpTo } = split(row, viewerId);
+  const [replyTime, blocked] = await Promise.all([getReplyTime(otherId), isBlockedEitherWay(viewerId, otherId)]);
   return {
     id: row.id,
-    other,
+    other: { ...other, id: otherId },
     messages: newest.reverse().map((m) => {
       const listing = !m.offerId && m.postId ? listingById.get(m.postId) : undefined;
       return {
@@ -567,7 +570,7 @@ export async function getConversation(viewerId: string, conversationId: string):
     }),
     listings,
     pinned,
-    readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus }),
+    readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus, blocked }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
     replyTime,
   };

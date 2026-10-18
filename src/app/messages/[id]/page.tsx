@@ -6,6 +6,8 @@ import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
 import { REPLY_LABEL } from "@/lib/messaging/response-time";
+import { BlockButton } from "@/app/safety/block-button";
+import { ReportControl } from "@/app/safety/report-control";
 import { Chat, type ChatMessageData } from "./chat";
 import type { OfferCardData } from "./offer-card";
 import { ErrorBanner } from "./error-banner";
@@ -84,6 +86,15 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
           {view.replyTime ? <p className="pb-1 text-xs text-zinc-500">Typically replies {REPLY_LABEL[view.replyTime]}</p> : null}
           <Transactions listings={view.listings.map(withThumb)} />
         </div>
+        {view.other.handle ? (
+          <details className="border-b border-zinc-200 px-3 dark:border-zinc-800">
+            <summary className="flex h-11 cursor-pointer items-center text-xs text-zinc-500">Block or report {name}</summary>
+            <div className="flex flex-col gap-2 pb-3">
+              <ReportControl target={{ kind: "student", handle: view.other.handle }} label="Report this student" className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700" />
+              <BlockButton handle={view.other.handle} className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium disabled:opacity-60 dark:border-zinc-700" />
+            </div>
+          </details>
+        ) : null}
         <ErrorBanner />
         <Chat conversationId={view.id} messages={messages} pinned={view.pinned.map(offerData)} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
       </main>

@@ -16,7 +16,7 @@ export async function recordView(viewerId: string, postId: string, now = new Dat
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
     .where(
-      and(eq(post.id, postId), ne(post.ownerId, viewerId), visibleToOthers()),
+      and(eq(post.id, postId), ne(post.ownerId, viewerId), visibleToOthers(viewerId)),
     );
   if (!visible) return false;
 

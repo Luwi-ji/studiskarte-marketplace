@@ -102,7 +102,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
         eq(post.id, postId),
         or(
           eq(post.ownerId, viewerId),
-          visibleToOthers(),
+          visibleToOthers(viewerId),
         ),
       ),
     );

@@ -7,7 +7,7 @@ export const TEST_SCHOOL = "testschool.edu.ph";
 /** Inserts a verified student (and their school) directly, skipping sign-in. Defaults to the shared test school. */
 export async function createTestStudent(
   id: string,
-  fields: { handle?: string; name?: string; schoolDomain?: string; accountStatus?: string } = {},
+  fields: { handle?: string; name?: string; schoolDomain?: string; accountStatus?: string; isAdmin?: boolean } = {},
 ): Promise<{ id: string; email: string }> {
   const db = getDb();
   const domain = fields.schoolDomain ?? TEST_SCHOOL;
@@ -19,6 +19,7 @@ export async function createTestStudent(
     emailVerified: true,
     schoolDomain: domain,
     accountStatus: fields.accountStatus ?? "active",
+    isAdmin: fields.isAdmin ?? false,
     handle: fields.handle,
     name: fields.name ?? "",
   });

@@ -241,49 +241,49 @@ describe("search posts", () => {
 describe("search people", () => {
   it("finds a handle exactly, with an @, in any case, and by display name", async () => {
     // All test handles end in the same run id, so close matches may follow; the exact one comes first.
-    expect((await searchPeople(`alice_${run}`))[0].handle).toBe(`alice_${run}`);
-    expect((await searchPeople(`@ALICE_${run}`))[0].handle).toBe(`alice_${run}`);
-    expect((await searchPeople("Bruno Santos")).map((p) => p.handle)).toContain(`bruno_${run}`);
-    expect((await searchPeople("santos")).map((p) => p.handle)).toContain(`bruno_${run}`);
+    expect((await searchPeople(viewer, `alice_${run}`))[0].handle).toBe(`alice_${run}`);
+    expect((await searchPeople(viewer, `@ALICE_${run}`))[0].handle).toBe(`alice_${run}`);
+    expect((await searchPeople(viewer, "Bruno Santos")).map((p) => p.handle)).toContain(`bruno_${run}`);
+    expect((await searchPeople(viewer, "santos")).map((p) => p.handle)).toContain(`bruno_${run}`);
   });
 
   it("finds a misspelled handle", async () => {
-    expect((await searchPeople(`alise_${run}`)).map((p) => p.handle)).toContain(`alice_${run}`);
-    expect((await searchPeople(`brunno_${run}`)).map((p) => p.handle)).toContain(`bruno_${run}`);
+    expect((await searchPeople(viewer, `alise_${run}`)).map((p) => p.handle)).toContain(`alice_${run}`);
+    expect((await searchPeople(viewer, `brunno_${run}`)).map((p) => p.handle)).toContain(`bruno_${run}`);
   });
 
   it("puts an exact handle before looser matches", async () => {
-    const found = (await searchPeople(`alice_${run}`)).map((p) => p.handle);
+    const found = (await searchPeople(viewer, `alice_${run}`)).map((p) => p.handle);
     expect(found[0]).toBe(`alice_${run}`);
   });
 
   it("never lists a suspended student or one who has not finished sign-up, and never an email", async () => {
-    const all = await searchPeople("susp");
+    const all = await searchPeople(viewer, "susp");
     expect(all.map((p) => p.handle)).not.toContain(`susp_${run}`);
-    expect((await searchPeople("Unfinished")).map((p) => p.displayName)).not.toContain("Unfinished Una");
-    expect(JSON.stringify(await searchPeople("alice"))).not.toContain("@");
+    expect((await searchPeople(viewer, "Unfinished")).map((p) => p.displayName)).not.toContain("Unfinished Una");
+    expect(JSON.stringify(await searchPeople(viewer, "alice"))).not.toContain("@");
   });
 
   it("returns nothing for a single letter or only an @", async () => {
-    expect(await searchPeople("a")).toEqual([]);
-    expect(await searchPeople("@")).toEqual([]);
+    expect(await searchPeople(viewer, "a")).toEqual([]);
+    expect(await searchPeople(viewer, "@")).toEqual([]);
   });
 });
 
 describe("search schools", () => {
   it("finds a school by part of its name or by domain, with its current number of posts", async () => {
-    const byName = await searchSchools(`zeta polytech ${run}`);
+    const byName = await searchSchools(viewer, `zeta polytech ${run}`);
     // Visible now: calc, laptop, book, notes, tutor, twinA, twinB (not the withdrawn one or the suspended student's).
     expect(byName).toEqual([{ domain, name: `Zeta Polytechnic ${run}`, listings: 7 }]);
-    expect((await searchSchools(`s${run}.edu`)).map((s) => s.domain)).toContain(domain);
+    expect((await searchSchools(viewer, `s${run}.edu`)).map((s) => s.domain)).toContain(domain);
   });
 
   it("finds a school despite a misspelling, and lists schools that have posts for the filter", async () => {
-    expect((await searchSchools(`zeta polytecnic ${run}`)).map((s) => s.domain)).toContain(domain);
-    expect((await listSchoolsWithPosts()).map((s) => s.domain)).toEqual(expect.arrayContaining([domain, other]));
+    expect((await searchSchools(viewer, `zeta polytecnic ${run}`)).map((s) => s.domain)).toContain(domain);
+    expect((await listSchoolsWithPosts(viewer)).map((s) => s.domain)).toEqual(expect.arrayContaining([domain, other]));
   });
 
   it("returns nothing for one letter", async () => {
-    expect(await searchSchools("z")).toEqual([]);
+    expect(await searchSchools(viewer, "z")).toEqual([]);
   });
 });

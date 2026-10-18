@@ -130,9 +130,10 @@ describe("what a message may contain", () => {
 
 describe("when a conversation takes messages", () => {
   it("is closed only when either person is suspended or deleted", () => {
-    expect(readOnlyReason({ aStatus: "active", bStatus: "active" })).toBeNull();
-    expect(readOnlyReason({ aStatus: "suspended", bStatus: "active" })).toBe(CLOSED_ACCOUNT);
-    expect(readOnlyReason({ aStatus: "active", bStatus: "deleted" })).toBe(CLOSED_ACCOUNT);
+    expect(readOnlyReason({ aStatus: "active", bStatus: "active", blocked: false })).toBeNull();
+    expect(readOnlyReason({ aStatus: "suspended", bStatus: "active", blocked: false })).toBe(CLOSED_ACCOUNT);
+    expect(readOnlyReason({ aStatus: "active", bStatus: "deleted", blocked: false })).toBe(CLOSED_ACCOUNT);
+    expect(readOnlyReason({ aStatus: "active", bStatus: "active", blocked: true })).toBe(CLOSED_ACCOUNT);
   });
 });
 

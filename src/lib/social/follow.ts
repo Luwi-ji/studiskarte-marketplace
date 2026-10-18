@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { follow, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { isBlockedEitherWay } from "@/lib/safety/block";
 
 export type FollowResult = "ok" | "self" | "not_found";
 
@@ -12,7 +13,7 @@ export async function followStudent(followerId: string, followeeId: string): Pro
     .select({ id: student.id, handle: student.handle })
     .from(student)
     .where(and(eq(student.id, followeeId), eq(student.accountStatus, "active")));
-  if (!target?.handle) return "not_found";
+  if (!target?.handle || (await isBlockedEitherWay(followerId, followeeId))) return "not_found";
   await db.insert(follow).values({ followerId, followeeId }).onConflictDoNothing();
   return "ok";
 }

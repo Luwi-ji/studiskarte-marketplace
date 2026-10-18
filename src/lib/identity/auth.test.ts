@@ -10,10 +10,11 @@ vi.mock("@/lib/mail", () => ({
   }),
 }));
 
-import { rateLimitEvent, student, verification } from "@/db/schema";
+import { rateLimitEvent, session, student, verification } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import { auth, requestSignInCode } from "@/lib/identity/auth";
 import { MailQuotaError, sendMail } from "@/lib/mail";
+import { createTestStudent } from "@/test/fixtures";
 
 const db = getDb();
 const run = randomUUID().slice(0, 8);
@@ -175,5 +176,37 @@ describe("code lifecycle", () => {
   it("refuses to sign in a non-school address even with a code", async () => {
     const error = await rejection(signIn("attacker@gmail.com", "123456"));
     expect(error.body?.code).toBe("NOT_SCHOOL_EMAIL");
+  });
+});
+
+describe("a suspended account", () => {
+  it("gets no code and the same answer as anyone else", async () => {
+    const id = `susp-${run}`;
+    await createTestStudent(id, { accountStatus: "suspended" });
+    expect(await requestCode(address("susp"))).toEqual({ success: true });
+    expect(await requestSignInCode(address("susp"), new Headers())).toEqual({ ok: true });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("cannot use a code it got before it was suspended, and gets no session", async () => {
+    const id = `susp2-${run}`;
+    const email = address("susp2");
+    await createTestStudent(id);
+    await requestCode(email);
+    const code = lastCode(email);
+    await db.update(student).set({ accountStatus: "suspended" }).where(eq(student.id, id));
+    const error = await rejection(signIn(email, code));
+    expect(error.body?.code).toBe("INVALID_OTP");
+    expect(await db.select().from(session).where(eq(session.userId, id))).toHaveLength(0);
+  });
+
+  it("signs in again once restored", async () => {
+    const id = `susp3-${run}`;
+    const email = address("susp3");
+    await createTestStudent(id, { accountStatus: "suspended" });
+    await db.update(student).set({ accountStatus: "active" }).where(eq(student.id, id));
+    await requestCode(email);
+    const result = await signIn(email, lastCode(email));
+    expect(result.user.email).toBe(email);
   });
 });

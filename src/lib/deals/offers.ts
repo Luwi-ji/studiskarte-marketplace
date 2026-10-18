@@ -6,6 +6,7 @@ import { isUniqueViolation, getOrCreateConversation, writeMessage } from "@/lib/
 import { MESSAGES_PER_MINUTE } from "@/lib/messaging/rules";
 import { offerKey, recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
+import { isBlockedEitherWay } from "@/lib/safety/block";
 import { ACTIVE_STATUSES, unitsLeft, unitsTaken } from "@/lib/deals/capacity";
 import { OFFER_DAYS, offerOptions, parseOffer, PENDING_OFFER } from "@/lib/deals/rules";
 
@@ -72,6 +73,8 @@ export async function makeOffer(args: {
       const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.responderId));
       if (!target || !me) return { ok: false, error: "That post could not be found." };
       if (target.ownerId === args.responderId) return { ok: false, error: "You can't make an offer on your own post." };
+      // Blocked either way reads as a post that is not there, so the blocked person learns nothing.
+      if (await isBlockedEitherWay(args.responderId, target.ownerId, tx)) return { ok: false, error: "That post could not be found." };
 
       const [mine] = await tx
         .select({ n: count() })
