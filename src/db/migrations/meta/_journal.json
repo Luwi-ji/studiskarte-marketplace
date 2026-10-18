@@ -169,6 +169,20 @@
       "when": 1792277776405,
       "tag": "0023_handover_rejected",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792283063795,
+      "tag": "0024_perks",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792284539221,
+      "tag": "0025_reviews",
+      "breakpoints": true
     }
   ]
 }

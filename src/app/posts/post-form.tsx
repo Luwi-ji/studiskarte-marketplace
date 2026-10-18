@@ -172,7 +172,7 @@ export function PostForm(props: Props) {
       setValues(EMPTY);
       setKind("showcase");
     }
-    router.push("/me/posts");
+    router.push(`/me?tab=${kind}`);
   }
 
   return (

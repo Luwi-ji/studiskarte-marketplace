@@ -17,7 +17,7 @@ const PREVIEW_LINK_SECONDS = 60 * 60;
 export default function EditPostPage({ params }: PageProps<"/posts/[id]/edit">) {
   return (
     <>
-      <PageHeader title="Edit post" back="/me/posts" />
+      <PageHeader title="Edit post" back="/me" />
       <main className="mx-auto w-full max-w-md flex-1 px-4 pt-4">
         <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
           <Editor params={params} />

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
+import { REPLY_LABEL } from "@/lib/messaging/response-time";
 import { Chat, type ChatMessageData } from "./chat";
 import type { OfferCardData } from "./offer-card";
 import { ErrorBanner } from "./error-banner";
@@ -80,6 +81,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col">
         {/* Stays under the header while the thread scrolls, so the transactions are always one tap away. */}
         <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 dark:border-zinc-800">
+          {view.replyTime ? <p className="pb-1 text-xs text-zinc-500">Typically replies {REPLY_LABEL[view.replyTime]}</p> : null}
           <Transactions listings={view.listings.map(withThumb)} />
         </div>
         <ErrorBanner />

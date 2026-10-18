@@ -3,7 +3,7 @@ import { notification, student } from "@/db/schema";
 import type { Executor } from "@/lib/db";
 
 /** What happens to a reservation after it is accepted. */
-export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_scheduled" | "deal_confirmed" | "deal_handover_rejected" | "deal_completed" | "deal_reminder" | "deal_confirm_reminder" | "deal_expired" | "deal_paid" | "deal_payment_confirmed" | "deal_payment_requested" | "deal_cash_requested" | "deal_cash_answered" | "deal_cash_given" | "deal_cash_received" | "deal_payment_rejected" | "deal_reported" | "deal_disputed";
+export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_scheduled" | "deal_confirmed" | "deal_handover_rejected" | "deal_review_reminder" | "deal_proposal_declined" | "deal_completed" | "deal_reminder" | "deal_confirm_reminder" | "deal_expired" | "deal_paid" | "deal_payment_confirmed" | "deal_payment_requested" | "deal_cash_requested" | "deal_cash_answered" | "deal_cash_given" | "deal_cash_received" | "deal_payment_rejected" | "deal_reported" | "deal_disputed";
 
 export type NotificationSpec =
   | { type: "message"; recipientId: string; postId: string | null; conversationId: string }

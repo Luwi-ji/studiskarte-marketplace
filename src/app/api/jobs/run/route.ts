@@ -7,6 +7,7 @@ import { expirePosts } from "@/lib/jobs/expire-posts";
 import { purgePosts } from "@/lib/jobs/purge-posts";
 import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
 import { sendHandoverReminders } from "@/lib/jobs/reminders";
+import { sendReviewReminders } from "@/lib/jobs/review-reminders";
 import { deliverAlert } from "@/lib/notifications/push/notify";
 import { isJobName, JOBS, runJob, staleJobs, type JobName } from "@/lib/jobs/job-run";
 import { getObjectStore } from "@/lib/images/store";
@@ -67,11 +68,18 @@ async function runNamed(name: JobName): Promise<string> {
       return `warned about ${n} posts`;
     });
   }
+  if (name === "review-reminders") {
+    return runJob(name, async () => {
+      const n = await sendReviewReminders(new Date(), alert);
+      await Promise.all(alerts);
+      return `${n} review reminders`;
+    });
+  }
   return runJob(name, async () => `removed ${await cleanupUnusedPhotos(getObjectStore())} unused photos`);
 }
 
 /**
- * ?job=expire-posts,purge-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,cleanup (any, comma-separated) | all (default). Also reports jobs that have
+ * ?job=expire-posts,purge-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,review-reminders,cleanup (any, comma-separated) | all (default). Also reports jobs that have
  * stopped running, so a dead scheduler shows up in the response.
  */
 export async function GET(request: Request) {

@@ -432,6 +432,34 @@ export const dealReport = pgTable(
   ],
 );
 
+// One person's review of the other after a completed deal: 1-5 stars and an
+// optional note. One each per deal; never edited (triggers in migration 0025).
+export const review = pgTable(
+  "review",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => deal.id, { onDelete: "cascade" }),
+    reviewerId: text("reviewer_id")
+      .notNull()
+      .references(() => student.id),
+    revieweeId: text("reviewee_id")
+      .notNull()
+      .references(() => student.id),
+    rating: smallint("rating").notNull(),
+    text: text("text"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("review_rating", sql`${t.rating} between 1 and 5`),
+    check("review_text", sql`${t.text} is null or char_length(btrim(${t.text})) between 1 and 500`),
+    check("review_distinct_people", sql`${t.reviewerId} <> ${t.revieweeId}`),
+    unique("review_one_each").on(t.dealId, t.reviewerId),
+    index("review_reviewee_idx").on(t.revieweeId, t.createdAt.desc()),
+  ],
+);
+
 export const messageImage = pgTable(
   "message_image",
   {
@@ -479,7 +507,7 @@ export const notification = pgTable(
     detail: text("detail"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_handover_rejected', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_handover_rejected', 'deal_review_reminder', 'deal_proposal_declined', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),
@@ -704,5 +732,61 @@ export const postPhoto = pgTable(
     // Positions 0–9: at most 10 photos per post.
     check("post_photo_position_range", sql`${t.position} between 0 and 9`),
     check("post_photo_caption_length", sql`${t.caption} is null or char_length(btrim(${t.caption})) between 1 and 300`),
+  ],
+);
+
+// A business near campus that gives students a discount (docs/perks-plan.md).
+// The owner adds partners by hand; they have no accounts.
+export const partner = pgTable(
+  "partner",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    // food, clothes, printing, services or other (see src/lib/perks/kinds.ts).
+    kind: text("kind").notNull(),
+    // Free text, like a post's meet-up place: "Near TUP Manila gate".
+    area: text("area").notNull(),
+    // Email domains of the schools it serves; null means every school.
+    schoolDomains: text("school_domains").array(),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("partner_name_length", sql`char_length(btrim(${t.name})) between 1 and 120`),
+    check("partner_area_length", sql`char_length(btrim(${t.area})) between 1 and 120`),
+    check("partner_kind", sql`${t.kind} in ('food', 'clothes', 'printing', 'services', 'other')`),
+    check("partner_status", sql`${t.status} in ('pending', 'active', 'paused', 'ended')`),
+    check("partner_school_domains_not_empty", sql`${t.schoolDomains} is null or cardinality(${t.schoolDomains}) > 0`),
+  ],
+);
+
+// One discount a partner gives verified students.
+export const perk = pgTable(
+  "perk",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partner.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    terms: text("terms").notNull(),
+    // How often one student may use it ("1 a day"); both null means no limit.
+    limitPerStudent: integer("limit_per_student"),
+    limitPeriod: text("limit_period"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull().defaultNow(),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    status: text("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("perk_partner_idx").on(t.partnerId),
+    check("perk_title_length", sql`char_length(btrim(${t.title})) between 1 and 120`),
+    check("perk_terms_length", sql`char_length(btrim(${t.terms})) between 1 and 500`),
+    check("perk_status", sql`${t.status} in ('draft', 'live', 'paused', 'ended')`),
+    check(
+      "perk_limit",
+      sql`(${t.limitPerStudent} is null and ${t.limitPeriod} is null) or (${t.limitPerStudent} > 0 and ${t.limitPeriod} in ('day', 'week', 'month', 'ever'))`,
+    ),
+    check("perk_dates", sql`${t.endsAt} is null or ${t.endsAt} > ${t.startsAt}`),
   ],
 );

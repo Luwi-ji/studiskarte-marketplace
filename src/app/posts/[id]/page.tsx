@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { HeartButton } from "@/components/heart-button";
 import { PageHeader } from "@/components/page-header";
+import { Stars } from "@/components/stars";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
@@ -192,6 +193,11 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
               <div className="flex items-center gap-3">{who}</div>
             );
           })()}
+          {detail.seller.handle ? (
+            <Link href={`/u/${detail.seller.handle}#reviews`} className="flex min-h-11 items-center active:opacity-80">
+              <Stars average={detail.seller.rating?.average ?? null} count={detail.seller.rating?.count ?? 0} />
+            </Link>
+          ) : null}
         </Section>
 
         <p className="border-t border-zinc-200 py-4 text-xs text-zinc-500 dark:border-zinc-800">
@@ -230,7 +236,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
       {detail.isOwner ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
           <div className="mx-auto grid max-w-md grid-cols-2 gap-2">
-            <Link href="/me/posts" className="flex h-12 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
+            <Link href={`/me?tab=${detail.kind}`} className="flex h-12 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
               My posts
             </Link>
             {detail.editLocked ? (

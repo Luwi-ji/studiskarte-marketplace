@@ -1,12 +1,13 @@
 import { and, count, desc, eq, gt, inArray, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, conversationListing, deal, dealReport, image, message, messageImage, offer, post, postPhoto, student } from "@/db/schema";
+import { conversation, conversationListing, deal, dealReport, image, message, messageImage, offer, post, postPhoto, review, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { transactionLabel } from "@/lib/deals/rules";
 import { loadAvailability } from "@/lib/posts/availability";
 import type { Availability } from "@/lib/posts/schema";
 import { asMethod, type HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
+import { getReplyTime, type ReplyBucket } from "@/lib/messaging/response-time";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
 import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
 
@@ -84,6 +85,8 @@ export type DealCard = {
   reports: { mine: boolean; blames: "me" | "them" | null; reason: ReportReason; details: string | null }[];
   /** For proposing: what the post offers, where it says to meet or deliver, and when it is available. Only while the reservation is active. */
   options: { methods: HandoverMethod[]; meetupPlace: string | null; windows: Availability[] } | null;
+  /** Once completed: what each side rated the other. Null until then. */
+  review: { mine: { rating: number; text: string | null } | null; theirs: { rating: number; text: string | null } | null } | null;
 };
 
 /** An offer as it stands now, shown as a card in the thread. */
@@ -128,6 +131,8 @@ export type ConversationView = {
   /** Null when the conversation takes new messages; otherwise why not. */
   readOnlyReason: string | null;
   unread: number;
+  /** How fast the other person typically answers; null when there is not enough history. */
+  replyTime: ReplyBucket | null;
 };
 
 const personA = alias(student, "person_a");
@@ -346,7 +351,9 @@ const asReason = (value: string): ReportReason => (value in REPORT_REASONS ? (va
 
 type ReportRow = { dealId: string; reporterId: string; faultPartyId: string | null; reason: string; details: string | null };
 
-function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows: Availability[] | undefined, reports: ReportRow[]): DealCard | null {
+type ReviewRow = { dealId: string; reviewerId: string; rating: number; text: string | null };
+
+function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows: Availability[] | undefined, reports: ReportRow[], reviews: ReviewRow[]): DealCard | null {
   if (!o.dealId || !o.dealStatus || !o.activityAt) return null;
   const fields = {
     amount: o.dealAmount ?? 0,
@@ -397,7 +404,13 @@ function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows:
           windows,
         }
       : null,
+    review: o.dealStatus === "completed" ? reviewsOf(reviews, viewerId) : null,
   };
+}
+
+function reviewsOf(rows: ReviewRow[], viewerId: string): NonNullable<DealCard["review"]> {
+  const pick = (r: ReviewRow | undefined) => (r ? { rating: r.rating, text: r.text } : null);
+  return { mine: pick(rows.find((r) => r.reviewerId === viewerId)), theirs: pick(rows.find((r) => r.reviewerId !== viewerId)) };
 }
 
 /**
@@ -494,6 +507,16 @@ export async function getConversation(viewerId: string, conversationId: string):
           .from(dealReport)
           .where(inArray(dealReport.dealId, disputedIds))
           .orderBy(dealReport.createdAt);
+  const completedIds = offers.flatMap((o) => (o.dealStatus === "completed" && o.dealId ? [o.dealId] : []));
+  const reviewRows: ReviewRow[] =
+    completedIds.length === 0
+      ? []
+      : await getDb()
+          .select({ dealId: review.dealId, reviewerId: review.reviewerId, rating: review.rating, text: review.text })
+          .from(review)
+          .where(inArray(review.dealId, completedIds));
+  const reviewsByDeal = new Map<string, ReviewRow[]>();
+  for (const r of reviewRows) reviewsByDeal.set(r.dealId, [...(reviewsByDeal.get(r.dealId) ?? []), r]);
   const reportsByDeal = new Map<string, ReportRow[]>();
   for (const r of reportRows) reportsByDeal.set(r.dealId, [...(reportsByDeal.get(r.dealId) ?? []), r]);
   const windowsByPost = new Map(await Promise.all(activePostIds.map(async (id): Promise<[string, Availability[]]> => [id, await loadAvailability(id)])));
@@ -510,7 +533,7 @@ export async function getConversation(viewerId: string, conversationId: string):
       isReserve: o.isReserve,
       status: o.status === "pending" && o.expiresAt.getTime() <= now ? "expired" : o.status,
       expiresAt: o.expiresAt,
-      deal: o.dealId && o.dealStatus ? dealCard(o, listing.viewerIsOwner, viewerId, windowsByPost.get(o.postId), reportsByDeal.get(o.dealId) ?? []) : null,
+      deal: o.dealId && o.dealStatus ? dealCard(o, listing.viewerIsOwner, viewerId, windowsByPost.get(o.postId), reportsByDeal.get(o.dealId) ?? [], reviewsByDeal.get(o.dealId) ?? []) : null,
       post: listing.post,
       viewerIsOwner: listing.viewerIsOwner,
     });
@@ -526,6 +549,7 @@ export async function getConversation(viewerId: string, conversationId: string):
   pinned.sort((a, b) => a.deal.activityAt.getTime() - b.deal.activityAt.getTime());
 
   const { other, readUpTo } = split(row, viewerId);
+  const replyTime = await getReplyTime(row.aId === viewerId ? row.bId : row.aId);
   return {
     id: row.id,
     other,
@@ -545,6 +569,7 @@ export async function getConversation(viewerId: string, conversationId: string):
     pinned,
     readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
+    replyTime,
   };
 }
 

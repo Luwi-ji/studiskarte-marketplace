@@ -4,6 +4,7 @@ import { category, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { loadAvailability } from "@/lib/posts/availability";
 import { unitsTaken } from "@/lib/deals/capacity";
+import { getReputation } from "@/lib/deals/stats";
 import { countPendingOffers, editLockReason, findMyTransaction, hasActiveReservation, type MyTransaction } from "@/lib/deals/count";
 import { countViews } from "@/lib/posts/views";
 import { countHearts, hasHearted } from "@/lib/social/heart";
@@ -49,7 +50,7 @@ export type PostDetail = {
   pendingOffers: number | null;
   /** Whether the viewer hearted it. Always false for the owner. */
   hearted: boolean;
-  seller: { handle: string | null; displayName: string; school: string; avatarThumbKey: string | null };
+  seller: { handle: string | null; displayName: string; school: string; avatarThumbKey: string | null; rating: { average: number; count: number } | null };
   photos: { key: string; width: number; height: number; caption: string | null }[];
   availability: Availability[];
 };
@@ -107,7 +108,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     );
   if (!row) return null;
 
-  const [photos, availability] = await Promise.all([
+  const [photos, availability, reputation] = await Promise.all([
     db
       .select({ key: image.key, width: image.width, height: image.height, caption: postPhoto.caption })
       .from(postPhoto)
@@ -115,6 +116,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       .where(eq(postPhoto.postId, postId))
       .orderBy(postPhoto.position),
     loadAvailability(postId),
+    getReputation(row.ownerId),
   ]);
 
   return {
@@ -149,6 +151,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       displayName: row.sellerName,
       school: row.schoolName ?? row.schoolDomain,
       avatarThumbKey: row.avatarThumbKey,
+      rating: reputation.rating,
     },
     photos,
     availability,

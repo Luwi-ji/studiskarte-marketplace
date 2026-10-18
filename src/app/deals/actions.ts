@@ -9,6 +9,7 @@ import { cancelDeal, DEAL_NOT_FOUND } from "@/lib/deals/cancel";
 import { confirmHandover, rejectHandover } from "@/lib/deals/confirm";
 import { answerCash, askToPay, confirmPayment, giveCash, markPaid, receiveCash, rejectCash, rejectPayment, requestCash, type PaymentConfirmResult } from "@/lib/deals/payment";
 import { reportDeal } from "@/lib/deals/report";
+import { submitReview } from "@/lib/deals/review";
 import { answerProposal, proposeHandover, type HandoverResult } from "@/lib/deals/schedule";
 import { declineOffer, makeOffer, OFFER_NOT_FOUND, withdrawOffer, type DecisionResult, type OfferResult } from "@/lib/deals/offers";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
@@ -122,3 +123,5 @@ export const receiveCashAction = async (dealId: unknown) => act("cash-received",
 export const rejectCashAction = async (dealId: unknown) => act("cash-rejected", dealId, rejectCash);
 /** Either person reports what went wrong with a secured reservation. */
 export const reportDealAction = async (dealId: unknown, input: unknown) => act("report", dealId, (a) => reportDeal({ ...a, input }));
+/** Either person rates the other after a completed handover. */
+export const submitReviewAction = async (dealId: unknown, input: unknown) => act("review", dealId, (a) => submitReview({ ...a, input }));

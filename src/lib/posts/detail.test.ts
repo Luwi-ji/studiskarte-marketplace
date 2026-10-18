@@ -77,7 +77,7 @@ describe("getPostDetail", () => {
       priceAmount: 650,
       meetupLocation: "Main gate",
       isOwner: false,
-      seller: { handle: `da_${run}`, displayName: "Seller", school: "testschool.edu.ph" },
+      seller: { handle: `da_${run}`, displayName: "Seller", school: "testschool.edu.ph", rating: null },
     });
     expect(detail?.photos).toHaveLength(2);
     expect(JSON.stringify(detail)).not.toContain(ownerEmail);

@@ -10,6 +10,7 @@ import { isSettled } from "@/lib/deals/slot";
 import { CalendarActions } from "./calendar-actions";
 import { PaymentSteps, ReportBox } from "./payment-steps";
 import { NO_ANSWER, ReloadButton } from "./reload-hint";
+import { ReviewBox } from "./review-box";
 
 /** A reservation as the page sends it to the browser: times as text. */
 export type DealCardData = Omit<DealCard, "handover" | "proposal" | "activityAt"> & {
@@ -111,7 +112,12 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const them = viewerIsOwner ? otherName : "the owner";
 
   if (deal.status === "completed" || justConfirmed?.kind === "completed") {
-    return <p className="mt-2 text-sm font-medium text-green-600">Completed. The handover{deal.payment ? " and the payment are" : " is"} confirmed.</p>;
+    return (
+      <>
+        <p className="mt-2 text-sm font-medium text-green-600">Completed. The handover{deal.payment ? " and the payment are" : " is"} confirmed.</p>
+        {deal.review !== null ? <ReviewBox deal={deal} otherName={otherName} /> : null}
+      </>
+    );
   }
   if (deal.status === "disputed") return <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800"><ReportBox deal={deal} otherName={otherName} /></div>;
   if (deal.status !== "agreed" && deal.status !== "scheduled") return null;

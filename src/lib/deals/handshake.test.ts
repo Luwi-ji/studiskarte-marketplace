@@ -453,6 +453,15 @@ describe("the time and place shown under a notification", () => {
     expect(await cancelDeal({ actorId: ana, dealId: next.dealId })).toMatchObject({ ok: true });
     expect(await detailsFor(seller)).toEqual([{ type: "deal_cancelled", detail: proposed }]);
   });
+
+  it("tells the one who proposed when the other declines it", async () => {
+    const { dealId } = await reserved(ana, await newPost({ cash: true }));
+    expect(await proposeHandover({ actorId: ana, dealId, input: proposal() })).toMatchObject({ ok: true });
+    await clearNotices();
+    expect(await answerProposal({ actorId: seller, dealId, agree: false })).toMatchObject({ ok: true });
+    expect(await noticesFor(ana)).toEqual(["deal_proposal_declined"]);
+    expect(await noticesFor(seller)).toEqual([]);
+  });
 });
 
 describe.each(kinds)("$kind: saying the handover did not happen", ({ wishlist }) => {

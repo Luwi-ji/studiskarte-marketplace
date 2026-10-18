@@ -13,6 +13,8 @@ export const NOTIFICATION_TYPES = [
   "deal_scheduled",
   "deal_confirmed",
   "deal_handover_rejected",
+  "deal_review_reminder",
+  "deal_proposal_declined",
   "deal_completed",
   "deal_reminder",
   "deal_confirm_reminder",
@@ -38,7 +40,7 @@ export function asType(value: string): NotificationType {
 
 const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> = {
   post_expiring: "Your post expires soon",
-  post_expired: "Your post has expired",
+  post_expired: "Your post expired. Relist it within 7 days or it is deleted",
   offer_received: "New offer on your post",
   offer_accepted: "Your offer was accepted",
   offer_declined: "Your offer was declined",
@@ -48,6 +50,8 @@ const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> =
   deal_scheduled: "Handover scheduled. Add it to your calendar",
   deal_confirmed: "The other student confirmed the handover",
   deal_handover_rejected: "The other student says the handover did not happen. Talk it over, or report it",
+  deal_review_reminder: "How did it go? Rate the other student",
+  deal_proposal_declined: "Your proposed time and place was declined",
   deal_completed: "Handover complete",
   deal_reminder: "Your handover is coming up",
   deal_confirm_reminder: "Please confirm your transaction",

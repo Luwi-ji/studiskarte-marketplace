@@ -87,6 +87,7 @@ export async function answerProposal(args: { actorId: string; dealId: string; ag
     const cleared = { proposedBy: null, proposedMethod: null, proposedAt: null, proposedPlace: null, ...touched(now) };
     if (!args.agree) {
       await tx.update(deal).set(cleared).where(eq(deal.id, found.id));
+      recorded = await tellOther(tx, found, args.actorId, "deal_proposal_declined", `declined:${now.getTime()}`);
       return { ok: true, conversationId: found.conversationId };
     }
     if (found.proposedAt.getTime() <= now.getTime()) {

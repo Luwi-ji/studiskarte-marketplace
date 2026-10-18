@@ -16,6 +16,7 @@ export const JOBS = {
   "handover-reminders": { maxAgeMinutes: 3 * 60 },
   // Runs daily (Vercel cron).
   cleanup: { maxAgeMinutes: 36 * 60 },
+  "review-reminders": { maxAgeMinutes: 36 * 60 },
 } as const;
 
 export type JobName = keyof typeof JOBS;
