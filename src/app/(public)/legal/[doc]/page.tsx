@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { LegalText } from "@/components/legal-text";
 import { currentLegal, isLegalSlug, LEGAL_SLUGS, LEGAL_TITLES } from "@/lib/legal/documents";
 
+// Always the three documents (Cache Components needs at least one); without the owner's text each one answers 404.
 export function generateStaticParams() {
-  return currentLegal() ? LEGAL_SLUGS.map((doc) => ({ doc })) : [];
+  return LEGAL_SLUGS.map((doc) => ({ doc }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/legal/[doc]">) {

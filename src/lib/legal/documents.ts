@@ -13,7 +13,7 @@ export const LEGAL_TITLES: Record<LegalSlug, string> = {
 /** The owner's legal text: content/legal/{terms,privacy,guidelines}.md and content/legal/VERSION. */
 export type LegalSet = { version: string; text: Record<LegalSlug, string> };
 
-const DEFAULT_DIR = path.join(process.cwd(), "content", "legal");
+const DEFAULT_DIR = path.join(/* turbopackIgnore: true */ process.cwd(), "content", "legal");
 
 export function isLegalSlug(value: string): value is LegalSlug {
   return (LEGAL_SLUGS as readonly string[]).includes(value);
@@ -28,9 +28,10 @@ export function isLegalSlug(value: string): value is LegalSlug {
  */
 export function loadLegal(dir: string = DEFAULT_DIR): LegalSet | null {
   const read = (file: string): string | null => {
-    const full = path.join(dir, file);
-    if (!existsSync(full)) return null;
-    const text = readFileSync(full, "utf8").trim();
+    // The directory is chosen at run time (tests use another one); the bundler must not trace the project for it.
+    const full = path.join(/* turbopackIgnore: true */ dir, file);
+    if (!existsSync(/* turbopackIgnore: true */ full)) return null;
+    const text = readFileSync(/* turbopackIgnore: true */ full, "utf8").trim();
     return text === "" ? null : text;
   };
   const version = read("VERSION");
