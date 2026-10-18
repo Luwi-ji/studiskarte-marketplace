@@ -10,6 +10,8 @@ const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", displa
 export const metadata: Metadata = {
   title: "Studiskarte Marketplace",
   description: "Where student hustle meets student needs.",
+  // Proves to Google Search Console that this site is ours (meta tag method; the HTML file in /public is the other proof).
+  verification: { google: "cE40YZSYPWJRhyONX7G3jMscWPQ-W-v6aj2xGEWXW7Y" },
   // iOS reads these instead of the manifest when the app is added to the Home Screen.
   appleWebApp: { capable: true, title: "Studiskarte", statusBarStyle: "default" },
   icons: { apple: "/apple-touch-icon.png" },
