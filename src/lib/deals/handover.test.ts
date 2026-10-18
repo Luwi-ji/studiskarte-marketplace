@@ -6,7 +6,7 @@ import { acceptOffer } from "@/lib/deals/accept";
 import { cancelDeal } from "@/lib/deals/cancel";
 import { confirmHandover, NOT_SCHEDULED } from "@/lib/deals/confirm";
 import { answerCash, giveCash, receiveCash, requestCash } from "@/lib/deals/payment";
-import { chooseableDays, parseProposal, suggestTime, time12, to24h } from "@/lib/deals/handover";
+import { chooseableDays, MEETUP_HOURS_MESSAGE, parseProposal, suggestTime, time12, to24h, withinMeetupHours } from "@/lib/deals/handover";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerProposal, NO_PROPOSAL, proposeHandover } from "@/lib/deals/schedule";
 import { getDb, getPool } from "@/lib/db";
@@ -133,6 +133,34 @@ afterAll(async () => {
   for (const id of people) await deleteTestStudent(id);
   await getPool().end();
   globalThis.__studiskartePool = undefined;
+});
+
+describe("meet-up hours", () => {
+  it("run from 6:00 AM to 8:00 PM, both included", () => {
+    expect(["06:00", "12:00", "20:00"].every(withinMeetupHours)).toBe(true);
+    expect(["05:59", "20:01", "00:00", "23:30"].some(withinMeetupHours)).toBe(false);
+  });
+
+  const everyDay: Availability[] = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ kind: "weekly", weekday, startTime: "00:00", endTime: "23:59" }));
+  const now = new Date("2030-01-01T00:00:00Z");
+
+  it("limit a meet-up proposal even for the owner, but not a delivery", () => {
+    for (const windows of [everyDay, null]) {
+      const at = (time: string, method: "meetup" | "delivery") => parseProposal({ method, date: "2030-01-07", time, place: "Gate" }, { methods: ["meetup", "delivery"], windows }, now);
+      expect(at("05:59", "meetup")).toEqual({ ok: false, error: MEETUP_HOURS_MESSAGE, field: "time" });
+      expect(at("20:01", "meetup")).toEqual({ ok: false, error: MEETUP_HOURS_MESSAGE, field: "time" });
+      expect(at("06:00", "meetup").ok).toBe(true);
+      expect(at("20:00", "meetup").ok).toBe(true);
+      expect(at("21:30", "delivery").ok).toBe(true);
+    }
+  });
+
+  it("never suggest a meet-up time outside the hours", () => {
+    const late = new Date("2030-01-01T13:30:00Z"); // 9:30 PM in the Philippines
+    expect(suggestTime("2030-01-01", null, late, "meetup")).toBe("09:00");
+    expect(suggestTime("2030-01-08", [{ kind: "weekly", weekday: 2, startTime: "05:00", endTime: "08:00" }], now, "meetup")).toBe("09:00");
+    expect(suggestTime("2030-01-08", [{ kind: "weekly", weekday: 2, startTime: "05:00", endTime: "08:00" }], now, "delivery")).toBe("05:00");
+  });
 });
 
 describe("what a proposal may be", () => {

@@ -92,7 +92,7 @@ export function PostMenu({ postId, title, status, editLocked }: Props) {
             </>
           ) : null}
           {status === "expired" ? (
-            <Link role="menuitem" href={`/posts/${postId}/edit`} className={`${item} text-brand`}>
+            <Link role="menuitem" href={`/posts/${postId}/edit`} className={`${item} text-brand-text`}>
               Relist for 30 days
             </Link>
           ) : null}

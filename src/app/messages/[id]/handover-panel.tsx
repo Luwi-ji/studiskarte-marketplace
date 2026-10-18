@@ -93,7 +93,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   const windows = viewerIsOwner ? null : (options?.windows ?? null);
   /** Fills in the time for a day: the start of that day's availability, or the next hour if today's has passed. */
   function suggest(date: string) {
-    const [h24, m] = suggestTime(date, windows).split(":").map(Number);
+    const [h24, m] = suggestTime(date, windows, new Date(), chosen).split(":").map(Number);
     setClock({ hour: String(h24 % 12 === 0 ? 12 : h24 % 12), minute: String(m), ampm: h24 < 12 ? "AM" : "PM" });
   }
   function openForm() {
@@ -249,6 +249,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           </label>
           <fieldset className="flex flex-col gap-1 text-sm">
             <legend className="mb-1">Time</legend>
+            {chosen === "meetup" ? <p className="text-xs text-zinc-500">Meet-ups are between 6:00 AM and 8:00 PM.</p> : null}
             <div className="grid grid-cols-3 gap-2">
               <select name="hour" aria-label="Hour" required value={clock.hour} onChange={(e) => setClock({ ...clock, hour: e.target.value })} className={field}>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (

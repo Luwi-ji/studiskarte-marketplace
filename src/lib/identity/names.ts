@@ -32,6 +32,7 @@ const RESERVED: Record<string, true> = {
   welcome: true,
   deleted: true,
   deletedstudent: true,
+  deletedaccount: true,
 };
 
 export type HandleProblem = "length" | "characters" | "dots" | "reserved";
@@ -57,7 +58,7 @@ export const HANDLE_PROBLEM_MESSAGE: Record<HandleProblem, string> = {
 
 // Display names that would let someone pose as the app or its staff, compared after keeping only
 // letters and digits. Names that merely contain "studiskarte" are refused too.
-const STAFF_NAMES = new Set(["admin", "administrator", "moderator", "support", "official", "staff", "system", "deletedstudent"]);
+const STAFF_NAMES = new Set(["admin", "administrator", "moderator", "support", "official", "staff", "system", "deletedstudent", "deletedaccount"]);
 
 // Characters that reorder or hide text (bidirectional controls, zero-width spaces, the byte order mark).
 // The joiners U+200D and U+200C stay: emoji sequences and some scripts need them.

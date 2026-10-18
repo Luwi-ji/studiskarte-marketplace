@@ -34,6 +34,22 @@ function errorsOf(input: unknown) {
   return result.errors;
 }
 
+describe("availability and meet-up hours", () => {
+  const window = (startTime: string, endTime: string) => [{ kind: "weekly" as const, weekday: 1, startTime, endTime }];
+
+  it("keeps a meet-up post between 6:00 AM and 8:00 PM", () => {
+    for (const [start, end] of [["05:00", "09:00"], ["18:00", "21:00"], ["13:00", "23:30"]]) {
+      expect(errorsOf(valid({ availability: window(start, end) }))["availability.0"]).toMatch(/6:00 AM and 8:00 PM/);
+    }
+    expect(parseNewPost(valid({ availability: window("06:00", "20:00") }), lookup, now).ok).toBe(true);
+  });
+
+  it("leaves a delivery-only post free to be available at any hour", () => {
+    const delivery = { exchangeMeetup: false, exchangeDelivery: true, meetupLocation: "", availability: window("21:00", "23:30") };
+    expect(parseNewPost(valid(delivery), lookup, now).ok).toBe(true);
+  });
+});
+
 describe("parseNewPost", () => {
   it("accepts a complete post and normalizes it", () => {
     const result = parseNewPost(valid(), lookup, now);

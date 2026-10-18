@@ -34,7 +34,7 @@ export const DELETE_CONFIRM = "Type your handle exactly to confirm.";
 const OTP_TYPES = ["sign-in", "email-verification", "forget-password"];
 
 /** What the account's name reads as everywhere it still appears (old messages, reservations, reviews). */
-export const DELETED_NAME = "Deleted student";
+export const DELETED_NAME = "Deleted account";
 
 /**
  * Deletes a student's account for good, in one transaction.
@@ -48,7 +48,7 @@ export const DELETED_NAME = "Deleted student";
  * closed, and every reservation still being arranged ends: cancelled, or
  * disputed for an admin when it is already secured (see endActiveDeal). The other
  * person is told. What stays, so nobody else's history changes: their messages,
- * photos, finished reservations and reviews, shown as "Deleted student" with no
+ * photos, finished reservations and reviews, shown as "Deleted account" with no
  * handle. A thread with them becomes read-only for the other person.
  *
  * Final: the same address can sign up again, but as a new student.

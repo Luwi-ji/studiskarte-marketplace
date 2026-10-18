@@ -140,7 +140,7 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
       ) : null}
       {banner ? (
         <p className="text-xs text-zinc-500">
-          You can change this any time: <Link href="/me/settings" className="font-medium text-brand underline">Me &gt; Settings &gt; Alerts on this device</Link>
+          You can change this any time: <Link href="/me/settings" className="font-medium text-brand-text underline">Me &gt; Settings &gt; Alerts on this device</Link>
         </p>
       ) : null}
     </section>

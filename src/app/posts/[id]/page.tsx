@@ -97,7 +97,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
         <div className="flex flex-col gap-1 pb-4">
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">{kindLabel(detail.kind)}</span>
-            {howMany ? <span className="rounded-full bg-brand/10 px-2.5 py-1 font-medium text-brand">{howMany}</span> : null}
+            {howMany ? <span className="rounded-full bg-brand/10 px-2.5 py-1 font-medium text-brand-text">{howMany}</span> : null}
             {condition ? (
               <span className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800">
                 {wishlist ? "Wants: " : ""}
@@ -195,7 +195,7 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             );
           })()}
           {detail.seller.handle ? (
-            <Link href={`/u/${detail.seller.handle}#reviews`} className="flex min-h-11 items-center active:opacity-80">
+            <Link href={`/u/${detail.seller.handle}/reviews`} className="flex min-h-11 items-center active:opacity-80">
               <Stars average={detail.seller.rating?.average ?? null} count={detail.seller.rating?.count ?? 0} />
             </Link>
           ) : null}

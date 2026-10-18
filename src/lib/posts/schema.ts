@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MEETUP_HOURS_MESSAGE, withinMeetupHours } from "@/lib/deals/handover";
 import { PAYMENT_NOTE_MAX } from "@/lib/payment";
 
 // Post input rules (business logic "Posts", decided 2026-10-16). One schema
@@ -232,6 +233,8 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     if (seen.has(day)) errors[key] = "This day is listed twice.";
     else if (!startTime || !endTime) errors[key] = "Choose a start and an end time.";
     else if (endTime <= startTime) errors[key] = "The end time must be after the start time.";
+    // Availability is when someone can meet, so a post that offers meet-ups stays inside meet-up hours.
+    else if (raw.exchangeMeetup && !(withinMeetupHours(startTime) && withinMeetupHours(endTime))) errors[key] = MEETUP_HOURS_MESSAGE;
     seen.add(day);
     if (errors[key] || !startTime || !endTime) return;
     availability.push(

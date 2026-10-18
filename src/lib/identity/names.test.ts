@@ -46,7 +46,7 @@ describe("checkDisplayName", () => {
     expect(checkDisplayName(raw).ok).toBe(false);
   });
 
-  it.each(["Admin", " ADMIN ", "A.d-m_i n", "Support", "Studiskarte Support", "studiskarte", "Deleted student"])("refuses the staff-like name %j", (raw) => {
+  it.each(["Admin", " ADMIN ", "A.d-m_i n", "Support", "Studiskarte Support", "studiskarte", "Deleted student", "Deleted account"])("refuses the staff-like name %j", (raw) => {
     expect(checkDisplayName(raw)).toEqual({ ok: false, message: "That name is reserved. Choose another." });
   });
 

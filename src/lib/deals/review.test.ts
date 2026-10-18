@@ -252,29 +252,31 @@ describe("what a student has earned", () => {
 });
 
 describe("the reviews listed on a profile", () => {
-  it("show the post, the note and the reviewer's name, newest first", async () => {
+  it("show the post, the note and the reviewer's handle, newest first", async () => {
     const first = await completedFree();
     const second = await completedFree();
     await submitReview({ actorId: ana, dealId: first, input: { rating: 4, text: "Good" } });
     await submitReview({ actorId: ana, dealId: second, input: { rating: 5 } });
-    const items = await listReviews(seller);
-    expect(items.map((i) => ({ rating: i.rating, text: i.text, reviewerName: i.reviewerName }))).toEqual([
-      { rating: 5, text: null, reviewerName: "Ana Buyer" },
-      { rating: 4, text: "Good", reviewerName: "Ana Buyer" },
+    const { items } = await listReviews(ben, seller);
+    expect(items.map((i) => ({ rating: i.rating, text: i.text, reviewerLabel: i.reviewerLabel }))).toEqual([
+      { rating: 5, text: null, reviewerLabel: `@ana_${run}` },
+      { rating: 4, text: "Good", reviewerLabel: `@ana_${run}` },
     ]);
+    // The post is fulfilled by now; its history still shows the title to a stranger (history.test.ts covers hidden and removed).
     expect(items[0].postTitle).toContain(run);
-    expect(await listReviews(seller, 1)).toHaveLength(1);
+    expect((await listReviews(seller, seller)).items[0].postTitle).toContain(run);
+    expect((await listReviews(ben, seller, 1, 1)).items).toHaveLength(1);
   });
 
-  it("show a deleted reviewer as 'Deleted student', a suspended one as 'Student', and never an email", async () => {
+  it("show a deleted reviewer as 'Deleted account', a suspended one as 'Student', and never an email", async () => {
     const first = await completedFree();
     await submitReview({ actorId: ana, dealId: first, input: { rating: 4 } });
     await db.update(student).set({ accountStatus: "deleted" }).where(eq(student.id, ana));
-    const deleted = await listReviews(seller);
-    expect(deleted.map((i) => i.reviewerName)).toEqual(["Deleted student"]);
+    const deleted = await listReviews(ben, seller);
+    expect(deleted.items.map((i) => i.reviewerLabel)).toEqual(["Deleted account"]);
     expect(JSON.stringify(deleted)).not.toContain("testschool");
 
     await db.update(student).set({ accountStatus: "suspended" }).where(eq(student.id, ana));
-    expect((await listReviews(seller)).map((i) => i.reviewerName)).toEqual(["Student"]);
+    expect((await listReviews(ben, seller)).items.map((i) => i.reviewerLabel)).toEqual(["Student"]);
   });
 });

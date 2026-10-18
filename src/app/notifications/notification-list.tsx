@@ -24,7 +24,7 @@ export function NotificationList({ rows }: { rows: NotificationRow[] }) {
           <button
             type="button"
             onClick={() => void markAllNotificationsReadAction()}
-            className="flex h-11 items-center rounded-lg px-3 text-sm font-medium text-brand"
+            className="flex h-11 items-center rounded-lg px-3 text-sm font-medium text-brand-text"
           >
             Mark all as read
           </button>

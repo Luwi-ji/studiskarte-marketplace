@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 import { UpdateNotice } from "./update-notice";
+
+// One variable font for the whole app, self-hosted at build time (no request to Google when a page loads).
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Studiskarte Marketplace",
@@ -19,13 +23,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b101a" },
   ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${figtree.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {children}
         <ServiceWorkerRegistration />

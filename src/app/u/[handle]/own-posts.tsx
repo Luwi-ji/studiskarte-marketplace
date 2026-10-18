@@ -60,7 +60,7 @@ export async function OwnPosts({ posts }: { posts: OwnPost[] }) {
                 <p className="text-base font-semibold">{formatPrice(p.priceKind, p.priceAmount)}</p>
                 <p className="line-clamp-2 text-sm leading-snug">{p.title}</p>
                 <Details post={p} />
-                {taken ? <p className="text-xs font-medium text-brand">{taken}</p> : null}
+                {taken ? <p className="text-xs font-medium text-brand-text">{taken}</p> : null}
               </div>
             </Link>
             <PostMenu postId={p.id} title={p.title} status={p.status} editLocked={p.editLocked} />

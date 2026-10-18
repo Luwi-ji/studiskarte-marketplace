@@ -20,7 +20,7 @@ export function DeleteAccount({ handle }: { handle: string }) {
           <li>Your profile, handle, picture and school email are erased, and you are signed out everywhere.</li>
           <li>Your open listings are withdrawn.</li>
           <li>Reservations still being arranged are cancelled and the other student is told. One already paid or handed over is sent to an admin instead.</li>
-          <li>Your messages and finished reservations stay for the other student, shown as &ldquo;Deleted student&rdquo;. They can no longer reply to you.</li>
+          <li>Your messages and finished reservations stay for the other student, shown as &ldquo;Deleted account&rdquo;. They can no longer reply to you.</li>
           <li>You can sign up again later with the same email, as a new student.</li>
         </ul>
         <label htmlFor="deleteConfirm" className="font-medium">

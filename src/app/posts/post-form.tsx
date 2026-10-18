@@ -466,6 +466,7 @@ export function PostForm(props: Props) {
         <AvailabilityPicker
           value={values.availability}
           errors={errors}
+          meetup={values.exchangeMeetup}
           onChange={(update) => {
             setValues((current) => ({ ...current, availability: update(current.availability) }));
             clearErrors("availability", ...Array.from({ length: AVAILABILITY_MAX }, (_, i) => `availability.${i}`));

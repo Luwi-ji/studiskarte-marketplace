@@ -21,7 +21,7 @@ export function CalendarActions({ deal }: { deal: DealCardData }) {
         </a>
         <p className={NOTE}>
           Subscribed in Settings? Your calendar updates by itself, though Google Calendar can take several hours. A downloaded file does not update: add it again after any change.{" "}
-          <Link href="/me/settings#calendar" className="font-medium text-brand underline">
+          <Link href="/me/settings#calendar" className="font-medium text-brand-text underline">
             Calendar link
           </Link>
         </p>

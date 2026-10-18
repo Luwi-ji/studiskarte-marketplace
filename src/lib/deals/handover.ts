@@ -8,6 +8,16 @@ export const CONFIRM_IDLE_DAYS = 7;
 /** A handover can be planned this far ahead, no further. */
 export const PLAN_AHEAD_DAYS = 60;
 export const PLACE_MAX = 200;
+/** Meet-ups happen in school hours, Philippine time: from 6:00 AM to 8:00 PM, both included. Delivery is not limited. */
+export const MEETUP_FIRST = "06:00";
+export const MEETUP_LAST = "20:00";
+export const MEETUP_HOURS_MESSAGE = "Meet-ups are between 6:00 AM and 8:00 PM. Pick a time in those hours.";
+
+/** Whether a "HH:MM" time falls inside meet-up hours. */
+export function withinMeetupHours(time: string): boolean {
+  return time >= MEETUP_FIRST && time <= MEETUP_LAST;
+}
+
 /** Reminders before the meeting, in minutes. [Assumed: one day and two hours.] */
 export const BEFORE_REMINDERS = [
   { key: "1d", minutes: 24 * 60 },
@@ -72,9 +82,11 @@ export function time12(time: string): string {
  * if that has already passed today, the next full hour. So a proposal made
  * with the first day and the starting time is never in the past.
  */
-export function suggestTime(date: string, windows: Availability[] | null, now = new Date()): string {
+export function suggestTime(date: string, windows: Availability[] | null, now = new Date(), method: HandoverMethod = "meetup"): string {
+  // A meet-up cannot be suggested outside meet-up hours, whatever an older post's window says.
+  const fit = (time: string) => (method === "meetup" && !withinMeetupHours(time) ? "09:00" : time);
   const first = windows === null ? undefined : [...windowsOn(date, windows)].sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
-  const start = first ? first.startTime : "09:00";
+  const start = fit(first ? first.startTime : "09:00");
   const today = manilaDate(now);
   if (date !== today) return start;
   const wall = new Date(now.getTime() + MANILA_MS); // the Philippine wall clock, read as UTC
@@ -82,7 +94,7 @@ export function suggestTime(date: string, windows: Availability[] | null, now = 
   const [h, m] = start.split(":").map(Number);
   if (h * 60 + m > nowMinutes) return start;
   const next = (Math.floor(nowMinutes / 60) + 1) * 60;
-  return next >= 24 * 60 ? start : `${String(next / 60).padStart(2, "0")}:00`;
+  return next >= 24 * 60 ? start : fit(`${String(next / 60).padStart(2, "0")}:00`);
 }
 
 /** An hour (1 to 12), minute and AM or PM as "HH:MM" on the 24-hour clock. */
@@ -128,6 +140,7 @@ export function parseProposal(input: unknown, post: { methods: HandoverMethod[];
   if (!post.methods.includes(method)) return { ok: false, error: "This post does not offer that way to hand it over.", field: "method" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) return { ok: false, error: "Choose a date.", field: "date" };
   if (!/^\d{2}:\d{2}$/.test(time) || Number.isNaN(Date.parse(`${date}T${time}:00${MANILA_OFFSET}`))) return { ok: false, error: "Choose a time.", field: "time" };
+  if (method === "meetup" && !withinMeetupHours(time)) return { ok: false, error: MEETUP_HOURS_MESSAGE, field: "time" };
   const at = new Date(`${date}T${time}:00${MANILA_OFFSET}`);
   if (at.getTime() <= now.getTime()) return { ok: false, error: "Choose a time that has not passed.", field: "time" };
   if (at.getTime() > now.getTime() + PLAN_AHEAD_DAYS * DAY_MS) return { ok: false, error: `Choose a time within the next ${PLAN_AHEAD_DAYS} days.`, field: "date" };

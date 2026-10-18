@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
 import { VerifiedBadge } from "@/components/verified-badge";
-import { StarRow, Stars } from "@/components/stars";
+import { Stars } from "@/components/stars";
 import { requireActiveStudent } from "@/lib/access";
 import { listPostsBy } from "@/lib/discovery/feed";
-import { getReputation, listReviews } from "@/lib/deals/stats";
+import { getReputation } from "@/lib/deals/stats";
 import { getPublicProfile } from "@/lib/identity/profile";
 import { getObjectStore } from "@/lib/images/store";
 import { getReplyTime, REPLY_LABEL } from "@/lib/messaging/response-time";
@@ -54,13 +54,12 @@ async function Profile({
   const base = `/u/${profile.handle}`;
 
   // Your own profile lists everything you posted, with its controls; anyone else's lists what is open.
-  const [own, others, pictureUrl, rep, reply, reviews] = await Promise.all([
+  const [own, others, pictureUrl, rep, reply] = await Promise.all([
     profile.isSelf ? listOwnPosts(profile.id) : null,
     profile.isSelf ? null : listPostsBy(me.id, profile.id),
     profile.avatarKey ? getObjectStore().signedUrl(profile.avatarKey, PICTURE_LINK_SECONDS) : null,
     getReputation(profile.id),
     getReplyTime(profile.id),
-    listReviews(profile.id),
   ]);
   const shownOwn = own?.filter((p) => p.kind === tab) ?? [];
   const shownOthers = others?.filter((p) => p.kind === tab) ?? [];
@@ -87,12 +86,21 @@ async function Profile({
             <VerifiedBadge />
             <span className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</span>
           </div>
-          <p className="flex flex-wrap items-center justify-center gap-x-1 text-sm text-zinc-600 dark:text-zinc-400">
-            <Stars average={rep.rating?.average ?? null} count={rep.rating?.count ?? 0} />
-            <span>
-              · Sold {rep.sold} · Granted {rep.granted}
-              {profile.isSelf ? ` · Bought ${rep.bought}` : ""}
-            </span>
+          <p className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
+            <Link href={`${base}/reviews`} className="inline-flex min-h-11 items-center" aria-label={rep.rating ? `Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews` : "Reviews: none yet"}>
+              <Stars average={rep.rating?.average ?? null} count={rep.rating?.count ?? 0} />
+            </Link>
+            <Link href={`${base}/sold`} className="inline-flex min-h-11 items-center underline">
+              Sold {rep.sold}
+            </Link>
+            <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
+              Granted {rep.granted}
+            </Link>
+            {profile.isSelf ? (
+              <Link href={`${base}/bought`} className="inline-flex min-h-11 items-center underline">
+                Bought {rep.bought}
+              </Link>
+            ) : null}
           </p>
           {reply ? <p className="text-xs text-zinc-500">Typically replies {REPLY_LABEL[reply]}</p> : null}
         </div>
@@ -151,25 +159,6 @@ async function Profile({
           <OwnPosts posts={shownOwn} />
         ) : (
           <PostGrid items={shownOthers} />
-        )}
-      </section>
-
-      <section id="reviews" className="mx-auto flex w-full max-w-md scroll-mt-20 flex-col gap-3">
-        <h2 className="text-lg font-semibold">Reviews</h2>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-zinc-500">No reviews yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {reviews.map((r) => (
-              <li key={r.id} className="flex flex-col gap-1 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-                <StarRow rating={r.rating} />
-                {r.text ? <p className="whitespace-pre-wrap text-sm">{r.text}</p> : null}
-                <p className="text-xs text-zinc-500">
-                  {r.reviewerName} · {r.postTitle} · {r.createdAt.toLocaleDateString("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" })}
-                </p>
-              </li>
-            ))}
-          </ul>
         )}
       </section>
     </div>

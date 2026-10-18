@@ -18,7 +18,7 @@ Items marked **Owner** cannot be done in code.
 | 8 | Restore drill (below). | Anyone | Done 2026-10-18. |
 | 9 | Make a Neon branch before each production migration: `npx neonctl branches create --project-id late-dew-47090405 --name pre-<change>`. Older ones are `pre-pair-conversations` and `pre-perks-reviews`. | Whoever deploys | Habit. |
 
-Personal data the app holds (for the privacy review): school email, handle, display name, profile picture, school domain, sessions (IP address and browser), device alert subscriptions, messages and message pictures, post photos, offers, reservations, reviews, reports and blocks, calendar link hash, the terms version and time accepted. Account deletion (Settings, Delete my account) erases the email, handle, name, picture, sessions, devices, notifications, follows, hearts, blocks and view history; messages, finished reservations and reviews stay as "Deleted student". Post photos and message pictures are not erased.
+Personal data the app holds (for the privacy review): school email, handle, display name, profile picture, school domain, sessions (IP address and browser), device alert subscriptions, messages and message pictures, post photos, offers, reservations, reviews, reports and blocks, calendar link hash, the terms version and time accepted. Account deletion (Settings, Delete my account) erases the email, handle, name, picture, sessions, devices, notifications, follows, hearts, blocks and view history; messages, finished reservations and reviews stay as "Deleted account". Post photos and message pictures are not erased.
 
 ## What watches production
 

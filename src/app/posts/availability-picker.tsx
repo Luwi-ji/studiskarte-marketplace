@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MEETUP_FIRST, MEETUP_LAST } from "@/lib/deals/handover";
 import {
   addDays,
   AVAILABILITY_DAYS_AHEAD,
@@ -54,13 +55,15 @@ function shiftMonth(month: string, by: number): string {
 }
 
 // Module level so React keeps the same inputs between renders (focus stays put).
-function TimeRange(props: { label: string; start: string; end: string; onStart: (t: string) => void; onEnd: (t: string) => void; error?: string }) {
+function TimeRange(props: { label: string; start: string; end: string; onStart: (t: string) => void; onEnd: (t: string) => void; error?: string; hours?: boolean }) {
+  // `hours`: the post offers meet-ups, which are only held from MEETUP_FIRST to MEETUP_LAST.
+  const limits = props.hours ? { min: MEETUP_FIRST, max: MEETUP_LAST } : {};
   return (
     <>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <input type="time" aria-label={`${props.label} from`} value={props.start} onChange={(e) => props.onStart(e.target.value)} className={field} />
+        <input type="time" aria-label={`${props.label} from`} value={props.start} onChange={(e) => props.onStart(e.target.value)} className={field} {...limits} />
         <span className="text-zinc-500">to</span>
-        <input type="time" aria-label={`${props.label} until`} value={props.end} onChange={(e) => props.onEnd(e.target.value)} className={field} />
+        <input type="time" aria-label={`${props.label} until`} value={props.end} onChange={(e) => props.onEnd(e.target.value)} className={field} {...limits} />
       </div>
       {props.error ? (
         <p role="alert" className="text-sm text-red-600">
@@ -75,11 +78,14 @@ export function AvailabilityPicker({
   value,
   onChange,
   errors,
+  meetup,
 }: {
   value: AvailabilityValue;
   /** Receives an update function, so taps in quick succession build on each other. */
   onChange: (update: (current: AvailabilityValue) => AvailabilityValue) => void;
   errors: FieldErrors;
+  /** The post offers meet-ups, so times are limited to meet-up hours. */
+  meetup: boolean;
 }) {
   const today = manilaToday(new Date());
   const lastDay = addDays(today, AVAILABILITY_DAYS_AHEAD);
@@ -196,6 +202,7 @@ export function AvailabilityPicker({
             <input className="h-5 w-5 shrink-0" type="checkbox" checked={sameTime} onChange={(e) => setSame(e.target.checked)} />
             Same time for every {mode === "weekly" ? "day" : "date"}
           </label>
+          {meetup ? <p className="text-xs text-zinc-500">Meet-ups are between 6:00 AM and 8:00 PM.</p> : null}
           {sameTime ? (
             <div className="flex flex-col gap-1">
               <span className="text-sm text-zinc-600 dark:text-zinc-400">{value.map(entryLabel).join(", ")}</span>
@@ -205,6 +212,7 @@ export function AvailabilityPicker({
                 end={shared.endTime}
                 onStart={(t) => setTime("all", "startTime", t)}
                 onEnd={(t) => setTime("all", "endTime", t)}
+                hours={meetup}
                 error={entryErrors[0]}
               />
             </div>
@@ -218,6 +226,7 @@ export function AvailabilityPicker({
                   end={entry.endTime}
                   onStart={(t) => setTime(i, "startTime", t)}
                   onEnd={(t) => setTime(i, "endTime", t)}
+                  hours={meetup}
                   error={errors[`availability.${i}`]}
                 />
               </div>
