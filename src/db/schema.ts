@@ -41,12 +41,17 @@ export const student = pgTable(
   {
     id: text("id").primaryKey(),
     name: text("name").notNull().default(""),
+    // The sign-in address. A school address for people who signed up with one, a personal
+    // address for visitors. Always verified by an emailed code (or by Google).
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
-    schoolDomain: text("school_domain")
-      .notNull()
-      .references(() => school.domain),
+    // Set only while a verified school email is attached; the school is read from it.
+    schoolDomain: text("school_domain").references(() => school.domain),
+    // Verified by an emailed code. Unique: one account per school email.
+    schoolEmail: text("school_email").unique(),
+    // student, faculty, staff, alumni (each needs a school email) or visitor (none).
+    role: text("role").notNull().default("student"),
     // Null until the student finishes sign-up (chooses a handle).
     handle: text("handle").unique(),
     // Last change after sign-up; null means the student has never changed it.
@@ -71,10 +76,18 @@ export const student = pgTable(
     // Search for people by handle or display name, tolerating misspellings (pg_trgm).
     index("student_handle_trgm_idx").using("gin", t.handle.op("gin_trgm_ops")),
     index("student_name_trgm_idx").using("gin", t.name.op("gin_trgm_ops")),
-    // The suffix rule lives in school-email.ts; the database refuses anything
-    // that is not at least shaped like a school address, even if code is bypassed.
-    check("student_email_school", sql`${t.email} ~ '^[^@]+@([a-z0-9-]+\\.)+edu\\.ph$'`),
+    // The school-address rule lives in school-email.ts; the database refuses anything
+    // that is not at least shaped like an address, and any school email that is not
+    // shaped like a school address, even if code is bypassed.
+    check("student_email_shape", sql`${t.email} ~ '^[^@\\s]+@[^@\\s]+$'`),
     check("student_email_lower", sql`${t.email} = lower(${t.email})`),
+    check(
+      "student_school_email_shape",
+      sql`${t.schoolEmail} is null or (${t.schoolEmail} = lower(${t.schoolEmail}) and ${t.schoolEmail} ~ '^[^@]+@([a-z0-9-]+\\.)+edu\\.ph$' and split_part(${t.schoolEmail}, '@', 2) = ${t.schoolDomain})`,
+    ),
+    check("student_school_pair", sql`(${t.schoolEmail} is null) = (${t.schoolDomain} is null)`),
+    check("student_role_values", sql`${t.role} in ('student', 'faculty', 'staff', 'alumni', 'visitor')`),
+    check("student_role_school", sql`(${t.role} = 'visitor') = (${t.schoolEmail} is null)`),
     check(
       "student_account_status",
       sql`${t.accountStatus} in ('active', 'suspended', 'deleted')`,
@@ -130,8 +143,8 @@ export const verification = pgTable(
   (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
 
-// Required by Better Auth's schema check. We use no passwords and no social
-// sign-in, so no row is written today; keep it to what the library reads.
+// Better Auth's account table: one `credential` row holds the password hash, one
+// row per linked Google login. Passwords are scrypt hashes written by Better Auth.
 export const account = pgTable(
   "account",
   {

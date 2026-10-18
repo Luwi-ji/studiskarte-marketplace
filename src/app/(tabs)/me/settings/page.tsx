@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { requireActiveStudent } from "@/lib/access";
 import { getOwnProfile } from "@/lib/identity/profile";
+import { ROLE_LABEL } from "@/lib/identity/roles";
 import { getObjectStore } from "@/lib/images/store";
 import { AlertsToggle } from "@/components/alerts-toggle";
 import { LegalLinks } from "@/components/legal-links";
@@ -12,6 +13,7 @@ import { hasCalendarToken } from "@/lib/calendar/token";
 import { CalendarLink } from "./calendar-link";
 import { DeleteAccount } from "./delete-account";
 import { AvatarForm, DisplayNameForm, HandleForm, SignOutButton } from "./settings-forms";
+import { SchoolEmailForm } from "./school-email-form";
 
 export const metadata = { title: "Settings · Studiskarte Marketplace" };
 
@@ -75,11 +77,15 @@ async function Settings() {
       <AvatarForm pictureUrl={pictureUrl} />
       <DisplayNameForm current={profile.displayName} />
       <HandleForm current={profile.handle} nextChangeOn={nextChangeOn} />
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium">School</span>
-        <p className="text-zinc-700 dark:text-zinc-300">{profile.school}</p>
-        <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
-      </div>
+      {me.role === "visitor" ? (
+        <SchoolEmailForm />
+      ) : (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium">{ROLE_LABEL[me.role]}</span>
+          <p className="text-zinc-700 dark:text-zinc-300">{profile.school}</p>
+          <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
+        </div>
+      )}
       <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
       <CalendarLink active={calendarActive} />
       <SignOutButton />

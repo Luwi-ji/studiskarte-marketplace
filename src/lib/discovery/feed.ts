@@ -2,6 +2,7 @@ import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { follow, heart, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { NO_SCHOOL_LABEL } from "@/lib/identity/roles";
 import { allFilterConditions, DEFAULT_FILTERS, priceKey, type Filters, type Sort } from "@/lib/discovery/filters";
 import { visibleToOthers } from "@/lib/discovery/visibility";
 
@@ -37,13 +38,13 @@ function visibleCards<E extends Record<string, SQL>>(extra: E) {
       priceAmount: post.priceAmount,
       listedAt: post.listedAt,
       ownerHandle: student.handle,
-      school: sql<string>`coalesce(${school.name}, ${school.domain})`,
+      school: sql<string>`coalesce(${school.name}, ${school.domain}, ${NO_SCHOOL_LABEL})`,
       thumbKey: image.thumbKey,
       ...extra,
     })
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
-    .innerJoin(school, eq(school.domain, student.schoolDomain))
+    .leftJoin(school, eq(school.domain, student.schoolDomain))
     .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
     .innerJoin(image, eq(image.id, postPhoto.imageId));
 }

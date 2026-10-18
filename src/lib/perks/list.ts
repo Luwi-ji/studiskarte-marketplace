@@ -20,19 +20,19 @@ export type PerkItem = {
  * an active partner that serves their school (no school list means every school).
  * Partners' contact details are never selected.
  */
-function visiblePerks(schoolDomain: string) {
+function visiblePerks(schoolDomain: string | null) {
   return and(
     eq(perk.status, "live"),
     eq(partner.status, "active"),
     lte(perk.startsAt, sql`now()`),
     or(isNull(perk.endsAt), gt(perk.endsAt, sql`now()`)),
-    or(isNull(partner.schoolDomains), sql`${schoolDomain} = any(${partner.schoolDomains})`),
+    or(isNull(partner.schoolDomains), sql`${schoolDomain}::text = any(${partner.schoolDomains})`),
   );
 }
 
 /** Visible perks, newest first, optionally narrowed to one kind and one area. */
 export async function listPerks(
-  schoolDomain: string,
+  schoolDomain: string | null,
   filter: { kind?: PerkKind; area?: string } = {},
 ): Promise<PerkItem[]> {
   return getDb()
@@ -60,7 +60,7 @@ export async function listPerks(
 }
 
 /** The kinds and areas the student's visible perks cover, for the filter chips. */
-export async function perkFilterOptions(schoolDomain: string): Promise<{ kinds: string[]; areas: string[] }> {
+export async function perkFilterOptions(schoolDomain: string | null): Promise<{ kinds: string[]; areas: string[] }> {
   const rows = await getDb()
     .selectDistinct({ kind: partner.kind, area: partner.area })
     .from(perk)

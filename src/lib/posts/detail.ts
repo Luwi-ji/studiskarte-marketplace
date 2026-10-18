@@ -2,6 +2,7 @@ import { and, eq, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { category, image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { NO_SCHOOL_LABEL } from "@/lib/identity/roles";
 import { loadAvailability } from "@/lib/posts/availability";
 import { unitsTaken } from "@/lib/deals/capacity";
 import { getReputation } from "@/lib/deals/stats";
@@ -95,7 +96,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     .from(post)
     .innerJoin(category, eq(category.id, post.categoryId))
     .innerJoin(student, eq(student.id, post.ownerId))
-    .innerJoin(school, eq(school.domain, student.schoolDomain))
+    .leftJoin(school, eq(school.domain, student.schoolDomain))
     .leftJoin(avatar, eq(avatar.id, student.avatarImageId))
     .where(
       and(
@@ -149,7 +150,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     seller: {
       handle: row.sellerHandle,
       displayName: row.sellerName,
-      school: row.schoolName ?? row.schoolDomain,
+      school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
       avatarThumbKey: row.avatarThumbKey,
       rating: reputation.rating,
     },

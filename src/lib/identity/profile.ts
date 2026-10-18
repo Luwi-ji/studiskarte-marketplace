@@ -9,11 +9,12 @@ import {
   nextHandleChangeAt,
 } from "@/lib/identity/names";
 import type { ObjectStore } from "@/lib/images/store";
+import { NO_SCHOOL_LABEL, type SchoolRole } from "@/lib/identity/roles";
 import { discardImage, storeImage } from "@/lib/images/upload";
 import { currentLegal } from "@/lib/legal/documents";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 
-/** What a student sees about themselves. Never includes the school email. */
+/** What a student sees about themselves. Never includes the school email. `school` reads "Visitor" when there is no school email. */
 export type OwnProfile = {
   handle: string | null;
   displayName: string;
@@ -35,14 +36,14 @@ export async function getOwnProfile(studentId: string, now = new Date()): Promis
       avatarThumbKey: image.thumbKey,
     })
     .from(student)
-    .innerJoin(school, eq(school.domain, student.schoolDomain))
+    .leftJoin(school, eq(school.domain, student.schoolDomain))
     .leftJoin(image, eq(image.id, student.avatarImageId))
     .where(eq(student.id, studentId));
   if (!row) return null;
   return {
     handle: row.handle,
     displayName: row.displayName,
-    school: row.schoolName ?? row.schoolDomain,
+    school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
     avatarKey: row.avatarKey,
     avatarThumbKey: row.avatarThumbKey,
     nextHandleChangeAt: nextHandleChangeAt(row.handleChangedAt, now),
@@ -80,7 +81,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
       avatarKey: image.key,
     })
     .from(student)
-    .innerJoin(school, eq(school.domain, student.schoolDomain))
+    .leftJoin(school, eq(school.domain, student.schoolDomain))
     .leftJoin(image, eq(image.id, student.avatarImageId))
     .where(and(eq(student.handle, handle), eq(student.accountStatus, "active")));
   if (!row?.handle) return null;
@@ -95,7 +96,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     id: row.id,
     handle: row.handle,
     displayName: row.displayName,
-    school: row.schoolName ?? row.schoolDomain,
+    school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
     avatarKey: row.avatarKey,
     followerCount: followers.n,
     isSelf: row.id === viewerId,
@@ -122,7 +123,7 @@ function isHandleTaken(error: unknown): boolean {
  */
 export async function completeSignUp(
   studentId: string,
-  input: { handle: string; displayName: string; acceptedTermsVersion?: string | null },
+  input: { handle: string; displayName: string; role?: SchoolRole | null; acceptedTermsVersion?: string | null },
   now = new Date(),
 ): Promise<ProfileResult> {
   const handle = checkHandle(input.handle);
@@ -141,6 +142,8 @@ export async function completeSignUp(
       .set({
         handle: handle.handle,
         name: name.name,
+        // Someone with a school email says which kind of member they are; a visitor stays one.
+        ...(input.role ? { role: sql`case when ${student.schoolEmail} is null then ${student.role} else ${input.role} end` } : {}),
         updatedAt: now,
         ...(legal ? { termsVersion: legal.version, termsAcceptedAt: now } : {}),
       })

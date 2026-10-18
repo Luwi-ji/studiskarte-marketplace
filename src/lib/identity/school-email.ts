@@ -29,3 +29,18 @@ export function parseSchoolEmail(raw: string): SchoolEmail | null {
   if (labels.some((label) => label === "")) return null;
   return { email, domain };
 }
+
+export type ParsedEmail = { email: string; domain: string; school: boolean };
+
+/**
+ * Any address that passes the same strict shape (see ADDRESS), school or not.
+ * `school` is true for a Philippine school address. Visitors sign up with the
+ * ones where it is false.
+ */
+export function parseEmail(raw: string): ParsedEmail | null {
+  const email = raw.trim().toLowerCase();
+  if (email.length > 254) return null;
+  const match = ADDRESS.exec(email);
+  if (!match) return null;
+  return { email, domain: match[1], school: parseSchoolEmail(email) !== null };
+}

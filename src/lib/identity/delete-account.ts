@@ -66,7 +66,7 @@ export async function deleteAccount(args: {
 
   const result = await getDb().transaction(async (tx): Promise<DeleteAccountResult> => {
     const [me] = await tx
-      .select({ status: student.accountStatus, isAdmin: student.isAdmin, handle: student.handle, email: student.email, avatarImageId: student.avatarImageId })
+      .select({ status: student.accountStatus, isAdmin: student.isAdmin, handle: student.handle, email: student.email, schoolEmail: student.schoolEmail, avatarImageId: student.avatarImageId })
       .from(student)
       .where(eq(student.id, args.studentId))
       .for("update");
@@ -137,8 +137,10 @@ export async function deleteAccount(args: {
     await tx.delete(postView).where(eq(postView.viewerId, args.studentId));
     await tx.delete(block).where(or(eq(block.blockerId, args.studentId), eq(block.blockedId, args.studentId)));
     // Exact matches only: another address that merely ends the same way must not be touched.
-    await tx.delete(verification).where(inArray(verification.identifier, OTP_TYPES.map((type) => `${type}-otp-${me.email}`)));
-    await tx.delete(rateLimitEvent).where(eq(rateLimitEvent.key, me.email));
+    await tx
+      .delete(verification)
+      .where(inArray(verification.identifier, [...OTP_TYPES.map((type) => `${type}-otp-${me.email}`), `school-link:${args.studentId}`]));
+    await tx.delete(rateLimitEvent).where(inArray(rateLimitEvent.key, [me.email, ...(me.schoolEmail ? [me.schoolEmail] : []), args.studentId]));
 
     // The profile picture goes with the account; its files are removed once this is saved.
     if (me.avatarImageId) {
@@ -153,6 +155,10 @@ export async function deleteAccount(args: {
       .set({
         accountStatus: "deleted",
         email: `deleted.${randomUUID()}@deleted.edu.ph`,
+        // The school email is released and no school is kept: the row is a closed account, not a member.
+        schoolEmail: null,
+        schoolDomain: null,
+        role: "visitor",
         emailVerified: false,
         name: DELETED_NAME,
         handle: null,

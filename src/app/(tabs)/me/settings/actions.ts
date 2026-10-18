@@ -8,6 +8,7 @@ import { changeDisplayName, changeHandle } from "@/lib/identity/profile";
 import { unstable_rethrow } from "next/navigation";
 import { signOut } from "@/app/(public)/sign-in/actions";
 import { deleteAccount } from "@/lib/identity/delete-account";
+import { confirmSchoolEmail, requestSchoolEmailCode } from "@/lib/identity/school-link";
 import { getObjectStore } from "@/lib/images/store";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 
@@ -85,4 +86,37 @@ export async function deleteAccountAction(confirmHandle: unknown): Promise<{ ok:
     console.error("delete account failed", error);
     return { ok: false, error: "Something went wrong on our side. Nothing was deleted. Try again in a moment." };
   }
+}
+
+export type SchoolEmailState =
+  | { step: "email"; error?: string }
+  | { step: "code"; email: string; error?: string };
+
+/** A visitor asks for a code at a school email. */
+export async function requestSchoolEmailAction(_prev: SchoolEmailState, formData: FormData): Promise<SchoolEmailState> {
+  const me = await requireActiveStudent();
+  try {
+    const result = await requestSchoolEmailCode({ studentId: me.id, rawEmail: String(formData.get("email") ?? ""), headers: await headers() });
+    return result.ok ? { step: "code", email: result.email } : { step: "email", error: result.error };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("school email code failed", error);
+    return { step: "email", error: "Something went wrong. Try again." };
+  }
+}
+
+/** The right code attaches the school email and sets the role. */
+export async function confirmSchoolEmailAction(_prev: SchoolEmailState, formData: FormData): Promise<SchoolEmailState> {
+  const me = await requireActiveStudent();
+  const email = String(formData.get("email") ?? "");
+  try {
+    const result = await confirmSchoolEmail({ studentId: me.id, rawEmail: email, code: String(formData.get("code") ?? ""), role: formData.get("role") });
+    if (!result.ok) return { step: "code", email, error: result.error };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("attaching a school email failed", error);
+    return { step: "code", email, error: "Something went wrong. Try again." };
+  }
+  refresh();
+  return { step: "email" };
 }

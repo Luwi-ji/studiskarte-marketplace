@@ -4,10 +4,11 @@ import { eq } from "drizzle-orm";
 import { student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/identity/auth";
+import type { Role } from "@/lib/identity/roles";
 import { currentLegal, needsTerms } from "@/lib/legal/documents";
 
-/** A signed-in, active student. `handle` is null until sign-up is finished. */
-export type SignedInStudent = { id: string; schoolDomain: string; handle: string | null; isAdmin: boolean; mustAcceptTerms: boolean };
+/** A signed-in, active account. `handle` is null until sign-up is finished; `schoolDomain` is null for a visitor. */
+export type SignedInStudent = { id: string; schoolDomain: string | null; role: Role; handle: string | null; isAdmin: boolean; mustAcceptTerms: boolean };
 /** A student who has finished sign-up and may use the app. */
 export type ActiveStudent = SignedInStudent & { handle: string };
 
@@ -23,6 +24,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
     .select({
       id: student.id,
       schoolDomain: student.schoolDomain,
+      role: student.role,
       handle: student.handle,
       accountStatus: student.accountStatus,
       isAdmin: student.isAdmin,
@@ -34,6 +36,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
   return {
     id: row.id,
     schoolDomain: row.schoolDomain,
+    role: row.role as Role,
     handle: row.handle,
     isAdmin: row.isAdmin,
     mustAcceptTerms: needsTerms(row.termsVersion, currentLegal()?.version ?? null),

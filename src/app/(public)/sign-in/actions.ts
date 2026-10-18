@@ -2,55 +2,36 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { isAPIError } from "better-auth/api";
-import { auth, requestSignInCode, SIGN_IN_ERROR } from "@/lib/identity/auth";
-import { parseSchoolEmail } from "@/lib/identity/school-email";
+import { auth, googleEnabled } from "@/lib/identity/auth";
+import { loginWithPassword } from "@/lib/identity/password";
 
-export type SignInState =
-  | { step: "email"; error?: string }
-  | { step: "code"; email: string; error?: string };
+export type SignInState = { error?: string; identifier?: string };
 
-const SCHOOL_HINT = "Use your school email address ending in .edu.ph.";
+const WRONG =
+  "Wrong email, handle or password. If you signed up with a code or with Google and never chose a password, use Forgot password.";
 const TRY_LATER = "Too many attempts. Try again later.";
-// Wrong, expired, used and locked codes all get this one reply, so the
-// response never reveals which condition applied.
-const BAD_CODE = "That code did not work. Check it or ask for a new one.";
 
-const COULD_NOT_SEND = "We could not send the code. Try again later.";
-
-export async function requestCode(_prev: SignInState, formData: FormData): Promise<SignInState> {
-  const school = parseSchoolEmail(String(formData.get("email") ?? ""));
-  if (!school) return { step: "email", error: SCHOOL_HINT };
-
-  try {
-    const result = await requestSignInCode(school.email, await headers());
-    if (result.ok) return { step: "code", email: school.email };
-    if (result.reason === "not_school_email") return { step: "email", error: SCHOOL_HINT };
-    if (result.reason === "send_failed") return { step: "email", error: COULD_NOT_SEND };
-    return { step: "email", error: TRY_LATER };
-  } catch (error) {
-    console.error("requesting a sign-in code failed", error);
-    return { step: "email", error: COULD_NOT_SEND };
-  }
+export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
+  const identifier = String(formData.get("identifier") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const result = await loginWithPassword(identifier, password, await headers());
+  if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : WRONG };
+  redirect("/");
 }
 
-export async function verifyCode(_prev: SignInState, formData: FormData): Promise<SignInState> {
-  const email = parseSchoolEmail(String(formData.get("email") ?? ""))?.email ?? "";
-  const otp = String(formData.get("code") ?? "").replace(/\s+/g, "");
-  if (!/^\d{6}$/.test(otp)) return { step: "code", email, error: BAD_CODE };
-
-  try {
-    await auth.api.signInEmailOTP({ body: { email, otp }, headers: await headers() });
-  } catch (error) {
-    if (isAPIError(error)) {
-      const code = (error.body as { code?: string } | undefined)?.code;
-      if (code === SIGN_IN_ERROR.tooManyRequests) return { step: "code", email, error: TRY_LATER };
-      return { step: "code", email, error: BAD_CODE };
-    }
-    console.error("sign-in failed", error);
-    return { step: "code", email, error: "Something went wrong. Try again." };
-  }
-  redirect("/");
+/** Starts Google sign-in: the person leaves for Google and comes back to /api/auth/callback/google. */
+export async function continueWithGoogle(): Promise<void> {
+  if (!googleEnabled) redirect("/sign-in");
+  const result = await auth.api.signInSocial({
+    body: {
+      provider: "google",
+      callbackURL: "/",
+      newUserCallbackURL: "/",
+      errorCallbackURL: "/sign-in?google=failed",
+    },
+    headers: await headers(),
+  });
+  redirect(result.url ?? "/sign-in?google=failed");
 }
 
 /** Ends the session. The caller reloads the page so no signed-in screen stays in memory. */

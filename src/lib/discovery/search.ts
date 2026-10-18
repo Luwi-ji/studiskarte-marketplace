@@ -1,6 +1,7 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { image, post, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { NO_SCHOOL_LABEL } from "@/lib/identity/roles";
 import { escapeLike } from "@/lib/discovery/filters";
 import { visibleToOthers } from "@/lib/discovery/visibility";
 import { blockedEitherWaySql } from "@/lib/safety/block";
@@ -38,7 +39,7 @@ export async function searchPeople(viewerId: string, rawQuery: string): Promise<
       avatarThumbKey: image.thumbKey,
     })
     .from(student)
-    .innerJoin(school, eq(school.domain, student.schoolDomain))
+    .leftJoin(school, eq(school.domain, student.schoolDomain))
     .leftJoin(image, eq(image.id, student.avatarImageId))
     .where(
       and(
@@ -59,7 +60,7 @@ export async function searchPeople(viewerId: string, rawQuery: string): Promise<
 
   return rows.flatMap((row) =>
     row.handle
-      ? [{ handle: row.handle, displayName: row.displayName, school: row.schoolName ?? row.schoolDomain, avatarThumbKey: row.avatarThumbKey }]
+      ? [{ handle: row.handle, displayName: row.displayName, school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL, avatarThumbKey: row.avatarThumbKey }]
       : [],
   );
 }
@@ -72,7 +73,7 @@ async function listingCounts(viewerId: string): Promise<Map<string, number>> {
     .innerJoin(student, eq(student.id, post.ownerId))
     .where(visibleToOthers(viewerId))
     .groupBy(student.schoolDomain);
-  return new Map(rows.map((row) => [row.domain, row.n]));
+  return new Map(rows.flatMap((row) => (row.domain ? [[row.domain, row.n] as const] : [])));
 }
 
 /**

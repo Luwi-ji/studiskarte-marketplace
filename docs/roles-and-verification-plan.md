@@ -1,9 +1,9 @@
 # Roles, verification and onboarding: decided plan (2026-10-18)
 
-Status: **not built.** Waits for the privacy review, the legal text and the mail-provider switch. Review notes and the risks behind each rule are in the conversation of 2026-10-18; the evidence is in `docs/design/principles.md`.
+Status: **mostly not built.** Built 2026-10-19 (ADR 0005): roles in the database (student, faculty, staff, alumni, visitor), password login, visitor sign-up behind `ALLOW_VISITORS`, adding a school email later from Settings (code to the school address, then role), Google sign-in. Still not built: ID verification, onboarding tour, the per-listing "allow non-students" flag and the one-showcase limit (until then keep `ALLOW_VISITORS` off), badges. Waits for the privacy review, the legal text and the mail-provider switch. Review notes and the risks behind each rule are in the conversation of 2026-10-18; the evidence is in `docs/design/principles.md`.
 
 ## Decisions (owner)
-- Roles: student, faculty or teacher, staff, alumni, visitor. A **school email** means one of the first four, never visitor; a **personal email** means visitor only.
+- Roles: student, faculty or teacher, staff, alumni, visitor. A **school email** means one of the first four, never visitor; a **personal email** means visitor until a school email is added and confirmed by code (decided 2026-10-19, ID check optional after that).
 - Sign-in stays the emailed code. Sending moves to a provider without Gmail's 500 a day cap (Resend or Brevo) **before** visitors are allowed in.
 - Unverified students can browse, buy and post wishlists. **An unverified student may have one open showcase listing**; verification lifts the limit.
 - Faculty, staff, alumni and visitors browse, buy and post wishlists only.
