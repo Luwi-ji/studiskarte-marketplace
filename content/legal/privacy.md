@@ -10,7 +10,7 @@ When you create an account:
 - **Your email address.** A school email address (ending in .edu.ph) or another email address. We send a 6-digit code to it to prove it is yours.
 - **Your password,** stored only as a salted hash. We cannot read it.
 - **If you add a school email later,** that school email and the school it belongs to, and the role you choose (student, faculty or teacher, staff, alumni).
-- **If you use Google to sign in,** we receive the email address Google confirms for you. We do not keep your Google name or picture.
+- **If you use Google to sign in,** Google sends us your basic profile (the email address it confirms for you, your name and your picture). We keep only the email address and discard the name and picture. We do not ask for or read anything else in your Google account.
 - **Your handle and display name,** which other signed-in people see, and an optional profile picture.
 
 When you use the app:
