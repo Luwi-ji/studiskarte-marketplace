@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
-import { afterAll, describe, expect, it } from "vitest";
+import type * as LegalDocuments from "@/lib/legal/documents";
+import { afterAll, describe, expect, it, vi } from "vitest";
+
+// These tests are about handles and names. The repository now ships real legal text, which would
+// make every sign-up also need the terms box ticked; the terms rule has its own tests.
+vi.mock("@/lib/legal/documents", async (importOriginal) => ({
+  ...(await importOriginal<typeof LegalDocuments>()),
+  currentLegal: () => null,
+}));
 import { image, rateLimitEvent, school, student } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
