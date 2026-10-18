@@ -3,6 +3,13 @@ import { z } from "zod";
 import { post, report, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
+import { consume } from "@/lib/rate-limit";
+
+/** One student cannot flood the admin's queue: this many reports an hour. */
+export const REPORTS_PER_HOUR = 20;
+export const REPORTING_TOO_FAST = "You're reporting too fast. Try again in a while.";
+
+const REPORT_LIMIT = { action: "report", max: REPORTS_PER_HOUR, windowSeconds: 60 * 60 };
 
 /** How many different active students must have an open report on a post before it is hidden. */
 export const REPORT_HIDE_THRESHOLD = 3;
@@ -55,6 +62,7 @@ export async function reportPost(args: { reporterId: string; postId: string; inp
   const parsed = parseInput(args.input);
   if (!parsed.ok) return parsed;
   if (!z.uuid().safeParse(args.postId).success) return { ok: false, error: REPORT_TARGET_GONE };
+  if (!(await consume({ ...REPORT_LIMIT, key: args.reporterId }))) return { ok: false, error: REPORTING_TOO_FAST };
 
   let recorded = null as Recorded | null;
   const result = await getDb().transaction(async (tx): Promise<ReportResult> => {
@@ -99,6 +107,7 @@ export async function reportStudent(args: { reporterId: string; handle: string; 
   const parsed = parseInput(args.input);
   if (!parsed.ok) return parsed;
 
+  if (!(await consume({ ...REPORT_LIMIT, key: args.reporterId }))) return { ok: false, error: REPORTING_TOO_FAST };
   const handle = args.handle.trim().toLowerCase().replace(/^@/, "");
   const db = getDb();
   const [target] = await db

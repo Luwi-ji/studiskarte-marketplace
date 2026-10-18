@@ -19,6 +19,7 @@ export async function handlePhotoUpload(request: Request, purpose: ImagePurpose)
   const me = await getSignedInStudent(request.headers);
   if (!me) return NextResponse.json({ error: "Sign in first" }, { status: 401 });
   if (!hasFinishedSignUp(me)) return NextResponse.json({ error: "Finish sign-up first" }, { status: 403 });
+  if (me.mustAcceptTerms) return NextResponse.json({ error: "Accept the updated terms first" }, { status: 403 });
 
   const form = await request.formData();
   const photo = form.get("photo");

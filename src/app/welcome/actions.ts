@@ -6,7 +6,7 @@ import { completeSignUp } from "@/lib/identity/profile";
 
 export type WelcomeState = {
   values: { handle: string; displayName: string };
-  error?: { field: "handle" | "displayName"; message: string };
+  error?: { field: "handle" | "displayName" | "terms"; message: string };
 };
 
 export async function finishSignUp(_prev: WelcomeState, formData: FormData): Promise<WelcomeState> {
@@ -18,7 +18,9 @@ export async function finishSignUp(_prev: WelcomeState, formData: FormData): Pro
   if (!me) redirect("/sign-in");
   if (me.handle) redirect("/");
 
-  const result = await completeSignUp(me.id, values);
+  // The box carries the version that was on screen; the server checks it is still the current one.
+  const shown = formData.get("terms");
+  const result = await completeSignUp(me.id, { ...values, acceptedTermsVersion: typeof shown === "string" ? shown : null });
   if (!result.ok) return { values, error: { field: result.field, message: result.message } };
   redirect("/");
 }

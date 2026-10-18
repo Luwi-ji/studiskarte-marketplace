@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  poweredByHeader: false,
+  // The legal text is read from disk at request time (to ask for acceptance and to show it), so
+  // every server bundle must carry it.
+  outputFileTracingIncludes: {
+    "/*": ["./content/legal/**/*"],
+    "/**": ["./content/legal/**/*"],
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
@@ -16,6 +23,19 @@ const nextConfig: NextConfig = {
   // would not reach phones (Next.js PWA guide).
   async headers() {
     return [
+      {
+        // Every page: nobody else may frame the app (clickjacking on Accept, Confirm, Delete),
+        // browsers must not guess types, and other sites learn only our origin from a link.
+        // Vercel already sends Strict-Transport-Security.
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
       {
         source: "/sw.js",
         headers: [

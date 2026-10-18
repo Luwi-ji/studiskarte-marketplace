@@ -45,6 +45,17 @@ describe("checkDisplayName", () => {
   it.each(["", "   ", "two\nlines", "x".repeat(41)])("rejects %j", (raw) => {
     expect(checkDisplayName(raw).ok).toBe(false);
   });
+
+  it.each(["Admin", " ADMIN ", "A.d-m_i n", "Support", "Studiskarte Support", "studiskarte", "Deleted student"])("refuses the staff-like name %j", (raw) => {
+    expect(checkDisplayName(raw)).toEqual({ ok: false, message: "That name is reserved. Choose another." });
+  });
+
+  it("removes characters that reorder or hide text, but keeps the joiners emoji need", () => {
+    expect(checkDisplayName("\u202Eevil\u200B name\u2066")).toEqual({ ok: true, name: "evil name" });
+    expect(checkDisplayName("\u202Eadmin\u200B")).toMatchObject({ ok: false });
+    const family = "👨‍👩‍👧‍👦";
+    expect(checkDisplayName(family)).toEqual({ ok: true, name: family });
+  });
 });
 
 describe("nextHandleChangeAt", () => {

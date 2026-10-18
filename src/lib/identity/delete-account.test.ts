@@ -156,7 +156,7 @@ describe("deleting an account", () => {
       .returning({ id: image.id });
     await db.update(student).set({ avatarImageId: avatar.id }).where(eq(student.id, gone));
     await db.insert(session).values({ id: `s-${run}`, userId: gone, token: `tok-${run}`, expiresAt: new Date(Date.now() + DAY) });
-    await db.insert(pushSubscription).values({ studentId: gone, endpoint: `https://push.example/${run}`, p256dh: "k", auth: "a" });
+    await db.insert(pushSubscription).values({ studentId: gone, endpoint: `https://fcm.googleapis.com/fcm/send/${run}`, p256dh: "k", auth: "a" });
     await db.insert(follow).values([{ followerId: gone, followeeId: ana }, { followerId: ana, followeeId: gone }]);
 
     // Sign-in codes and limits for their address go; those of an address that only ends the same way stay.

@@ -5,9 +5,11 @@ import { expireDeals } from "@/lib/jobs/expire-deals";
 import { expireOffers } from "@/lib/jobs/expire-offers";
 import { expirePosts } from "@/lib/jobs/expire-posts";
 import { purgePosts } from "@/lib/jobs/purge-posts";
+import { purgeRateLimits } from "@/lib/jobs/purge-rate-limits";
 import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
 import { sendHandoverReminders } from "@/lib/jobs/reminders";
 import { sendReviewReminders } from "@/lib/jobs/review-reminders";
+import { healthWarnings, measureHealth } from "@/lib/jobs/health";
 import { deliverAlert } from "@/lib/notifications/push/notify";
 import { isJobName, JOBS, runJob, staleJobs, type JobName } from "@/lib/jobs/job-run";
 import { getObjectStore } from "@/lib/images/store";
@@ -27,7 +29,7 @@ function authorized(request: Request): boolean {
 }
 
 // Alerts are sent as each notice is written; the job waits for them, because this request is all the time they get.
-async function runNamed(name: JobName): Promise<string> {
+async function runNamed(name: JobName, warnings: string[]): Promise<string> {
   const alerts: Promise<unknown>[] = [];
   const alert = (id: string) => void alerts.push(deliverAlert(id));
   if (name === "expire-posts") {
@@ -75,12 +77,22 @@ async function runNamed(name: JobName): Promise<string> {
       return `${n} review reminders`;
     });
   }
+  if (name === "purge-rate-limits") {
+    return runJob(name, async () => `removed ${await purgeRateLimits(new Date())} old rate-limit rows`);
+  }
+  if (name === "health") {
+    return runJob(name, async () => {
+      warnings.push(...healthWarnings(await measureHealth()));
+      return warnings.length === 0 ? "no warnings" : `${warnings.length} warnings`;
+    });
+  }
   return runJob(name, async () => `removed ${await cleanupUnusedPhotos(getObjectStore())} unused photos`);
 }
 
 /**
- * ?job=expire-posts,purge-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,review-reminders,cleanup (any, comma-separated) | all (default). Also reports jobs that have
- * stopped running, so a dead scheduler shows up in the response.
+ * ?job=expire-posts,purge-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,review-reminders,purge-rate-limits,cleanup,health (any, comma-separated) | all (default). Also reports jobs that have
+ * stopped running, so a dead scheduler shows up in the response, and (when the health job
+ * runs) "warnings": a near-full Gmail quota, photo storage or database.
  */
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -91,10 +103,11 @@ export async function GET(request: Request) {
   const names = wanted.includes("all") ? (Object.keys(JOBS).filter(isJobName) as JobName[]) : [...new Set(wanted.filter(isJobName))];
 
   const results: Record<string, string> = {};
+  const warnings: string[] = [];
   let failed = false;
   for (const name of names) {
     try {
-      results[name] = await runNamed(name);
+      results[name] = await runNamed(name, warnings);
     } catch (error) {
       failed = true;
       console.error(`job ${name} failed`, error);
@@ -102,5 +115,5 @@ export async function GET(request: Request) {
     }
   }
   const stale = await staleJobs();
-  return NextResponse.json({ results, stale }, { status: failed ? 500 : 200 });
+  return NextResponse.json({ results, stale, warnings }, { status: failed ? 500 : 200 });
 }

@@ -55,12 +55,22 @@ export const HANDLE_PROBLEM_MESSAGE: Record<HandleProblem, string> = {
   reserved: "That handle is reserved. Choose another.",
 };
 
+// Display names that would let someone pose as the app or its staff, compared after keeping only
+// letters and digits. Names that merely contain "studiskarte" are refused too.
+const STAFF_NAMES = new Set(["admin", "administrator", "moderator", "support", "official", "staff", "system", "deletedstudent"]);
+
+// Characters that reorder or hide text (bidirectional controls, zero-width spaces, the byte order mark).
+// The joiners U+200D and U+200C stay: emoji sequences and some scripts need them.
+const INVISIBLE = /[\u061C\u200B\u200E\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/gu;
+
 export type DisplayNameCheck = { ok: true; name: string } | { ok: false; message: string };
 
 /** Trims and checks a display name. Length counts what people see, so an emoji or "ñ" is one. */
 export function checkDisplayName(raw: string): DisplayNameCheck {
-  const name = raw.normalize("NFC").trim();
+  const name = raw.normalize("NFC").replace(INVISIBLE, "").trim();
   if (/[\r\n]/.test(name)) return { ok: false, message: "Use one line." };
+  const letters = name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  if (STAFF_NAMES.has(letters) || letters.includes("studiskarte")) return { ok: false, message: "That name is reserved. Choose another." };
   const visible = [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(name)].length;
   if (visible === 0) return { ok: false, message: "Add a display name." };
   if (visible > DISPLAY_NAME_MAX) return { ok: false, message: `Use at most ${DISPLAY_NAME_MAX} characters.` };

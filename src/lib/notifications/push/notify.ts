@@ -18,6 +18,8 @@ export function alertsConfigured(): boolean {
 const sendWithWebPush: PushSender = (target, payload) =>
   webpush.sendNotification(target, payload, {
     TTL: 24 * 60 * 60,
+    // A push service that never answers must not hold up the scheduled jobs waiting for their alerts.
+    timeout: 10_000,
     vapidDetails: {
       subject: process.env.VAPID_SUBJECT ?? "",
       publicKey: process.env.VAPID_PUBLIC_KEY ?? "",

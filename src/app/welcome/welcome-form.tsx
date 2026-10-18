@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { DISPLAY_NAME_MAX, HANDLE_MAX } from "@/lib/identity/names";
 import { finishSignUp, type WelcomeState } from "./actions";
@@ -7,11 +8,12 @@ import { finishSignUp, type WelcomeState } from "./actions";
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 
-export function WelcomeForm() {
+/** `terms` is the version of the legal documents to accept, or null when there are none. */
+export function WelcomeForm({ terms }: { terms: string | null }) {
   const [state, action, pending] = useActionState<WelcomeState, FormData>(finishSignUp, {
     values: { handle: "", displayName: "" },
   });
-  const errorFor = (field: "handle" | "displayName") =>
+  const errorFor = (field: "handle" | "displayName" | "terms") =>
     state.error?.field === field ? (
       <p role="alert" className="text-sm text-red-600">
         {state.error.message}
@@ -54,6 +56,27 @@ export function WelcomeForm() {
         <span className="text-xs text-zinc-500">How other students see you. You can change it any time.</span>
         {errorFor("displayName")}
       </label>
+      {terms ? (
+        <label className="flex items-start gap-3">
+          <input type="checkbox" name="terms" value={terms} required className="mt-1 h-5 w-5 shrink-0" />
+          <span className="text-sm">
+            I accept the{" "}
+            <Link href="/legal/terms" target="_blank" className="underline">
+              Terms of Service
+            </Link>
+            ,{" "}
+            <Link href="/legal/privacy" target="_blank" className="underline">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/legal/guidelines" target="_blank" className="underline">
+              Community Guidelines
+            </Link>
+            .
+          </span>
+        </label>
+      ) : null}
+      {errorFor("terms")}
       <button
         type="submit"
         disabled={pending}

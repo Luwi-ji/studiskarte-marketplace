@@ -7,7 +7,7 @@ import { makeOffer } from "@/lib/deals/offers";
 import { getDb, getPool } from "@/lib/db";
 import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
-import { ALREADY_REPORTED, CANT_REPORT_SELF, REPORT_HIDE_THRESHOLD, REPORT_REASONS, REPORT_TARGET_GONE, reportPost, reportStudent } from "@/lib/safety/report";
+import { ALREADY_REPORTED, CANT_REPORT_SELF, REPORT_HIDE_THRESHOLD, REPORT_REASONS, REPORT_TARGET_GONE, REPORTING_TOO_FAST, REPORTS_PER_HOUR, reportPost, reportStudent } from "@/lib/safety/report";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
 import { photosOf } from "@/test/photos";
 
@@ -212,5 +212,16 @@ describe("hiding a post", () => {
     expect(results.filter((r) => r.ok && r.hidden)).toHaveLength(1);
     expect(await postRow(id)).toEqual({ status: "hidden", before: "open" });
     expect(await hiddenNotices()).toHaveLength(1);
+  });
+
+  it("stops one student flooding the queue with reports", async () => {
+    const gone = { reason: "spam", details: "" };
+    for (let n = 0; n < REPORTS_PER_HOUR; n++) {
+      expect(await reportStudent({ reporterId: r1, handle: `nobody_${run}_${n}`, input: gone })).toEqual({ ok: false, error: REPORT_TARGET_GONE });
+    }
+    expect(await reportStudent({ reporterId: r1, handle: `nobody_${run}`, input: gone })).toEqual({ ok: false, error: REPORTING_TOO_FAST });
+    expect(await reportPost({ reporterId: r1, postId: randomUUID(), input: gone })).toEqual({ ok: false, error: REPORTING_TOO_FAST });
+    // Someone else is not held back by it.
+    expect(await reportStudent({ reporterId: r2, handle: `nobody_${run}`, input: gone })).toEqual({ ok: false, error: REPORT_TARGET_GONE });
   });
 });

@@ -3,10 +3,12 @@
 
 const SCHOOL_SUFFIX = ".edu.ph";
 
-// Deliberately strict: one "@", a plain local part, and a dotted domain of
-// letters, digits and hyphens. Quoted local parts and IP-literal domains are
-// refused; no school mailbox needs them.
-const ADDRESS = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@([a-z0-9-]+(?:\.[a-z0-9-]+)+)$/;
+// Deliberately strict: one "@", a local part of letters, digits, dots, underscores
+// and hyphens, and a dotted domain of letters, digits and hyphens. No "+tag": a tag
+// would let one mailbox make unlimited accounts (and escape a suspension). No "%" or
+// "!" either: some mail servers read them as routing to another domain. Quoted local
+// parts and IP-literal domains are refused too; no school mailbox needs them.
+const ADDRESS = /^[a-z0-9._-]+@([a-z0-9-]+(?:\.[a-z0-9-]+)+)$/;
 
 export type SchoolEmail = { email: string; domain: string };
 

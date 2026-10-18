@@ -6,6 +6,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { getOwnProfile } from "@/lib/identity/profile";
 import { getObjectStore } from "@/lib/images/store";
 import { AlertsToggle } from "@/components/alerts-toggle";
+import { LegalLinks } from "@/components/legal-links";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { hasCalendarToken } from "@/lib/calendar/token";
 import { CalendarLink } from "./calendar-link";
@@ -82,6 +83,7 @@ async function Settings() {
       <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
       <CalendarLink active={calendarActive} />
       <SignOutButton />
+      <LegalLinks />
       {me.isAdmin ? null : <DeleteAccount handle={profile.handle} />}
     </div>
   );

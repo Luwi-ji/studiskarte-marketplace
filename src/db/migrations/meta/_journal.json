@@ -190,6 +190,13 @@
       "when": 1792292466925,
       "tag": "0026_safety",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792323827397,
+      "tag": "0027_terms_acceptance",
+      "breakpoints": true
     }
   ]
 }

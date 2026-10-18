@@ -5,7 +5,7 @@ describe("parseSchoolEmail", () => {
   it.each([
     ["juan@up.edu.ph", "up.edu.ph"],
     ["  Juan.Dela-Cruz@UP.EDU.PH\n", "up.edu.ph"],
-    ["a+tag@mail.ateneo.edu.ph", "mail.ateneo.edu.ph"],
+    ["a_b-c@mail.ateneo.edu.ph", "mail.ateneo.edu.ph"],
   ])("accepts %j", (input, domain) => {
     expect(parseSchoolEmail(input)).toEqual({
       email: input.trim().toLowerCase(),
@@ -14,6 +14,9 @@ describe("parseSchoolEmail", () => {
   });
 
   it.each([
+    "juan+tag@up.edu.ph",
+    "juan%evil.com@up.edu.ph",
+    "juan!x@up.edu.ph",
     "juan@up.edu.ph.com",
     "juan@xedu.ph",
     "juan@edu.ph",

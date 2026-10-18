@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { LegalLinks } from "@/components/legal-links";
 import { getSignedInStudent } from "@/lib/access";
 import { SignInForm } from "./sign-in-form";
 
@@ -17,6 +18,7 @@ export default function SignInPage() {
         </p>
       </header>
       <SignInForm />
+      <LegalLinks />
       <Suspense>
         <SkipIfSignedIn />
       </Suspense>

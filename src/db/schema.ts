@@ -60,6 +60,10 @@ export const student = pgTable(
     accountStatus: text("account_status").notNull().default("active"),
     // Set by the owner directly in the database (scripts/make-admin.mjs); never by the app.
     isAdmin: boolean("is_admin").notNull().default(false),
+    // The version of the legal documents (content/legal/VERSION) this student accepted, and when.
+    // Both null until they accept; a newer version asks again (src/lib/legal/documents.ts).
+    termsVersion: text("terms_version"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -91,6 +95,7 @@ export const student = pgTable(
       "student_calendar_token_format",
       sql`${t.calendarTokenHash} is null or ${t.calendarTokenHash} ~ '^[0-9a-f]{64}$'`,
     ),
+    check("student_terms_pair", sql`(${t.termsVersion} is null) = (${t.termsAcceptedAt} is null)`),
     unique("student_calendar_token_hash").on(t.calendarTokenHash),
   ],
 );

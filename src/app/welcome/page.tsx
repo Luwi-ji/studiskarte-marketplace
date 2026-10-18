@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
+import { currentLegal } from "@/lib/legal/documents";
 import { WelcomeForm } from "./welcome-form";
 
 export const metadata = { title: "Welcome · Studiskarte Marketplace" };
@@ -26,5 +27,5 @@ async function Guarded() {
   const me = await getSignedInStudent();
   if (!me) redirect("/sign-in");
   if (me.handle) redirect("/");
-  return <WelcomeForm />;
+  return <WelcomeForm terms={currentLegal()?.version ?? null} />;
 }

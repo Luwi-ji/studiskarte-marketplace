@@ -4,9 +4,10 @@ import { eq } from "drizzle-orm";
 import { student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/identity/auth";
+import { currentLegal, needsTerms } from "@/lib/legal/documents";
 
 /** A signed-in, active student. `handle` is null until sign-up is finished. */
-export type SignedInStudent = { id: string; schoolDomain: string; handle: string | null; isAdmin: boolean };
+export type SignedInStudent = { id: string; schoolDomain: string; handle: string | null; isAdmin: boolean; mustAcceptTerms: boolean };
 /** A student who has finished sign-up and may use the app. */
 export type ActiveStudent = SignedInStudent & { handle: string };
 
@@ -25,11 +26,18 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
       handle: student.handle,
       accountStatus: student.accountStatus,
       isAdmin: student.isAdmin,
+      termsVersion: student.termsVersion,
     })
     .from(student)
     .where(eq(student.id, session.user.id));
   if (!row || row.accountStatus !== "active") return null;
-  return { id: row.id, schoolDomain: row.schoolDomain, handle: row.handle, isAdmin: row.isAdmin };
+  return {
+    id: row.id,
+    schoolDomain: row.schoolDomain,
+    handle: row.handle,
+    isAdmin: row.isAdmin,
+    mustAcceptTerms: needsTerms(row.termsVersion, currentLegal()?.version ?? null),
+  };
 }
 
 /** Narrows to a student who has finished sign-up. */
@@ -37,11 +45,12 @@ export function hasFinishedSignUp(current: SignedInStudent): current is ActiveSt
   return current.handle !== null;
 }
 
-/** For pages: visitors go to sign in, students without a handle go to finish sign-up. */
+/** For pages: visitors go to sign in, students without a handle go to finish sign-up, and a student who has not accepted the current terms is asked to. */
 export async function requireActiveStudent(): Promise<ActiveStudent> {
   const current = await getSignedInStudent();
   if (!current) redirect("/sign-in");
   if (!hasFinishedSignUp(current)) redirect("/welcome");
+  if (current.mustAcceptTerms) redirect("/accept-terms");
   return current;
 }
 

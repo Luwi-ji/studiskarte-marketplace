@@ -34,4 +34,6 @@ Design lives in `.monozukuri/` (project memory, blueprint, decisions). Read `.mo
 | `npm run db:migrate` | Apply migrations |
 | `npm run db:check` | Prove both Neon connection strings work |
 
+Release, rollback, backup and restore steps, and the pre-launch checklist: `docs/release.md`. The legal text (terms, privacy policy, community guidelines) goes in `content/legal/`; see that file.
+
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, migrations, tests and build against a PostgreSQL service container.

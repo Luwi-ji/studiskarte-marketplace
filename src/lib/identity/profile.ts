@@ -10,6 +10,7 @@ import {
 } from "@/lib/identity/names";
 import type { ObjectStore } from "@/lib/images/store";
 import { discardImage, storeImage } from "@/lib/images/upload";
+import { currentLegal } from "@/lib/legal/documents";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 
 /** What a student sees about themselves. Never includes the school email. */
@@ -102,7 +103,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
   };
 }
 
-export type ProfileResult = { ok: true } | { ok: false; field: "handle" | "displayName"; message: string };
+export type ProfileResult = { ok: true } | { ok: false; field: "handle" | "displayName" | "terms"; message: string };
 
 const HANDLE_TAKEN: ProfileResult = { ok: false, field: "handle", message: "That handle is taken. Choose another." };
 
@@ -115,21 +116,34 @@ function isHandleTaken(error: unknown): boolean {
   );
 }
 
-/** Finishes sign-up: the first handle and display name. Only works once. */
+/**
+ * Finishes sign-up: the first handle and display name, and, when the legal documents exist,
+ * the acceptance of the version the student was shown. Only works once.
+ */
 export async function completeSignUp(
   studentId: string,
-  input: { handle: string; displayName: string },
+  input: { handle: string; displayName: string; acceptedTermsVersion?: string | null },
+  now = new Date(),
 ): Promise<ProfileResult> {
   const handle = checkHandle(input.handle);
   if (!handle.ok) return { ok: false, field: "handle", message: HANDLE_PROBLEM_MESSAGE[handle.problem] };
   const name = checkDisplayName(input.displayName);
   if (!name.ok) return { ok: false, field: "displayName", message: name.message };
+  const legal = currentLegal();
+  if (legal && input.acceptedTermsVersion !== legal.version) {
+    return { ok: false, field: "terms", message: "Accept the Terms of Service and Privacy Policy to continue." };
+  }
 
   try {
     // The first choice does not start the 30-day clock: handle_changed_at stays null.
     const updated = await getDb()
       .update(student)
-      .set({ handle: handle.handle, name: name.name, updatedAt: new Date() })
+      .set({
+        handle: handle.handle,
+        name: name.name,
+        updatedAt: now,
+        ...(legal ? { termsVersion: legal.version, termsAcceptedAt: now } : {}),
+      })
       .where(and(eq(student.id, studentId), isNull(student.handle)))
       .returning({ id: student.id });
     if (updated.length === 0) return { ok: false, field: "handle", message: "Your sign-up is already complete." };

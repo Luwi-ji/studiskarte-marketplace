@@ -6,12 +6,25 @@ import { getDb } from "@/lib/db";
 /** Devices one student may have alerts on at once. */
 export const SUBSCRIPTIONS_MAX = 10;
 
+// Only the push services browsers really use. The server sends to this address, so an
+// arbitrary one would make the server call any host a student names.
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)push\.apple\.com$/, /(^|\.)notify\.windows\.com$/];
+
+export function isPushServiceUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.port === "" && PUSH_HOSTS.some((host) => host.test(url.hostname));
+  } catch {
+    return false;
+  }
+}
+
 // What the browser's PushSubscription.toJSON() gives.
 const subscriptionSchema = z.object({
   endpoint: z
     .url()
     .max(1000)
-    .refine((url) => url.startsWith("https://"), "push addresses are https"),
+    .refine(isPushServiceUrl, "not a known push service"),
   keys: z.object({
     p256dh: z.string().regex(/^[A-Za-z0-9_-]{40,200}$/),
     auth: z.string().regex(/^[A-Za-z0-9_-]{8,100}$/),

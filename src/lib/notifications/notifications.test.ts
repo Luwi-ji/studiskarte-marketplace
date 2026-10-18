@@ -60,7 +60,7 @@ async function newPost(): Promise<string> {
 const say = (body: string) => ({ body, imageIds: [] as string[] });
 const mine = (id: string) => db.select().from(notification).where(eq(notification.recipientId, id));
 const fakeKey = () => randomBytes(65).toString("base64url");
-const subscription = (endpoint = `https://push.example.com/send/${randomUUID()}`) => ({ endpoint, keys: { p256dh: fakeKey(), auth: randomBytes(16).toString("base64url") } });
+const subscription = (endpoint = `https://fcm.googleapis.com/fcm/send/${randomUUID()}`) => ({ endpoint, keys: { p256dh: fakeKey(), auth: randomBytes(16).toString("base64url") } });
 
 beforeAll(async () => {
   await createTestStudent(seller, { handle: `sell_${run}`, name: "Sam Seller" });
@@ -242,8 +242,15 @@ describe("devices", () => {
     expect(await db.select().from(pushSubscription).where(eq(pushSubscription.studentId, ana))).toHaveLength(1);
   });
 
-  it("refuses an address that is not https, bad keys, and anything that is not a subscription", async () => {
-    expect(await saveSubscription(ana, { ...subscription(), endpoint: "http://push.example.com/x" })).toBe("invalid");
+  it("refuses an address that is not https or not a push service, bad keys, and anything that is not a subscription", async () => {
+    expect(await saveSubscription(ana, { ...subscription(), endpoint: "http://fcm.googleapis.com/x" })).toBe("invalid");
+    for (const endpoint of ["https://push.example.com/x", "https://fcm.googleapis.com.evil.com/x", "https://evil.com/fcm.googleapis.com", "https://fcm.googleapis.com:8443/x", "https://evilpush.apple.com.evil.test/x"]) {
+      expect(await saveSubscription(ana, { ...subscription(), endpoint })).toBe("invalid");
+    }
+    for (const endpoint of ["https://updates.push.services.mozilla.com/wpush/v2/x", "https://web.push.apple.com/x", "https://wns2-par02p.notify.windows.com/w/?token=x"]) {
+      expect(await saveSubscription(ana, { ...subscription(), endpoint })).toBe("ok");
+      await db.delete(pushSubscription).where(eq(pushSubscription.studentId, ana));
+    }
     expect(await saveSubscription(ana, { ...subscription(), keys: { p256dh: "short", auth: "x" } })).toBe("invalid");
     expect(await saveSubscription(ana, {})).toBe("invalid");
     expect(await saveSubscription(ana, "https://push.example.com/x")).toBe("invalid");
