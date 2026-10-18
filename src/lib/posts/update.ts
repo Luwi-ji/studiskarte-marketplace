@@ -49,7 +49,10 @@ export async function updatePost(args: {
   try {
     const outcome = await getDb().transaction(async (tx) => {
       // Relisting adds an open post, so serialize with other creates and relists of this student.
-      if (relist) await tx.select({ id: student.id }).from(student).where(eq(student.id, args.ownerId)).for("update");
+      if (relist) {
+        const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.ownerId)).for("update");
+        if (me?.status !== "active") return null;
+      }
       const [current] = await tx
         .select({ id: post.id })
         .from(post)

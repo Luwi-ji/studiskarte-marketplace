@@ -5,6 +5,11 @@ import { refresh } from "next/cache";
 import { requireActiveStudent } from "@/lib/access";
 import { createCalendarToken, revokeCalendarToken } from "@/lib/calendar/token";
 import { changeDisplayName, changeHandle } from "@/lib/identity/profile";
+import { unstable_rethrow } from "next/navigation";
+import { signOut } from "@/app/(public)/sign-in/actions";
+import { deleteAccount } from "@/lib/identity/delete-account";
+import { getObjectStore } from "@/lib/images/store";
+import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 
 export type FieldState = { value: string; error?: string; saved?: boolean };
 
@@ -55,5 +60,29 @@ export async function revokeCalendarLinkAction(): Promise<{ ok: true } | { ok: f
   } catch (error) {
     console.error("calendar link revoke failed", error);
     return { ok: false, error: "Could not turn off the link. Try again." };
+  }
+}
+
+/**
+ * Deletes the signed-in student's account for good once they typed their handle.
+ * Their sessions are gone in the same step; signing out here also clears this
+ * browser's cookie.
+ */
+export async function deleteAccountAction(confirmHandle: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const me = await requireActiveStudent();
+    const result = await deleteAccount({
+      studentId: me.id,
+      confirmHandle: typeof confirmHandle === "string" ? confirmHandle.slice(0, 64) : "",
+      store: getObjectStore(),
+      alert: sendAlertAfterResponse,
+    });
+    if (!result.ok) return result;
+    await signOut().catch(() => {});
+    return { ok: true };
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("delete account failed", error);
+    return { ok: false, error: "Something went wrong on our side. Nothing was deleted. Try again in a moment." };
   }
 }

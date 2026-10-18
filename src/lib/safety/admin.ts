@@ -2,9 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { deal, image, post, postPhoto, report, session, student } from "@/db/schema";
 import { type DbTransaction, getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
-import { lockDeal, touched } from "@/lib/deals/lock";
-import { noticeDetail } from "@/lib/deals/notice-detail";
-import { isSecured } from "@/lib/deals/slot";
+import { endActiveDeal } from "@/lib/deals/end";
 import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { isDuplicatePost } from "@/lib/posts/create";
 
@@ -60,34 +58,6 @@ async function closeStudentReports(tx: DbTransaction, adminId: string, studentId
 }
 
 /**
- * The system ends one active reservation on a post an admin removed. One that is
- * secured (money agreed or a handover said) cannot be cancelled, so it becomes
- * "disputed" for a look, as expireDeals does; any other is cancelled. Both people
- * are told once. The post is removed, so its units need no sync.
- */
-async function endDealOfRemovedPost(tx: DbTransaction, dealId: string, now: Date): Promise<(Recorded | null)[]> {
-  const found = await lockDeal(tx, dealId);
-  if (!found || (found.status !== "agreed" && found.status !== "scheduled")) return [];
-  const secured = isSecured(found);
-  const type = secured ? "deal_disputed" : "deal_cancelled";
-  await tx.update(deal).set({ status: secured ? "disputed" : "cancelled", ...touched(now) }).where(eq(deal.id, found.id));
-  const notices: (Recorded | null)[] = [];
-  for (const recipientId of [found.ownerId, found.responderId]) {
-    notices.push(
-      await recordNotification(tx, {
-        type,
-        recipientId,
-        postId: found.postId,
-        conversationId: found.conversationId,
-        onceKey: `deal:${found.id}:${secured ? "disputed" : "cancelled"}`,
-        detail: noticeDetail(found, type),
-      }),
-    );
-  }
-  return notices;
-}
-
-/**
  * A hidden post goes back to what it was before it was hidden (open when unknown).
  * Its open reports are dismissed, so three new ones are needed to hide it again,
  * and the owner is told.
@@ -121,7 +91,7 @@ export async function restorePost(adminId: string, postId: string, alert?: Alert
 
 /**
  * Takes a post down for good. Its open reports are actioned, every active
- * reservation on it is ended by the system (see endDealOfRemovedPost), and the
+ * reservation on it is ended by the system (see endActiveDeal), and the
  * owner is told.
  */
 export async function removePost(adminId: string, postId: string, alert?: AlertSink): Promise<AdminResult> {
@@ -134,7 +104,7 @@ export async function removePost(adminId: string, postId: string, alert?: AlertS
       .select({ id: deal.id })
       .from(deal)
       .where(and(eq(deal.postId, postId), inArray(deal.status, ["agreed", "scheduled"])));
-    for (const { id } of active) told.push(...(await endDealOfRemovedPost(tx, id, now)));
+    for (const { id } of active) told.push(...(await endActiveDeal(tx, id, now)));
 
     await tx.update(post).set({ status: "removed", statusBeforeHidden: null, updatedAt: now }).where(eq(post.id, postId));
     await closePostReports(tx, adminId, postId, "actioned", now);

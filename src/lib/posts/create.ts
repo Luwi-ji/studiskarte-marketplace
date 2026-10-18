@@ -74,7 +74,8 @@ export async function createPost(args: { ownerId: string; input: unknown; now?: 
   try {
     return await getDb().transaction(async (tx) => {
       // One create at a time per student, so two at once cannot both slip under the limit.
-      await tx.select({ id: student.id }).from(student).where(eq(student.id, args.ownerId)).for("update");
+      const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.ownerId)).for("update");
+      if (me?.status !== "active") return { ok: false, errors: { form: "Your account can't post." } };
       const [{ open }] = await tx
         .select({ open: count() })
         .from(post)

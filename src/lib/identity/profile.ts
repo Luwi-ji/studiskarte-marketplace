@@ -143,7 +143,7 @@ export async function completeSignUp(
 export async function changeDisplayName(studentId: string, raw: string): Promise<ProfileResult> {
   const name = checkDisplayName(raw);
   if (!name.ok) return { ok: false, field: "displayName", message: name.message };
-  await getDb().update(student).set({ name: name.name, updatedAt: new Date() }).where(eq(student.id, studentId));
+  await getDb().update(student).set({ name: name.name, updatedAt: new Date() }).where(and(eq(student.id, studentId), eq(student.accountStatus, "active")));
   return { ok: true };
 }
 
@@ -173,6 +173,7 @@ export async function changeHandle(studentId: string, raw: string, now = new Dat
       .where(
         and(
           eq(student.id, studentId),
+          eq(student.accountStatus, "active"),
           or(isNull(student.handleChangedAt), lte(student.handleChangedAt, cutoff)),
         ),
       )
@@ -197,14 +198,20 @@ export async function changeAvatar(args: { studentId: string; bytes: Buffer; sto
   const stored = await storeImage({ ownerId: args.studentId, bytes: args.bytes, purpose: "avatar", store: args.store });
   const db = getDb();
   let previous: { id: string; key: string; thumbKey: string } | undefined;
+  let closed = false;
   try {
     previous = await db.transaction(async (tx) => {
+      // Lock the student first: a picture must not be added to an account that was just deleted.
+      const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.studentId)).for("update");
+      if (me?.status !== "active") {
+        closed = true;
+        return undefined;
+      }
       const [old] = await tx
         .select({ id: image.id, key: image.key, thumbKey: image.thumbKey })
         .from(student)
         .innerJoin(image, eq(image.id, student.avatarImageId))
-        .where(eq(student.id, args.studentId))
-        .for("update", { of: student });
+        .where(eq(student.id, args.studentId));
       await tx
         .update(student)
         .set({ avatarImageId: stored.id, updatedAt: sql`now()` })
@@ -216,6 +223,13 @@ export async function changeAvatar(args: { studentId: string; bytes: Buffer; sto
       console.error("could not remove a new profile picture after a failed save", cleanupError);
     });
     throw error;
+  }
+  if (closed) {
+    // The account was deleted or suspended meanwhile: the new picture is not kept.
+    await discardImage(stored, args.store).catch((error) => {
+      console.error("could not remove a picture sent for a closed account", error);
+    });
+    return;
   }
   if (previous) {
     // The new picture is already saved; a failed cleanup only leaves an unused file.

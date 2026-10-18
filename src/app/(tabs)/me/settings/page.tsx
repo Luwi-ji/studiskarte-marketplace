@@ -9,6 +9,7 @@ import { AlertsToggle } from "@/components/alerts-toggle";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { hasCalendarToken } from "@/lib/calendar/token";
 import { CalendarLink } from "./calendar-link";
+import { DeleteAccount } from "./delete-account";
 import { AvatarForm, DisplayNameForm, HandleForm, SignOutButton } from "./settings-forms";
 
 export const metadata = { title: "Settings · Studiskarte Marketplace" };
@@ -81,6 +82,7 @@ async function Settings() {
       <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
       <CalendarLink active={calendarActive} />
       <SignOutButton />
+      {me.isAdmin ? null : <DeleteAccount handle={profile.handle} />}
     </div>
   );
 }
