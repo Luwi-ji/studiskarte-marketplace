@@ -3,6 +3,7 @@ import { image } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import {
   countEvents,
+  MAIL_DAILY_LIMIT,
   MAIL_QUOTA_ACTION,
   MAIL_QUOTA_KEY,
   MAIL_QUOTA_STOP_AT,
@@ -12,8 +13,6 @@ import {
 // Free-tier limits (blueprint 02-tech-stack.md). Byte limits use decimal units,
 // which are the smaller reading of "GB", so the warning errs early.
 
-/** Gmail: 500 recipients per rolling 24 hours for a personal account (Nodemailer docs). */
-export const GMAIL_DAILY_LIMIT = 500;
 /** Cloudflare R2 free tier: 10 GB of storage (Cloudflare docs). */
 export const R2_FREE_TIER_BYTES = 10 * 1000 ** 3;
 /** Neon Free: 0.5 GB per project (Neon docs; the stack doc notes some pages say 1 GB, so we use the lower). */
@@ -54,9 +53,9 @@ function formatBytes(bytes: number): string {
 /** Turns measurements into owner-facing warnings. Empty means nothing is near a limit. */
 export function healthWarnings(m: HealthMeasurements): string[] {
   const warnings: string[] = [];
-  if (reached(m.emailsSent24h, GMAIL_DAILY_LIMIT)) {
+  if (reached(m.emailsSent24h, MAIL_DAILY_LIMIT)) {
     warnings.push(
-      `Gmail quota: ${m.emailsSent24h} of ${GMAIL_DAILY_LIMIT} emails sent in the last 24 hours (${percent(m.emailsSent24h, GMAIL_DAILY_LIMIT)}%). Sending stops at ${MAIL_QUOTA_STOP_AT}.`,
+      `Mail quota: ${m.emailsSent24h} of ${MAIL_DAILY_LIMIT} emails sent in the last 24 hours (${percent(m.emailsSent24h, MAIL_DAILY_LIMIT)}%). Sending stops at ${MAIL_QUOTA_STOP_AT}.`,
     );
   }
   if (reached(m.r2Bytes, R2_FREE_TIER_BYTES)) {

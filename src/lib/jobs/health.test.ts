@@ -5,7 +5,6 @@ import { rateLimitEvent } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import {
   countEmailsSentLast24h,
-  GMAIL_DAILY_LIMIT,
   healthWarnings,
   measureHealth,
   NEON_FREE_TIER_BYTES,
@@ -13,7 +12,7 @@ import {
   WARN_AT_PERCENT,
   type HealthMeasurements,
 } from "@/lib/jobs/health";
-import { MAIL_QUOTA_ACTION, MAIL_QUOTA_KEY } from "@/lib/rate-limit";
+import { MAIL_DAILY_LIMIT, MAIL_QUOTA_ACTION, MAIL_QUOTA_KEY, MAIL_QUOTA_STOP_AT } from "@/lib/rate-limit";
 
 const quiet: HealthMeasurements = { emailsSent24h: 0, r2Bytes: 0, databaseBytes: 0 };
 const share = (limit: number) => (limit * WARN_AT_PERCENT) / 100;
@@ -23,12 +22,11 @@ describe("healthWarnings", () => {
     expect(healthWarnings(quiet)).toEqual([]);
   });
 
-  it("warns about Gmail at 80% of 500 and not below", () => {
-    const at = share(GMAIL_DAILY_LIMIT);
-    expect(at).toBe(400);
+  it("warns about mail at 80% of the daily limit and not below", () => {
+    const at = share(MAIL_DAILY_LIMIT);
     expect(healthWarnings({ ...quiet, emailsSent24h: at - 1 })).toEqual([]);
     expect(healthWarnings({ ...quiet, emailsSent24h: at })).toEqual([
-      "Gmail quota: 400 of 500 emails sent in the last 24 hours (80%). Sending stops at 480.",
+      `Mail quota: ${at} of ${MAIL_DAILY_LIMIT} emails sent in the last 24 hours (80%). Sending stops at ${MAIL_QUOTA_STOP_AT}.`,
     ]);
   });
 
@@ -50,7 +48,7 @@ describe("healthWarnings", () => {
 
   it("reports every limit that is reached", () => {
     const warnings = healthWarnings({
-      emailsSent24h: GMAIL_DAILY_LIMIT,
+      emailsSent24h: MAIL_DAILY_LIMIT,
       r2Bytes: R2_FREE_TIER_BYTES,
       databaseBytes: NEON_FREE_TIER_BYTES,
     });

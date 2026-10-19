@@ -2,6 +2,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { getDb } from "@/lib/db";
 import { rateLimitEvent } from "@/db/schema";
 import {
+  MAIL_DAILY_LIMIT,
   MAIL_QUOTA_ACTION,
   MAIL_QUOTA_KEY,
   MAIL_QUOTA_STOP_AT,
@@ -10,7 +11,7 @@ import {
   countEvents,
 } from "@/lib/rate-limit";
 
-/** Gmail's daily recipient cap is nearly used up. Callers show "try again later". */
+/** The provider's daily cap is nearly used up. Callers show "try again later". */
 export class MailQuotaError extends Error {
   constructor() {
     super("daily mail quota reached");
@@ -21,8 +22,8 @@ export class MailQuotaError extends Error {
 let transporter: Transporter | undefined;
 
 // MAIL_TRANSPORT=log is for local development only: messages are printed to
-// the server log instead of sent, so codes can be read without using the Gmail
-// quota. It is refused in production.
+// the server log instead of sent, so codes can be read without using the daily
+// mail quota. It is refused in production.
 function isLogTransport(): boolean {
   if (process.env.MAIL_TRANSPORT !== "log") return false;
   if (process.env.NODE_ENV === "production") {
@@ -37,12 +38,14 @@ function getTransporter(): Transporter {
     transporter = nodemailer.createTransport({ jsonTransport: true });
     return transporter;
   }
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.APP_PASSWORD;
-  if (!user || !pass) {
-    throw new Error("GMAIL_USER and APP_PASSWORD must be set to send mail");
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
+  if (!host || !user || !pass || !process.env.MAIL_FROM) {
+    throw new Error("SMTP_HOST, SMTP_USER, SMTP_PASSWORD and MAIL_FROM must be set to send mail");
   }
-  transporter = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
+  const port = Number(process.env.SMTP_PORT) || 465;
+  transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
   return transporter;
 }
 
@@ -65,11 +68,11 @@ export async function sendMail(message: {
     throw new MailQuotaError();
   }
   if (sent >= MAIL_QUOTA_WARN_AT) {
-    console.warn(`mail quota warning: ${sent} of 500 sent in the last 24 hours`);
+    console.warn(`mail quota warning: ${sent} of ${MAIL_DAILY_LIMIT} sent in the last 24 hours`);
   }
 
   await getTransporter().sendMail({
-    from: `Studiskarte Marketplace <${process.env.GMAIL_USER ?? "dev@localhost"}>`,
+    from: `Studiskarte Marketplace <${process.env.MAIL_FROM ?? "dev@localhost"}>`,
     to: message.to,
     subject: message.subject,
     text: message.text,

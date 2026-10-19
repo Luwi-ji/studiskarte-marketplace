@@ -28,8 +28,10 @@ jobs:
       # Mail is replaced in tests; these only satisfy the startup checks.
       BETTER_AUTH_SECRET: ci-only-secret-ci-only-secret-ci-only-secret
       BETTER_AUTH_URL: http://localhost:3000
-      GMAIL_USER: ci@example.invalid
-      APP_PASSWORD: ci-only
+      SMTP_HOST: smtp.example.invalid
+      SMTP_USER: ci-only
+      SMTP_PASSWORD: ci-only
+      MAIL_FROM: ci@example.invalid
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

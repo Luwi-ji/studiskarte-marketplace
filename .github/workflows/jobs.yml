@@ -6,7 +6,7 @@ name: Scheduled jobs
 # scheduler makes this run fail and GitHub emails the repository owner.
 #
 # Once a day (and on manual runs) it also runs the "health" job, which measures
-# Gmail sends in the last 24 hours, photo storage and database size. At 80% of
+# mail sends in the last 24 hours, photo storage and database size. At 80% of
 # a free-tier limit the endpoint returns "warnings" and this run fails the same
 # way. Daily, not every tick, so an over-limit condition emails once a day
 # instead of 96 times.

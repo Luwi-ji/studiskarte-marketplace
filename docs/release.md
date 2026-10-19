@@ -1,6 +1,6 @@
 # Release: checklist, rollback, backup and restore
 
-Last reviewed 2026-10-18 (Phase 16). Production is https://studiskarte-marketplace.vercel.app (Vercel Hobby, Neon `production` branch, Cloudflare R2 `studiskarte-prod`, Gmail for mail).
+Last reviewed 2026-10-20. Production is https://studiskarte.com (Vercel Hobby, Neon `production` branch, Cloudflare R2 `studiskarte-prod`, mail by SMTP: Resend).
 
 ## Before the app is opened to real students
 
@@ -13,7 +13,7 @@ Items marked **Owner** cannot be done in code.
 | 3 | Choose an error tracker (Sentry is the usual choice; the Hobby plan keeps runtime logs only about an hour, so a failure last night is invisible). Then wire it in `src/instrumentation.ts` and in the `console.error` calls of the server actions. | **Owner** picks, then code | Open. Not chosen, so not built. |
 | 4 | In the Cloudflare dashboard confirm the `studiskarte-prod` bucket has no public access and no `r2.dev` domain (photos must only be reachable through signed links). | **Owner** | Open (the code cannot show it). |
 | 5 | In GitHub: repository secrets `APP_URL` and `CRON_SECRET` set (the Scheduled jobs workflow fails loudly when they are missing). | **Owner** | Present: the workflow has been running. |
-| 6 | Mail: the Gmail limit is 500 recipients a day; the app stops at 480 and the daily health job warns at 400. If sign-ups are expected in the hundreds on one day, move sending to Resend or Brevo first. | **Owner** | Decide before launch day. |
+| 6 | Mail: Resend over SMTP. Set `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`, `SMTP_PASSWORD` (a Resend API key limited to sending), `MAIL_FROM=no-reply@studiskarte.com` in Vercel, with `studiskarte.com` verified in Resend (SPF, DKIM, DMARC records in Cloudflare, DNS only). Resend Free allows 100 emails a day and 3,000 a month: the app stops at 96 a day. After moving to Pro, set `MAIL_DAILY_LIMIT` (the app has no monthly counter). | **Owner** | Open: account, domain and Vercel settings. |
 | 7 | Run `node scripts/load-check.mjs https://studiskarte-marketplace.vercel.app` after the last deploy. 2026-10-18 result: 200 requests, 20 at a time, no failures; `/sign-in` p50 298 ms, p95 2.3 s; `/api/health/db` p50 280 ms, p95 1.3 s. | Anyone | Done once; repeat. |
 | 8 | Restore drill (below). | Anyone | Done 2026-10-18. |
 | 10 | Sign-in with Google: create an OAuth client in Google Cloud (authorised redirect URI `<BETTER_AUTH_URL>/api/auth/callback/google`), set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in Vercel. Without them the button is hidden. Not tested against Google (no credentials in the repo); try it with a gmail.com account and a school Google account, since a school admin may block outside apps. | **Owner** | Open. |
@@ -28,7 +28,7 @@ Personal data the app holds (for the privacy review): school email, handle, disp
 | Signal | How it reaches the owner |
 | --- | --- |
 | A scheduled job stopped running | The `Scheduled jobs` GitHub workflow runs every 15 minutes, reads `stale` from `/api/jobs/run` and fails; GitHub emails the repository owner. |
-| Gmail 80% (400 of 500 in 24 hours), photo storage 80% of 10 GB, database 80% of 0.5 GB | The same workflow, once a day at 01:17 UTC, runs the `health` job and fails with the warning text. The tests are in `src/lib/jobs/health.test.ts`. |
+| Mail 80% of `MAIL_DAILY_LIMIT` in 24 hours, photo storage 80% of 10 GB, database 80% of 0.5 GB | The same workflow, once a day at 01:17 UTC, runs the `health` job and fails with the warning text. The tests are in `src/lib/jobs/health.test.ts`. |
 | Deploy or CI failure | GitHub and Vercel emails. |
 | Errors in server code | Not covered until item 3 above is done. Vercel runtime logs only for about an hour. |
 

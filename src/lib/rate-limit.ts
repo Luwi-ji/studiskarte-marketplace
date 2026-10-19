@@ -42,10 +42,12 @@ export async function consume(limit: RateLimit): Promise<boolean> {
   return (await countEvents(limit.action, limit.key, limit.windowSeconds)) <= limit.max;
 }
 
-// Gmail allows 500 recipients per rolling 24 hours for a personal account.
-// We stop at 480 to leave room for retries, and warn at 400 (stack doc).
+// The mail provider's daily cap, set with MAIL_DAILY_LIMIT. The default is Resend's Free plan
+// (100 a day); set it higher after upgrading. We stop at 96% to leave room for retries and
+// the health job warns at 80%.
 export const MAIL_QUOTA_ACTION = "mail_sent";
 export const MAIL_QUOTA_KEY = "global";
 export const MAIL_QUOTA_WINDOW_SECONDS = 24 * 60 * 60;
-export const MAIL_QUOTA_WARN_AT = 400;
-export const MAIL_QUOTA_STOP_AT = 480;
+export const MAIL_DAILY_LIMIT = Number(process.env.MAIL_DAILY_LIMIT) > 0 ? Math.floor(Number(process.env.MAIL_DAILY_LIMIT)) : 100;
+export const MAIL_QUOTA_WARN_AT = Math.floor(MAIL_DAILY_LIMIT * 0.8);
+export const MAIL_QUOTA_STOP_AT = Math.floor(MAIL_DAILY_LIMIT * 0.96);
