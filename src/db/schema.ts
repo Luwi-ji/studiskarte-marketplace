@@ -616,6 +616,8 @@ export const post = pgTable(
     paymentOther: boolean("payment_other").notNull().default(false),
     // Where to pay online, or what "others" means (e.g. "GCash 09xx"); shown only to a student with a reservation.
     paymentNote: text("payment_note"),
+    // A showcase only students may message, offer on or reserve, unless the seller allows others (faculty, staff, alumni, visitors). Ignored on a Wishlist.
+    allowNonStudents: boolean("allow_non_students").notNull().default(false),
     // How many are available (or needed, for a Wishlist). Null means ongoing: no limit.
     quantity: integer("quantity").default(1),
     status: text("status").notNull().default("open"),

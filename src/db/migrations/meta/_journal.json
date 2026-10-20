@@ -204,6 +204,13 @@
       "when": 1792347596134,
       "tag": "0028_password_login_school_email",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792496942290,
+      "tag": "0029_post_allow_non_students",
+      "breakpoints": true
     }
   ]
 }

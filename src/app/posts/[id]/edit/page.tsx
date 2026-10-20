@@ -70,6 +70,7 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
         paymentOnline: post.paymentOnline,
         paymentOther: post.paymentOther,
         paymentNote: post.paymentNote ?? "",
+        allowNonStudents: post.allowNonStudents,
         availability,
         photos: await Promise.all(
           photos.map(async (photo) => ({

@@ -95,6 +95,8 @@ export const postFieldsSchema = z.object({
   paymentOnline: z.boolean().default(false),
   paymentOther: z.boolean().default(false),
   paymentNote: z.string().default(""),
+  // Showcase only: let faculty, staff, alumni and visitors message, offer and reserve too.
+  allowNonStudents: z.boolean().default(false),
   availability: z.array(
     z.discriminatedUnion("kind", [
       z.object({ kind: z.literal("weekly"), weekday: z.number(), startTime: z.string(), endTime: z.string() }),
@@ -126,6 +128,7 @@ export type PostData = {
   paymentOnline: boolean;
   paymentOther: boolean;
   paymentNote: string | null;
+  allowNonStudents: boolean;
   availability: Availability[];
   photos: { id: string; caption: string | null }[];
 };
@@ -261,6 +264,7 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
     paymentOnline: pays && raw.paymentOnline,
     paymentOther: pays && raw.paymentOther,
     paymentNote: pays && (raw.paymentOnline || raw.paymentOther) && paymentNote.length > 0 ? paymentNote : null,
+    allowNonStudents: raw.allowNonStudents,
     availability,
     photos,
   };

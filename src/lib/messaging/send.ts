@@ -6,6 +6,8 @@ import { recordNotification, type AlertSink, type Recorded } from "@/lib/notific
 import { consume } from "@/lib/rate-limit";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 import { listingClosedReason, MESSAGES_PER_MINUTE, orderedPair, parseMessage, readOnlyReason, type MessageData } from "@/lib/messaging/rules";
+import { audienceRefusal } from "@/lib/posts/audience";
+import type { Role } from "@/lib/identity/roles";
 
 export type SendResult = { ok: true; conversationId: string } | { ok: false; error: string };
 
@@ -100,16 +102,18 @@ export async function startConversation(args: { senderId: string; postId: string
     const result = await getDb().transaction(async (tx): Promise<SendResult> => {
       // Share-lock the post: it cannot be withdrawn or expired between this check and the write.
       const [target] = await tx
-        .select({ ownerId: post.ownerId, status: post.status, expiresAt: post.expiresAt, ownerStatus: owner.accountStatus })
+        .select({ ownerId: post.ownerId, kind: post.kind, allowNonStudents: post.allowNonStudents, status: post.status, expiresAt: post.expiresAt, ownerStatus: owner.accountStatus })
         .from(post)
         .innerJoin(owner, eq(owner.id, post.ownerId))
         .where(eq(post.id, args.postId))
         .for("share", { of: post });
-      const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.senderId));
+      const [me] = await tx.select({ status: student.accountStatus, role: student.role }).from(student).where(eq(student.id, args.senderId));
       if (!target || !me) return { ok: false, error: "That post could not be found." };
       if (target.ownerId === args.senderId) return { ok: false, error: "You can't message your own post." };
       // Blocked either way reads as a post that is not there, so the blocked person learns nothing.
       if (await isBlockedEitherWay(args.senderId, target.ownerId, tx)) return { ok: false, error: "That post could not be found." };
+      const notForThem = audienceRefusal({ role: me.role as Role, kind: target.kind, allowNonStudents: target.allowNonStudents });
+      if (notForThem) return { ok: false, error: notForThem };
       const blocked = listingClosedReason({
         postStatus: target.status,
         postExpiresAt: target.expiresAt,

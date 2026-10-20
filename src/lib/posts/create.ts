@@ -3,6 +3,7 @@ import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema
 import { getDb, type DbTransaction } from "@/lib/db";
 import { categoryLookup, listCategories } from "@/lib/posts/categories";
 import { OPEN_POSTS_MAX, parseNewPost, type FieldErrors, type PostData } from "@/lib/posts/schema";
+import { SHOWCASE_STUDENTS_ONLY } from "@/lib/posts/audience";
 
 export type SaveResult = { ok: true; id: string } | { ok: false; errors: FieldErrors };
 
@@ -46,6 +47,7 @@ export function postColumns(data: PostData) {
     paymentOnline: data.paymentOnline,
     paymentOther: data.paymentOther,
     paymentNote: data.paymentNote,
+    allowNonStudents: data.allowNonStudents,
   };
 }
 
@@ -74,8 +76,9 @@ export async function createPost(args: { ownerId: string; input: unknown; now?: 
   try {
     return await getDb().transaction(async (tx) => {
       // One create at a time per student, so two at once cannot both slip under the limit.
-      const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.ownerId)).for("update");
+      const [me] = await tx.select({ status: student.accountStatus, role: student.role }).from(student).where(eq(student.id, args.ownerId)).for("update");
       if (!me || me.status === "deleted") return { ok: false, errors: { form: "Your account can't post." } };
+      if (me.role !== "student" && data.kind === "showcase") return { ok: false, errors: { kind: SHOWCASE_STUDENTS_ONLY } };
       const [{ open }] = await tx
         .select({ open: count() })
         .from(post)

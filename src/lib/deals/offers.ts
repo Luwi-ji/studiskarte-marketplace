@@ -3,6 +3,8 @@ import { alias } from "drizzle-orm/pg-core";
 import { deal, offer, post, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
 import { isUniqueViolation, getOrCreateConversation, writeMessage } from "@/lib/messaging/send";
+import { audienceRefusal } from "@/lib/posts/audience";
+import type { Role } from "@/lib/identity/roles";
 import { MESSAGES_PER_MINUTE } from "@/lib/messaging/rules";
 import { offerKey, recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
@@ -59,6 +61,8 @@ export async function makeOffer(args: {
       const [target] = await tx
         .select({
           ownerId: post.ownerId,
+          kind: post.kind,
+          allowNonStudents: post.allowNonStudents,
           status: post.status,
           expiresAt: post.expiresAt,
           priceKind: post.priceKind,
@@ -70,11 +74,13 @@ export async function makeOffer(args: {
         .innerJoin(owner, eq(owner.id, post.ownerId))
         .where(eq(post.id, args.postId))
         .for("share", { of: post });
-      const [me] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, args.responderId));
+      const [me] = await tx.select({ status: student.accountStatus, role: student.role }).from(student).where(eq(student.id, args.responderId));
       if (!target || !me) return { ok: false, error: "That post could not be found." };
       if (target.ownerId === args.responderId) return { ok: false, error: "You can't make an offer on your own post." };
       // Blocked either way reads as a post that is not there, so the blocked person learns nothing.
       if (await isBlockedEitherWay(args.responderId, target.ownerId, tx)) return { ok: false, error: "That post could not be found." };
+      const notForThem = audienceRefusal({ role: me.role as Role, kind: target.kind, allowNonStudents: target.allowNonStudents });
+      if (notForThem) return { ok: false, error: notForThem };
 
       const [mine] = await tx
         .select({ n: count() })

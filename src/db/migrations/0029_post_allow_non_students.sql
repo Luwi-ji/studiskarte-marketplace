@@ -1,0 +1,1 @@
+ALTER TABLE "post" ADD COLUMN "allow_non_students" boolean DEFAULT false NOT NULL;

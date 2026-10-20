@@ -9,6 +9,7 @@ import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
+import { audienceRefusal } from "@/lib/posts/audience";
 import { formatPrice } from "@/lib/posts/format";
 import { OfferForm } from "./offer-form";
 
@@ -46,7 +47,8 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
     hasPendingOffer: detail.myTransaction?.state === "pending",
   });
   const labels = offerLabels(detail.kind);
-  const allowed = kind === "reserve" ? options.reserve : options.offer;
+  const studentsOnly = audienceRefusal({ role: me.role, kind: detail.kind, allowNonStudents: detail.allowNonStudents });
+  const allowed = !studentsOnly && (kind === "reserve" ? options.reserve : options.offer);
   const thumbUrl = await getObjectStore().signedUrl(detail.photos[0].key, LINK_SECONDS);
   const price = formatPrice(detail.priceKind, detail.priceAmount);
   const askingText =
@@ -78,7 +80,7 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
           />
         ) : (
           <div className="flex flex-col gap-4 py-6 text-center">
-            <p className="text-zinc-600 dark:text-zinc-400">{options.reason ?? (kind === "reserve" ? "This post has no price to reserve at. Make an offer instead." : "This post is free. Reserve it instead.")}</p>
+            <p className="text-zinc-600 dark:text-zinc-400">{studentsOnly ?? options.reason ?? (kind === "reserve" ? "This post has no price to reserve at. Make an offer instead." : "This post is free. Reserve it instead.")}</p>
             <Link href={`/posts/${detail.id}`} className="mx-auto flex h-12 items-center rounded-lg border border-zinc-300 px-6 font-medium dark:border-zinc-700">
               Back to the post
             </Link>

@@ -8,6 +8,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
 import { listingClosedReason } from "@/lib/messaging/rules";
+import { audienceRefusal } from "@/lib/posts/audience";
 import { NewMessage } from "./new-message";
 
 export const metadata = { title: "New message · Studiskarte Marketplace" };
@@ -31,12 +32,14 @@ async function NewMessageView({ searchParams }: { searchParams: Promise<Record<s
   if (!detail) notFound();
   if (detail.isOwner) redirect(`/posts/${detail.id}`);
 
-  const closed = listingClosedReason({
-    postStatus: detail.status,
-    postExpiresAt: detail.expiresAt,
-    ownerStatus: "active",
-    responderStatus: "active",
-  });
+  const closed =
+    audienceRefusal({ role: me.role, kind: detail.kind, allowNonStudents: detail.allowNonStudents }) ??
+    listingClosedReason({
+      postStatus: detail.status,
+      postExpiresAt: detail.expiresAt,
+      ownerStatus: "active",
+      responderStatus: "active",
+    });
   const name = detail.seller.displayName || (detail.seller.handle ? `@${detail.seller.handle}` : "the seller");
   const thumbUrl = await getObjectStore().signedUrl(detail.photos[0].key, LINK_SECONDS);
 

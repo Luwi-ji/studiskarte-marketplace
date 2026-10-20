@@ -12,6 +12,7 @@ import { getPostDetail } from "@/lib/posts/detail";
 import { expiryNotice, formatAvailability, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
 import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
+import { audienceRefusal } from "@/lib/posts/audience";
 import { PAYMENT_LABEL } from "@/lib/payment";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
@@ -61,6 +62,8 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   const condition = CONDITIONS.find((c) => c === detail.condition);
   // Students can message about a post while it is open or reserved (never their own).
   const canMessage = !detail.isOwner && (detail.status === "open" || detail.status === "reserved");
+  // Faculty, staff, alumni and visitors may only message, offer and reserve on a showcase that allows it.
+  const studentsOnly = audienceRefusal({ role: me.role, kind: detail.kind, allowNonStudents: detail.allowNonStudents });
   // What they may do about the price: offer, reserve, both, or neither (a reserved post takes no offers).
   const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active", unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken), hasActiveDeal: detail.hasReservation, hasPendingOffer: detail.myTransaction?.state === "pending" });
   const howMany = quantityLine(detail.kind, detail.quantity, detail.unitsTaken);
@@ -217,7 +220,9 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
 
       {canMessage ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
-          {detail.myTransaction ? (
+          {studentsOnly ? (
+            <p className="mx-auto max-w-md text-center text-sm text-zinc-600 dark:text-zinc-400">{studentsOnly}</p>
+          ) : detail.myTransaction ? (
             <BuyerShortcuts transaction={detail.myTransaction} />
           ) : (
             <div className="mx-auto flex max-w-md gap-2">

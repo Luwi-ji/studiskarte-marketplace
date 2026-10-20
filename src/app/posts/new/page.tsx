@@ -20,6 +20,6 @@ export default function NewPostPage() {
 }
 
 async function Guarded() {
-  await requireActiveStudent();
-  return <PostForm mode="create" categories={await listCategories()} />;
+  const me = await requireActiveStudent();
+  return <PostForm mode="create" categories={await listCategories()} canSell={me.role === "student"} />;
 }

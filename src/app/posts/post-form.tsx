@@ -42,6 +42,7 @@ const EMPTY: PostFormValues = {
   paymentOnline: false,
   paymentOther: false,
   paymentNote: "",
+  allowNonStudents: false,
   availability: [],
   photos: [],
 };
@@ -63,6 +64,7 @@ const ANSWERS: Record<keyof PostFormValues, string[]> = {
   paymentOnline: ["payment", "paymentNote"],
   paymentOther: ["payment", "paymentNote"],
   paymentNote: ["paymentNote"],
+  allowNonStudents: ["allowNonStudents"],
   availability: ["availability"],
   photos: ["photos"],
 };
@@ -81,12 +83,12 @@ function FieldError({ message }: { message?: string }) {
 }
 
 type Props =
-  | { mode: "create"; categories: Category[] }
+  | { mode: "create"; categories: Category[]; canSell: boolean }
   | { mode: "edit"; categories: Category[]; postId: string; kind: PostKind; initial: PostFormValues; relist: boolean };
 
 export function PostForm(props: Props) {
   const router = useRouter();
-  const [kind, setKind] = useState<PostKind>(props.mode === "edit" ? props.kind : "showcase");
+  const [kind, setKind] = useState<PostKind>(props.mode === "edit" ? props.kind : props.canSell ? "showcase" : "wishlist");
   const [values, setValues] = useState<PostFormValues>(props.mode === "edit" ? props.initial : EMPTY);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uploading, setUploading] = useState(0);
@@ -170,7 +172,7 @@ export function PostForm(props: Props) {
     // Next.js keeps this page alive after navigating away; start fresh next time.
     if (props.mode === "create") {
       setValues(EMPTY);
-      setKind("showcase");
+      setKind(props.canSell ? "showcase" : "wishlist");
     }
     router.push(`/me?tab=${kind}`);
   }
@@ -186,15 +188,18 @@ export function PostForm(props: Props) {
         <fieldset className="flex flex-col gap-2">
           <legend className={label}>Type</legend>
           <div className="flex gap-4">
-            <label className="flex min-h-11 items-center gap-3">
-              <input className="h-5 w-5 shrink-0" type="radio" name="kind" checked={!wishlist} onChange={() => setKind("showcase")} /> Showcase
-              (I offer)
-            </label>
+            {props.canSell ? (
+              <label className="flex min-h-11 items-center gap-3">
+                <input className="h-5 w-5 shrink-0" type="radio" name="kind" checked={!wishlist} onChange={() => setKind("showcase")} /> Showcase
+                (I offer)
+              </label>
+            ) : null}
             <label className="flex min-h-11 items-center gap-3">
               <input className="h-5 w-5 shrink-0" type="radio" name="kind" checked={wishlist} onChange={() => setKind("wishlist")} /> Wishlist (I
               seek)
             </label>
           </div>
+          {props.canSell ? null : <span className={hint}>Only students can post a showcase. You can post a wishlist.</span>}
         </fieldset>
       ) : null}
 
@@ -460,6 +465,17 @@ export function PostForm(props: Props) {
           <FieldError message={errors.payment} />
         </fieldset>
       ) : null}
+
+      {wishlist ? null : (
+        <fieldset className="flex flex-col gap-2">
+          <legend className={label}>Who can buy</legend>
+          <label className="flex min-h-11 items-center gap-3">
+            <input className="h-5 w-5 shrink-0" type="checkbox" name="allowNonStudents" checked={values.allowNonStudents} onChange={(e) => set("allowNonStudents", e.target.checked)} />
+            Also allow faculty, staff, alumni and visitors to message, make offers and reserve
+          </label>
+          <span className={`${hint} pl-8`}>Off: only students can contact you about this post.</span>
+        </fieldset>
+      )}
 
       <fieldset className="flex flex-col gap-3">
         <legend className={label}>When you are available</legend>

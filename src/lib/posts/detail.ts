@@ -17,6 +17,8 @@ import type { Availability } from "@/lib/posts/schema";
 export type PostDetail = {
   id: string;
   kind: string;
+  /** A showcase's seller lets faculty, staff, alumni and visitors message, offer and reserve. */
+  allowNonStudents: boolean;
   status: string;
   title: string;
   description: string;
@@ -69,6 +71,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     .select({
       id: post.id,
       kind: post.kind,
+      allowNonStudents: post.allowNonStudents,
       status: post.status,
       title: post.title,
       description: post.description,
@@ -123,6 +126,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
   return {
     id: row.id,
     kind: row.kind,
+    allowNonStudents: row.allowNonStudents,
     status: row.status,
     title: row.title,
     description: row.description,
