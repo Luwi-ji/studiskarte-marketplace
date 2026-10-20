@@ -46,6 +46,19 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // The old address, kept alive by Vercel, sends people to the real domain. /api is left alone:
+  // Vercel's daily cron and any caller still using the old host must reach the job endpoint
+  // and the auth routes without a redirect.
+  async redirects() {
+    return [
+      {
+        source: "/:path((?!api/).*)",
+        has: [{ type: "host", value: "studiskarte-marketplace.vercel.app" }],
+        destination: "https://studiskarte.com/:path",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
