@@ -20,6 +20,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1152.0",
     "@neon/config": "^1.9.1",
     "@neon/env": "^1.6.2",
+    "@sentry/nextjs": "^11.8.0",
     "@vercel/functions": "^3.10.1",
     "better-auth": "^1.7.9",
     "drizzle-orm": "^0.45.4",

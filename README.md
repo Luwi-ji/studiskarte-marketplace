@@ -16,6 +16,7 @@ Design lives in `.monozukuri/` (project memory, blueprint, decisions). Read `.mo
    | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Session signing secret; the app's public URL (`http://localhost:3000` locally). |
    | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | Mail provider over SMTP (Resend: `smtp.resend.com`, `465`, user `resend`, password = API key). `MAIL_FROM` is the sender address on your verified domain. |
    | `MAIL_DAILY_LIMIT` | Optional. The provider's daily send cap; the app stops at 96% and the health job warns at 80%. Default 100 (Resend Free); raise it after upgrading. |
+   | `NEXT_PUBLIC_SENTRY_DSN` | Optional. Sentry project DSN (public by design). Error reports are sent only from a production build that has it. Leave unset in development. |
    | `MAIL_TRANSPORT=log` | Local only: print mail to the server log instead of sending. Refused in production. |
    | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Cloudflare R2 for photos. Needed only to create posts and view photos. |
    | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web Push alerts. Make a pair with `npx web-push generate-vapid-keys`; the subject is a `mailto:` address. Use a different pair per environment. Without them the app works and shows notifications in the app only. |
