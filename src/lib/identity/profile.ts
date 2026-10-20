@@ -12,6 +12,7 @@ import type { ObjectStore } from "@/lib/images/store";
 import { NO_SCHOOL_LABEL, type SchoolRole } from "@/lib/identity/roles";
 import { discardImage, storeImage } from "@/lib/images/upload";
 import { currentLegal } from "@/lib/legal/documents";
+import { AGE_REQUIRED } from "@/lib/identity/terms";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 
 /** What a student sees about themselves. Never includes the school email. `school` reads "Visitor" when there is no school email. */
@@ -104,7 +105,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
   };
 }
 
-export type ProfileResult = { ok: true } | { ok: false; field: "handle" | "displayName" | "terms"; message: string };
+export type ProfileResult = { ok: true } | { ok: false; field: "handle" | "displayName" | "terms" | "age"; message: string };
 
 const HANDLE_TAKEN: ProfileResult = { ok: false, field: "handle", message: "That handle is taken. Choose another." };
 
@@ -119,11 +120,12 @@ function isHandleTaken(error: unknown): boolean {
 
 /**
  * Finishes sign-up: the first handle and display name, and, when the legal documents exist,
- * the acceptance of the version the student was shown. Only works once.
+ * the acceptance of the version the student was shown and the confirmation of being 18 or older.
+ * Only works once.
  */
 export async function completeSignUp(
   studentId: string,
-  input: { handle: string; displayName: string; role?: SchoolRole | null; acceptedTermsVersion?: string | null },
+  input: { handle: string; displayName: string; role?: SchoolRole | null; acceptedTermsVersion?: string | null; adultConfirmed?: boolean },
   now = new Date(),
 ): Promise<ProfileResult> {
   const handle = checkHandle(input.handle);
@@ -134,6 +136,7 @@ export async function completeSignUp(
   if (legal && input.acceptedTermsVersion !== legal.version) {
     return { ok: false, field: "terms", message: "Accept the Terms of Service and Privacy Policy to continue." };
   }
+  if (legal && !input.adultConfirmed) return { ok: false, field: "age", message: AGE_REQUIRED };
 
   try {
     // The first choice does not start the 30-day clock: handle_changed_at stays null.
@@ -145,7 +148,7 @@ export async function completeSignUp(
         // Someone with a school email says which kind of member they are; a visitor stays one.
         ...(input.role ? { role: sql`case when ${student.schoolEmail} is null then ${student.role} else ${input.role} end` } : {}),
         updatedAt: now,
-        ...(legal ? { termsVersion: legal.version, termsAcceptedAt: now } : {}),
+        ...(legal ? { termsVersion: legal.version, termsAcceptedAt: now, adultConfirmedAt: now } : {}),
       })
       .where(and(eq(student.id, studentId), isNull(student.handle)))
       .returning({ id: student.id });

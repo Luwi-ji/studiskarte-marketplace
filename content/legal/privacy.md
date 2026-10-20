@@ -1,8 +1,8 @@
 # Privacy Policy
 
-Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-19.
+Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-21.
 
-The app is run by its owner, an individual, not a company. You can reach us at studiskartemarketplace@gmail.com.
+The app is run by its owner, an individual, not a company. You can reach us at support@studiskarte.com.
 
 ## What we collect
 
@@ -42,8 +42,9 @@ Signed-in members can see your handle, display name, picture, school (shown as t
 We use these services to run the app. Each receives only what it needs:
 - **Vercel** hosts the app and sees requests to it (including IP addresses) in its logs for a short time.
 - **Neon** hosts the database (in the United States).
-- **Cloudflare R2** stores listing photos, message pictures and profile pictures. They can only be reached through short-lived links that the app creates for signed-in members.
-- **Google (Gmail)** sends our emails, so Google sees the address we send a code to. **Google sign-in** is used only if you choose it.
+- **Cloudflare** stores listing photos, message pictures and profile pictures (R2), manages our domain name, and forwards the mail you send to our support address. Photos can only be reached through short-lived links that the app creates for signed-in members.
+- **Resend** sends our emails (sign-in, sign-up, password reset and school email codes), so Resend sees the address we send a code to and the code itself. **Google sign-in** is used only if you choose it, and then Google sees that you sign in to the app.
+- **Sentry** receives error reports when something breaks in the app, so we can fix it. We configure it to leave out your name, email address, IP address, cookies and what you typed. A report can still show which page failed. Sentry stores data outside the Philippines.
 - **Push services** run by your phone's maker or browser (for example Apple, Google or Mozilla) carry device alerts.
 
 Photos, messages and reservations are stored in these services, some outside the Philippines.
@@ -59,11 +60,11 @@ Photos, messages and reservations are stored in these services, some outside the
 
 In **Settings, Delete my account** you can delete your account at any time. This erases your email and school email, handle, display name, picture, password, sessions, device alerts, notifications, follows, hearts, blocks and view history, withdraws your open listings, and ends reservations still being arranged. Messages, finished reservations, reviews and the photos of your listings that others' history depends on stay, without your name. If you want any of that removed too, write to us.
 
-Under the Data Privacy Act of 2012 (Republic Act No. 10173) you have the right to be informed, to access your data, to correct it, to object to its use, to have it erased or blocked, to data portability, and to claim compensation for damage caused by misuse of it. To use any of these, write to studiskartemarketplace@gmail.com. If you are not satisfied, you may complain to the National Privacy Commission (privacy.gov.ph).
+Under the Data Privacy Act of 2012 (Republic Act No. 10173) you have the right to be informed, to access your data, to correct it, to object to its use, to have it erased or blocked, to data portability, and to claim compensation for damage caused by misuse of it. To use any of these, write to support@studiskarte.com. If you are not satisfied, you may complain to the National Privacy Commission (privacy.gov.ph).
 
 ## Young people
 
-The app is meant for people in higher education. If you are under 18, use it only with the permission of a parent or guardian.
+The app is for adults only. You must be 18 or older to create an account, and we ask you to confirm it when you sign up. If you are younger, please do not sign up. If we find out that someone under 18 has an account, we may close it.
 
 ## Changes
 

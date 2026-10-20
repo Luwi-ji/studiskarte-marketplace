@@ -69,6 +69,8 @@ export const student = pgTable(
     // Both null until they accept; a newer version asks again (src/lib/legal/documents.ts).
     termsVersion: text("terms_version"),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    // When the person confirmed they are 18 or older (asked together with the terms; null until they do).
+    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

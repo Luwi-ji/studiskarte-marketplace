@@ -1,10 +1,10 @@
 # Terms of Service
 
-By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-19. If you do not agree, do not use the app.
+By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-21. If you do not agree, do not use the app.
 
 ## What the app is
 
-The app lets members post **Showcase** listings (things or services they offer) and **Wishlist** items (things or services they look for), message each other, make offers, reserve, and arrange a handover. It is run by its owner, an individual. Contact: studiskartemarketplace@gmail.com.
+The app lets members post **Showcase** listings (things or services they offer) and **Wishlist** items (things or services they look for), message each other, make offers, reserve, and arrange a handover. It is run by its owner, an individual. Contact: support@studiskarte.com.
 
 **The app never handles money.** Payment, delivery and any service are agreed and carried out between the two members, outside the app. We are not a party to any deal, we do not hold or guarantee payment or goods, and we do not check what members say about themselves or their listings.
 
@@ -13,7 +13,7 @@ The app lets members post **Showcase** listings (things or services they offer) 
 - You must give an email address you own and keep your password secret. You are responsible for what happens under your account.
 - One person, one account. Do not make several accounts, and do not pretend to be someone else, a school, or the app's staff.
 - Choosing a role (student, faculty or teacher, staff, alumni) or adding a school email does not mean the app has checked your identity unless a badge says so.
-- If you are under 18, use the app only with the permission of a parent or guardian.
+- You must be 18 or older to use the app, and you confirm this when you sign up. We may close an account if we find that its owner is under 18.
 - You can delete your account at any time in Settings. We may suspend or remove an account that breaks these terms.
 
 ## Using the app

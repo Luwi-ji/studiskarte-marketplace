@@ -23,6 +23,10 @@ export function AcceptForm({ version }: { version: string }) {
         ))}
       </ul>
       <input type="hidden" name="terms" value={version} />
+      <label className="flex items-start gap-3">
+        <input type="checkbox" name="adult" required className="mt-1 h-5 w-5 shrink-0" />
+        <span className="text-sm">I am 18 years old or older. Studiskarte Marketplace is for adults only.</span>
+      </label>
       {state.error ? (
         <p role="alert" className="text-sm text-red-600">
           {state.error}

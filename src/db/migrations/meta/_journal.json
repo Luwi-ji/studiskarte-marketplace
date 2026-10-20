@@ -211,6 +211,13 @@
       "when": 1792496942290,
       "tag": "0029_post_allow_non_students",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792514309478,
+      "tag": "0030_student_adult_confirmed",
+      "breakpoints": true
     }
   ]
 }

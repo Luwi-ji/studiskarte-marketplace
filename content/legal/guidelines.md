@@ -1,6 +1,6 @@
 # Community Guidelines
 
-These guidelines say what is welcome in Studiskarte Marketplace. They sit beside the Terms of Service and Privacy Policy. Last updated 2026-10-19.
+These guidelines say what is welcome in Studiskarte Marketplace. They sit beside the Terms of Service and Privacy Policy. Last updated 2026-10-21.
 
 ## Be a good neighbour
 - Be honest. Use real photos of the real item. Say what is wrong with it.
@@ -34,4 +34,4 @@ These guidelines say what is welcome in Studiskarte Marketplace. They sit beside
 ## What happens if the guidelines are broken
 A listing may be hidden or removed. An account may be suspended. We do not suspend accounts automatically.
 
-Questions or something urgent: studiskartemarketplace@gmail.com.
+Questions or something urgent: support@studiskarte.com.

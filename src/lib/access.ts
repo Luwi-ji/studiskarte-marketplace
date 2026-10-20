@@ -29,6 +29,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
       accountStatus: student.accountStatus,
       isAdmin: student.isAdmin,
       termsVersion: student.termsVersion,
+      adultConfirmedAt: student.adultConfirmedAt,
     })
     .from(student)
     .where(eq(student.id, session.user.id));
@@ -39,7 +40,8 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
     role: row.role as Role,
     handle: row.handle,
     isAdmin: row.isAdmin,
-    mustAcceptTerms: needsTerms(row.termsVersion, currentLegal()?.version ?? null),
+    // Asked again when the legal text changed, or when they have never confirmed they are 18 or older.
+    mustAcceptTerms: needsTerms(row.termsVersion, currentLegal()?.version ?? null) || (currentLegal() !== null && row.adultConfirmedAt === null),
   };
 }
 

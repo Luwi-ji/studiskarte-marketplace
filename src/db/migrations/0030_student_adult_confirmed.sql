@@ -1,0 +1,1 @@
+ALTER TABLE "student" ADD COLUMN "adult_confirmed_at" timestamp with time zone;
