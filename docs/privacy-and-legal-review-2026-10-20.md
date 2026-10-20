@@ -29,6 +29,8 @@ Finding: do not open to minors yet.
 - **Penalties (Sec 25 to 32):** unauthorized processing, negligent access, improper disposal, concealment of breaches. Access to ID images must be limited to the admin and logged.
 
 ## 3. Internet Transactions Act (secondary sources only)
+**Correction (2026-10-21):** the LegalDraft agent read RA 11967 in full (lawphil.net). Sec 3 excludes consumer-to-consumer transactions (defined in Sec 4(c)), so the Act may not cover this app, or student occasional sellers, at all. The IRR (JAO 24-03) was not read. The bullets below came from summaries and may overstate the duties; see `docs/legal-drafts/README.md`, question 1.
+
 - The app likely counts as a digital platform that does not retain oversight over the sale (it takes no payment, ships nothing). Reported duties: let people tell commercial from non-commercial accounts, keep a list of accounts that use the platform for e-commerce, require sellers to show name, price, description and condition (the post form already asks for these), act on takedown orders, and be answerable if prohibited, unsafe or dangerous goods stay up after notice.
 - "Online merchants" are people selling in the ordinary course of trade; occasional student resales may not be. Whether and when a student seller must register is a lawyer's question.
 - A "limitation of liability" clause cannot remove liability the Act imposes. The Terms should not promise more than the law allows.
