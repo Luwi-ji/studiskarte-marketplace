@@ -25,9 +25,9 @@ Each query module has a test file in `src/lib/admin/` (they use the dev database
 
 ## Gaps, in the order to build
 
-1. **Report alert.** No new-report notice: the owner has to open the tab. Send an email to `support@studiskarte.com` (or a push to the admin) when a `child_safety` report arrives. Needed to meet "review within 24 hours" in the child safety standards.
-2. **Reason and note on admin actions.** Moderation actions take no reason the poster can see, and nothing records who did what. Add `admin_action` (who, what, target, reason, time) and show the reason to the member (`docs/legal-drafts/README.md`, build items).
-3. **Reservation disputes.** `deal_report` rows (no show, not as described, payment problem) are read only by the two members. Add a "Deal problems" section to Moderation, oldest first, with the two handles and the reason.
+1. ~~Report alert~~ Built 2026-10-22 for child safety reports: email to `CHILD_SAFETY_ALERT_EMAIL` or the support address. Other reports still need the owner to open the tab.
+2. ~~Reason and note on admin actions~~ Built 2026-10-22 (migration 0033, `admin_action`): every decision is recorded with who, what, target and reason; removing a post and suspending a person require a reason; the reason is shown to the poster in their notification for a removal or restore; "Recent decisions" lists the last 20 on the Moderation tab. A suspended person is still only signed out, with no message.
+3. ~~Reservation disputes~~ Built 2026-10-22: "Deal problems" section on Moderation, disputed first then oldest, with both handles and each report. Read only: no action buttons yet (the owner messages the members or acts on the post or person).
 4. **Child safety evidence log.** For a confirmed case: record the date, the report ids, what was removed, which authority was told and the reference. Keep it out of the member-facing tables; preserve the data (no deletion on account deletion for these rows).
 5. **ID verification queue** (when it opens): pending requests, open the image (every view logged), approve/reject with reason, delete the picture at decision.
 6. **Rights requests log**: access, correction, erasure, objection requests by email, due date from the response time the lawyer sets.

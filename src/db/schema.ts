@@ -853,6 +853,29 @@ export const report = pgTable(
   ],
 );
 
+// What the admin did and why: one row per decision in /admin (restore, remove, dismiss, suspend).
+// No foreign keys on the targets, so the record outlives a deleted post or account. The reason is
+// what the owner wrote; for a removed or restored post the poster sees it in their notification.
+export const adminAction = pgTable(
+  "admin_action",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    adminId: text("admin_id")
+      .notNull()
+      .references(() => student.id),
+    action: text("action").notNull(),
+    postId: uuid("post_id"),
+    studentId: text("student_id"),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("admin_action_kind", sql`${t.action} in ('restore_post', 'remove_post', 'dismiss_post_reports', 'dismiss_student_reports', 'suspend_student', 'restore_student')`),
+    check("admin_action_reason_length", sql`${t.reason} is null or char_length(btrim(${t.reason})) between 1 and 300`),
+    index("admin_action_recent_idx").on(t.createdAt.desc()),
+  ],
+);
+
 // One student blocking another. Private: the blocked student is never told. Neither
 // side sees the other's posts or profile or can message them.
 export const block = pgTable(

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { deal, image, post, postPhoto, report, session, student } from "@/db/schema";
+import { adminAction, deal, image, post, postPhoto, report, session, student } from "@/db/schema";
 import { type DbTransaction, getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
 import { endActiveDeal } from "@/lib/deals/end";
@@ -19,6 +19,28 @@ const CANT_SUSPEND_ADMIN = "An admin can't be suspended.";
 const NOT_ACTIVE = "Only an active account can be suspended.";
 const NOT_SUSPENDED = "This account is not suspended.";
 const DUPLICATE_ON_RESTORE = "The owner already has an open post like this one. Remove this one instead.";
+
+/** The longest reason the admin can give; it is shown to the member for a removed or restored post. */
+export const REASON_MAX = 300;
+export const REASON_TOO_LONG = `Use at most ${REASON_MAX} characters for the reason.`;
+
+type ActionKind = typeof adminAction.$inferInsert.action;
+
+/** The reason as stored: trimmed, null when empty. Callers check the length first with reasonProblem. */
+function cleanReason(raw: string | undefined): string | null {
+  const text = (raw ?? "").trim();
+  return text === "" ? null : text;
+}
+
+/** The message to show when a reason cannot be used, or null. */
+export function reasonProblem(raw: string | undefined): string | null {
+  return (raw ?? "").trim().length > REASON_MAX ? REASON_TOO_LONG : null;
+}
+
+/** One row in the admin's own record, written in the same transaction as the decision. */
+async function logAction(tx: DbTransaction, entry: { adminId: string; action: ActionKind; postId?: string; studentId?: string; reason: string | null }): Promise<void> {
+  await tx.insert(adminAction).values({ adminId: entry.adminId, action: entry.action, postId: entry.postId ?? null, studentId: entry.studentId ?? null, reason: entry.reason });
+}
 
 /** The admin flag is read from the database on every call; a session alone never grants it. */
 async function checkAdmin(tx: DbTransaction, adminId: string): Promise<boolean> {
@@ -62,7 +84,9 @@ async function closeStudentReports(tx: DbTransaction, adminId: string, studentId
  * Its open reports are dismissed, so three new ones are needed to hide it again,
  * and the owner is told.
  */
-export async function restorePost(adminId: string, postId: string, alert?: AlertSink): Promise<AdminResult> {
+export async function restorePost(adminId: string, postId: string, alert?: AlertSink, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
   try {
     return await asAdmin(adminId, alert, async (tx, now, told) => {
       const [found] = await tx
@@ -79,7 +103,8 @@ export async function restorePost(adminId: string, postId: string, alert?: Alert
       // Deals may have ended while it was hidden; bring a restored post in line with them.
       await syncAvailability(tx, postId, now);
       await closePostReports(tx, adminId, postId, "dismissed", now);
-      told.push(await recordNotification(tx, { type: "post_restored", recipientId: found.ownerId, postId, onceKey: `restored:${postId}:${now.getTime()}` }));
+      await logAction(tx, { adminId, action: "restore_post", postId, reason: cleanReason(reason) });
+      told.push(await recordNotification(tx, { type: "post_restored", recipientId: found.ownerId, postId, onceKey: `restored:${postId}:${now.getTime()}`, detail: cleanReason(reason) }));
       return { ok: true };
     });
   } catch (error) {
@@ -94,7 +119,9 @@ export async function restorePost(adminId: string, postId: string, alert?: Alert
  * reservation on it is ended by the system (see endActiveDeal), and the
  * owner is told.
  */
-export async function removePost(adminId: string, postId: string, alert?: AlertSink): Promise<AdminResult> {
+export async function removePost(adminId: string, postId: string, alert?: AlertSink, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
   return asAdmin(adminId, alert, async (tx, now, told) => {
     const [found] = await tx.select({ ownerId: post.ownerId, status: post.status }).from(post).where(eq(post.id, postId)).for("update");
     if (!found) return { ok: false, error: POST_NOT_FOUND };
@@ -108,28 +135,35 @@ export async function removePost(adminId: string, postId: string, alert?: AlertS
 
     await tx.update(post).set({ status: "removed", statusBeforeHidden: null, updatedAt: now }).where(eq(post.id, postId));
     await closePostReports(tx, adminId, postId, "actioned", now);
-    told.push(await recordNotification(tx, { type: "post_removed", recipientId: found.ownerId, postId, onceKey: `removed:${postId}:${now.getTime()}` }));
+    await logAction(tx, { adminId, action: "remove_post", postId, reason: cleanReason(reason) });
+    told.push(await recordNotification(tx, { type: "post_removed", recipientId: found.ownerId, postId, onceKey: `removed:${postId}:${now.getTime()}`, detail: cleanReason(reason) }));
     return { ok: true };
   });
 }
 
 /** The reports on an open or reserved post were not a problem: they are dismissed and the post stays. */
-export async function dismissPostReports(adminId: string, postId: string): Promise<AdminResult> {
+export async function dismissPostReports(adminId: string, postId: string, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
   return asAdmin(adminId, undefined, async (tx, now) => {
     const [found] = await tx.select({ status: post.status }).from(post).where(eq(post.id, postId)).for("update");
     if (!found) return { ok: false, error: POST_NOT_FOUND };
     if (found.status !== "open" && found.status !== "reserved") return { ok: false, error: NOT_REPORTABLE };
     await closePostReports(tx, adminId, postId, "dismissed", now);
+    await logAction(tx, { adminId, action: "dismiss_post_reports", postId, reason: cleanReason(reason) });
     return { ok: true };
   });
 }
 
 /** The reports about a student were not a problem: they are dismissed. */
-export async function dismissStudentReports(adminId: string, studentId: string): Promise<AdminResult> {
+export async function dismissStudentReports(adminId: string, studentId: string, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
   return asAdmin(adminId, undefined, async (tx, now) => {
     const [found] = await tx.select({ id: student.id }).from(student).where(eq(student.id, studentId)).for("update");
     if (!found) return { ok: false, error: STUDENT_NOT_FOUND };
     await closeStudentReports(tx, adminId, studentId, "dismissed", now);
+    await logAction(tx, { adminId, action: "dismiss_student_reports", studentId, reason: cleanReason(reason) });
     return { ok: true };
   });
 }
@@ -139,7 +173,9 @@ export async function dismissStudentReports(adminId: string, studentId: string):
  * and their open reports are actioned. Only an admin does this, never reports
  * alone, and never to themselves or another admin.
  */
-export async function suspendStudent(adminId: string, studentId: string): Promise<AdminResult> {
+export async function suspendStudent(adminId: string, studentId: string, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
   return asAdmin(adminId, undefined, async (tx, now) => {
     if (studentId === adminId) return { ok: false, error: CANT_SUSPEND_SELF };
     const [found] = await tx
@@ -153,17 +189,21 @@ export async function suspendStudent(adminId: string, studentId: string): Promis
     await tx.update(student).set({ accountStatus: "suspended", updatedAt: now }).where(eq(student.id, studentId));
     await tx.delete(session).where(eq(session.userId, studentId));
     await closeStudentReports(tx, adminId, studentId, "actioned", now);
+    await logAction(tx, { adminId, action: "suspend_student", studentId, reason: cleanReason(reason) });
     return { ok: true };
   });
 }
 
 /** A suspended student gets their account back. */
-export async function restoreStudent(adminId: string, studentId: string): Promise<AdminResult> {
+export async function restoreStudent(adminId: string, studentId: string, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
   return asAdmin(adminId, undefined, async (tx, now) => {
     const [found] = await tx.select({ status: student.accountStatus }).from(student).where(eq(student.id, studentId)).for("update");
     if (!found) return { ok: false, error: STUDENT_NOT_FOUND };
     if (found.status !== "suspended") return { ok: false, error: NOT_SUSPENDED };
     await tx.update(student).set({ accountStatus: "active", updatedAt: now }).where(eq(student.id, studentId));
+    await logAction(tx, { adminId, action: "restore_student", studentId, reason: cleanReason(reason) });
     return { ok: true };
   });
 }

@@ -108,7 +108,7 @@ function Table({ rows }: { rows: UserRow[] }) {
               </td>
               <td className="px-3 py-2">
                 {u.accountStatus === "active" && !u.isAdmin ? (
-                  <AdminButton compact kind="suspendStudent" id={u.id} label="Suspend" danger confirm="Suspend this student? They are signed out everywhere and cannot sign in." />
+                  <AdminButton compact kind="suspendStudent" id={u.id} label="Suspend" danger ask="required" confirm="Suspend this student? They are signed out everywhere and cannot sign in." />
                 ) : null}
                 {u.accountStatus === "suspended" ? <AdminButton compact kind="restoreStudent" id={u.id} label="Restore" /> : null}
               </td>

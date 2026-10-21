@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, or } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { conversation, deal, image, notification, post, rateLimitEvent, report, session, student } from "@/db/schema";
+import { adminAction, conversation, deal, dealReport, image, notification, post, rateLimitEvent, report, session, student } from "@/db/schema";
 import { acceptOffer } from "@/lib/deals/accept";
 import { makeOffer } from "@/lib/deals/offers";
 import { answerCash, requestCash } from "@/lib/deals/payment";
 import { answerProposal, proposeHandover } from "@/lib/deals/schedule";
 import { getDb, getPool } from "@/lib/db";
+import { listDisputes, listRecentActions } from "@/lib/admin/disputes";
 import { createPost } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
 import {
@@ -131,6 +132,7 @@ afterEach(async () => {
   await db.delete(post).where(eq(post.ownerId, owner));
   await db.delete(conversation).where(or(eq(conversation.participantA, owner), eq(conversation.participantB, owner)));
   await db.delete(notification).where(inArray(notification.recipientId, people));
+  await db.delete(adminAction).where(inArray(adminAction.adminId, people));
   await db.delete(session).where(inArray(session.userId, people));
   await db.update(student).set({ accountStatus: "active" }).where(inArray(student.id, people));
 });
@@ -353,5 +355,68 @@ describe("the queue", () => {
     expect((await listAdminQueue()).posts.some((p) => p.id === id)).toBe(true);
     await dismissPostReports(admin, id);
     expect((await listAdminQueue()).posts.some((p) => p.id === id)).toBe(false);
+  });
+});
+
+describe("the admin's record and the reason", () => {
+  const record = async () => (await listRecentActions(50)).filter((a) => a.adminHandle === `sfadm_${run}`);
+
+  it("records each decision with its reason, and shows the poster the reason on a removal", async () => {
+    const id = await newPost();
+    await hide(id);
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+
+    expect(await removePost(admin, id, undefined, "  Sells exam answers  ")).toEqual({ ok: true });
+    const notice = await db.select({ type: notification.type, detail: notification.detail }).from(notification).where(eq(notification.recipientId, owner));
+    expect(notice).toEqual([{ type: "post_removed", detail: "Sells exam answers" }]);
+    expect(await record()).toMatchObject([{ action: "remove_post", postId: id, reason: "Sells exam answers" }]);
+  });
+
+  it("records a restore without a reason as null, and a suspension with the person", async () => {
+    const id = await newPost();
+    await hide(id);
+    expect(await restorePost(admin, id)).toEqual({ ok: true });
+    expect(await suspendStudent(admin, target, "Harassing members")).toEqual({ ok: true });
+    const rows = await record();
+    expect(rows.map((r) => [r.action, r.reason, r.targetHandle])).toEqual([
+      ["suspend_student", "Harassing members", `sft_${run}`],
+      ["restore_post", null, null],
+    ]);
+  });
+
+  it("refuses a reason that is too long and writes nothing", async () => {
+    const id = await newPost();
+    await hide(id);
+    expect(await removePost(admin, id, undefined, "x".repeat(301))).toMatchObject({ ok: false });
+    expect((await postRow(id)).status).toBe("hidden");
+    expect(await record()).toEqual([]);
+  });
+
+  it("writes nothing when a non-admin tries", async () => {
+    const id = await newPost();
+    await hide(id);
+    expect(await removePost(r1, id, undefined, "because")).toEqual({ ok: false, error: NOT_ADMIN });
+    expect(await db.select().from(adminAction).where(eq(adminAction.adminId, r1))).toEqual([]);
+  });
+});
+
+describe("deal problems", () => {
+  it("lists a reservation with a problem report, disputed first, and drops it when the deal is over", async () => {
+    const a = await newPost();
+    const quiet = await reserved(a);
+    const b = await newPost();
+    const loud = await reserved(b);
+    await db.insert(dealReport).values({ dealId: quiet, reporterId: ana, reason: "no_show", details: "did not come" });
+    await db.update(deal).set({ status: "disputed" }).where(eq(deal.id, loud));
+    await db.insert(dealReport).values({ dealId: loud, reporterId: owner, reason: "other" });
+
+    const mine = (await listDisputes()).filter((d) => [quiet, loud].includes(d.dealId));
+    expect(mine.map((d) => d.dealId)).toEqual([loud, quiet]);
+    expect(mine[1]).toMatchObject({ status: "agreed", ownerHandle: `sfo_${run}`, responderHandle: `sfa_${run}` });
+    expect(mine[1].reports).toMatchObject([{ reporterHandle: `sfa_${run}`, reason: "no_show", details: "did not come" }]);
+    expect(JSON.stringify(mine)).not.toContain(`@${TEST_SCHOOL}`);
+
+    await db.update(deal).set({ status: "cancelled" }).where(eq(deal.id, quiet));
+    expect((await listDisputes()).some((d) => d.dealId === quiet)).toBe(false);
   });
 });

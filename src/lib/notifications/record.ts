@@ -8,7 +8,7 @@ export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_schedule
 export type NotificationSpec =
   | { type: "message"; recipientId: string; postId: string | null; conversationId: string }
   | { type: "heart"; recipientId: string; postId: string }
-  | { type: "post_expiring" | "post_expired" | "post_hidden" | "post_restored" | "post_removed"; recipientId: string; postId: string; onceKey: string }
+  | { type: "post_expiring" | "post_expired" | "post_hidden" | "post_restored" | "post_removed"; recipientId: string; postId: string; onceKey: string; /** Why, in the admin's words (a removal or restore). */ detail?: string | null }
   | {
       type: DealNoticeType | "offer_received" | "offer_accepted" | "offer_declined" | "offer_expired";
       recipientId: string;

@@ -10,15 +10,21 @@ type Outcome = { ok: boolean; error?: string };
 
 const idSchema = z.uuid();
 const GONE: Outcome = { ok: false, error: "That could not be found." };
+const REASON_REQUIRED: Outcome = { ok: false, error: "Write a reason. It is kept in the admin record." };
 
 // Each function in the library checks the admin flag again; requireAdmin here also gives non-admins a 404.
 
-async function act(name: string, id: unknown, run: (adminId: string, id: string) => Promise<Outcome>): Promise<Outcome> {
+type Run = (adminId: string, id: string, reason: string) => Promise<Outcome>;
+
+/** `needsReason`: removing a post or suspending a person must say why. The rest may leave it empty. */
+async function act(name: string, id: unknown, reason: unknown, needsReason: boolean, run: Run): Promise<Outcome> {
   try {
     const admin = await requireAdmin();
     const parsed = idSchema.safeParse(id);
     if (!parsed.success) return GONE;
-    const result = await run(admin.id, parsed.data);
+    const text = typeof reason === "string" ? reason.trim() : "";
+    if (needsReason && text === "") return REASON_REQUIRED;
+    const result = await run(admin.id, parsed.data, text);
     if (result.ok) refresh();
     return result;
   } catch (error) {
@@ -29,32 +35,32 @@ async function act(name: string, id: unknown, run: (adminId: string, id: string)
   }
 }
 
-/** Puts a hidden post back, and clears its reports. */
-export async function restorePostAction(postId: unknown): Promise<Outcome> {
-  return act("restore-post", postId, restorePost);
+/** Puts a hidden post back, and clears its reports. The reason, if given, is shown to the owner. */
+export async function restorePostAction(postId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("restore-post", postId, reason, false, (adminId, id, why) => restorePost(adminId, id, undefined, why));
 }
 
-/** Removes a post for good and ends its reservations. */
-export async function removePostAction(postId: unknown): Promise<Outcome> {
-  return act("remove-post", postId, removePost);
+/** Removes a post for good and ends its reservations. The reason is required and is shown to the owner. */
+export async function removePostAction(postId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("remove-post", postId, reason, true, (adminId, id, why) => removePost(adminId, id, undefined, why));
 }
 
 /** Closes a post's reports without acting on them. */
-export async function dismissPostReportsAction(postId: unknown): Promise<Outcome> {
-  return act("dismiss-post", postId, dismissPostReports);
+export async function dismissPostReportsAction(postId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("dismiss-post", postId, reason, false, dismissPostReports);
 }
 
 /** Closes a student's reports without acting on them. */
-export async function dismissStudentReportsAction(studentId: unknown): Promise<Outcome> {
-  return act("dismiss-student", studentId, dismissStudentReports);
+export async function dismissStudentReportsAction(studentId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("dismiss-student", studentId, reason, false, dismissStudentReports);
 }
 
-/** Suspends a student: they are signed out everywhere and cannot sign in. */
-export async function suspendStudentAction(studentId: unknown): Promise<Outcome> {
-  return act("suspend-student", studentId, suspendStudent);
+/** Suspends a student: they are signed out everywhere and cannot sign in. The reason is required. */
+export async function suspendStudentAction(studentId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("suspend-student", studentId, reason, true, suspendStudent);
 }
 
 /** Lets a suspended student back in. */
-export async function restoreStudentAction(studentId: unknown): Promise<Outcome> {
-  return act("restore-student", studentId, restoreStudent);
+export async function restoreStudentAction(studentId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("restore-student", studentId, reason, false, restoreStudent);
 }

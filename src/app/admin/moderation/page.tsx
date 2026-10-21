@@ -1,13 +1,15 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/access";
+import { ACTION_LABEL, listDisputes, listRecentActions } from "@/lib/admin/disputes";
 import { getModerationCounts } from "@/lib/admin/moderation";
+import { REPORT_REASONS as DEAL_REASONS, type ReportReason as DealReason } from "@/lib/deals/slot";
 import { getObjectStore } from "@/lib/images/store";
 import { STATUS_LABEL } from "@/lib/posts/format";
 import { listAdminQueue, type ReportLine } from "@/lib/safety/admin";
 import { REPORT_REASONS } from "@/lib/safety/report";
 import { AdminButton } from "../admin-buttons";
-import { card, formatCount, formatDate, Section, Stat } from "../admin-ui";
+import { card, formatCount, formatDate, formatDateTime, Section, Stat } from "../admin-ui";
 
 export const metadata = { title: "Moderation · Admin · Studiskarte Marketplace" };
 
@@ -41,7 +43,7 @@ function Reports({ reports }: { reports: ReportLine[] }) {
 
 async function Queue() {
   await requireAdmin();
-  const [queue, counts] = await Promise.all([listAdminQueue(), getModerationCounts()]);
+  const [queue, counts, disputes, recent] = await Promise.all([listAdminQueue(), getModerationCounts(), listDisputes(), listRecentActions()]);
   const store = getObjectStore();
   const posts = await Promise.all(queue.posts.map(async (p) => ({ ...p, coverUrl: p.coverThumbKey ? await store.signedUrl(p.coverThumbKey, PICTURE_LINK_SECONDS) : null })));
 
@@ -80,8 +82,8 @@ async function Queue() {
               </p>
               <Reports reports={p.reports} />
               <div className="flex flex-col gap-2">
-                {p.status === "hidden" ? <AdminButton kind="restorePost" id={p.id} label="Restore" /> : null}
-                <AdminButton kind="removePost" id={p.id} label="Remove" danger confirm="Remove this post? Any reservation on it is ended and the owner is told." />
+                {p.status === "hidden" ? <AdminButton kind="restorePost" id={p.id} label="Restore" ask="optional" /> : null}
+                <AdminButton kind="removePost" id={p.id} label="Remove" danger ask="required" confirm="Remove this post? Any reservation on it is ended and the owner is told, with your reason." />
                 <AdminButton kind="dismissPost" id={p.id} label="Dismiss reports" />
               </div>
             </div>
@@ -107,7 +109,7 @@ async function Queue() {
               <Reports reports={s.reports} />
               <div className="flex flex-col gap-2">
                 {s.accountStatus === "active" ? (
-                  <AdminButton kind="suspendStudent" id={s.id} label="Suspend" danger confirm="Suspend this student? They are signed out everywhere and cannot sign in." />
+                  <AdminButton kind="suspendStudent" id={s.id} label="Suspend" danger ask="required" confirm="Suspend this student? They are signed out everywhere and cannot sign in." />
                 ) : null}
                 <AdminButton kind="dismissStudent" id={s.id} label="Dismiss reports" />
               </div>
@@ -129,6 +131,60 @@ async function Queue() {
             </div>
           ))}
         </div>
+      </Section>
+
+      <Section title="Deal problems">
+        <p className="text-sm text-zinc-500">Reservations where someone reported a problem and the deal is not over. The app moves no money, so there is nothing to refund: read both sides, then decide whether to message them, remove the post or suspend someone.</p>
+        {disputes.length === 0 ? <p className="text-sm text-zinc-500">No open problems.</p> : null}
+        <div className="grid gap-3 md:grid-cols-2">
+          {disputes.map((d) => (
+            <div key={d.dealId} className={card}>
+              <Link href={`/posts/${d.postId}`} className="flex min-h-11 items-center truncate font-medium underline">
+                {d.postTitle}
+              </Link>
+              <p className="text-sm">
+                {d.status === "disputed" ? <span className="font-medium text-red-600">Disputed: nobody completed it</span> : <span>Reservation {d.status}</span>}
+                {" · "}
+                {d.ownerHandle ? `@${d.ownerHandle}` : "owner"} and {d.responderHandle ? `@${d.responderHandle}` : "buyer"}
+              </p>
+              <ul className="flex flex-col gap-1 text-sm">
+                {d.reports.map((r, i) => (
+                  <li key={i}>
+                    <span className="font-medium">{r.reporterHandle ? `@${r.reporterHandle}` : "Someone"}:</span> {DEAL_REASONS[r.reason as DealReason] ?? r.reason} · {formatDate(r.createdAt)}
+                    {r.details ? <span className="block text-zinc-600 dark:text-zinc-400">“{r.details}”</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Recent decisions">
+        {recent.length === 0 ? <p className="text-sm text-zinc-500">Nothing decided yet.</p> : null}
+        <ul className="flex flex-col gap-2 text-sm">
+          {recent.map((a) => (
+            <li key={a.id} className="flex flex-col rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+              <span>
+                <span className="font-medium">{ACTION_LABEL[a.action] ?? a.action}</span>
+                {a.targetHandle ? ` · @${a.targetHandle}` : ""}
+                {a.postId ? (
+                  <>
+                    {" · "}
+                    <Link href={`/posts/${a.postId}`} className="underline">
+                      post
+                    </Link>
+                  </>
+                ) : null}
+              </span>
+              <span className="text-zinc-500">
+                {formatDateTime(a.createdAt)}
+                {a.adminHandle ? ` · @${a.adminHandle}` : ""}
+              </span>
+              {a.reason ? <span className="text-zinc-700 dark:text-zinc-300">“{a.reason}”</span> : null}
+            </li>
+          ))}
+        </ul>
       </Section>
     </div>
   );
