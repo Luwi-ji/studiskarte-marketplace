@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-21.
+Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-22.
 
 The app is run by its owner, an individual, not a company. You can reach us at support@studiskarte.com.
 
@@ -64,7 +64,11 @@ Under the Data Privacy Act of 2012 (Republic Act No. 10173) you have the right t
 
 ## Young people
 
-The app is for adults only. You must be 18 or older to create an account, and we ask you to confirm it when you sign up. If you are younger, please do not sign up. If we find out that someone under 18 has an account, we may close it.
+You must be 16 or older to create an account, and we ask you to confirm it when you sign up. If you are younger, please do not sign up. If we find out that someone under 16 has an account, we may close it.
+
+Members aged 16 and 17 are welcome. If you are under 18, tell a parent or guardian that you use the app. Your listings, messages and profile are handled the same way as everyone else's, and you can use Report and Block at any time. Our Child Safety Standards say how we protect members under 18 and how to report a problem.
+
+If we have to keep information to help protect a child, for example because the authorities ask us to, we keep it for as long as the law requires, even if the account is deleted. We may give it to the authorities, and we may not tell the account holder.
 
 ## Changes
 

@@ -1,10 +1,11 @@
 # Community Guidelines
 
-These guidelines say what is welcome in Studiskarte Marketplace. They sit beside the Terms of Service and Privacy Policy. Last updated 2026-10-21.
+These guidelines say what is welcome in Studiskarte Marketplace. They sit beside the Terms of Service and Privacy Policy. Last updated 2026-10-22.
 
 ## Be a good neighbour
 - Be honest. Use real photos of the real item. Say what is wrong with it.
 - Be kind. No harassment, bullying, threats, hate, or sexual content.
+- Keep children safe. Anything sexual that involves someone under 18 is banned and is reported to the authorities. See the Child Safety Standards.
 - Be reliable. Answer messages, keep your appointments, and cancel early if plans change.
 - Keep it on the app. Say what you want in the listing, and do not pressure anyone to pay before you meet.
 
@@ -26,7 +27,7 @@ These guidelines say what is welcome in Studiskarte Marketplace. They sit beside
 - You can say no, leave, or cancel at any time.
 
 ## Reports and blocking
-- Use **Report** on a listing or a person when something breaks these guidelines.
+- Use **Report** on a listing or a person when something breaks these guidelines. If a child is being harmed, choose the child safety reason: the listing is hidden at once.
 - Use **Block** to stop someone from contacting you.
 - A listing reported by three different members is hidden at once and reviewed by the owner. The owner can restore it, remove it, or suspend an account.
 - False or repeated reports used to harm someone may lead to action against the reporter.

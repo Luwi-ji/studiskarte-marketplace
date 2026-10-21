@@ -1,16 +1,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-export const LEGAL_SLUGS = ["terms", "privacy", "guidelines"] as const;
+export const LEGAL_SLUGS = ["terms", "privacy", "guidelines", "child-safety"] as const;
 export type LegalSlug = (typeof LEGAL_SLUGS)[number];
 
 export const LEGAL_TITLES: Record<LegalSlug, string> = {
   terms: "Terms of Service",
   privacy: "Privacy Policy",
   guidelines: "Community Guidelines",
+  "child-safety": "Child Safety Standards",
 };
 
-/** The owner's legal text: content/legal/{terms,privacy,guidelines}.md and content/legal/VERSION. */
+/** The owner's legal text: content/legal/{terms,privacy,guidelines,child-safety}.md and content/legal/VERSION. */
 export type LegalSet = { version: string; text: Record<LegalSlug, string> };
 
 const DEFAULT_DIR = path.join(/* turbopackIgnore: true */ process.cwd(), "content", "legal");
@@ -20,7 +21,7 @@ export function isLegalSlug(value: string): value is LegalSlug {
 }
 
 /**
- * Reads the legal documents from `dir`. Returns null unless VERSION and all three
+ * Reads the legal documents from `dir`. Returns null unless VERSION and all
  * documents exist and are not empty: until the owner supplies the text, there is
  * nothing to show and nobody is asked to accept anything. The version is whatever
  * VERSION holds (for example a date); change it when the terms or privacy policy

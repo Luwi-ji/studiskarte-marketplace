@@ -89,8 +89,8 @@ afterAll(async () => {
 });
 
 describe("what a report may be", () => {
-  it("offers the seven reasons the database accepts", () => {
-    expect(REPORT_REASONS.map((r) => r.id)).toEqual(["spam", "scam", "prohibited", "offensive", "harassment", "impersonation", "other"]);
+  it("offers the eight reasons the database accepts, child safety first", () => {
+    expect(REPORT_REASONS.map((r) => r.id)).toEqual(["child_safety", "spam", "scam", "prohibited", "offensive", "harassment", "impersonation", "other"]);
     expect(REPORT_REASONS.every((r) => r.label.length > 0)).toBe(true);
   });
 
@@ -160,6 +160,12 @@ describe("what a report may be", () => {
 describe("hiding a post", () => {
   it("keeps the threshold at three", () => {
     expect(REPORT_HIDE_THRESHOLD).toBe(3);
+  });
+
+  it("hides at once on a single child safety report", async () => {
+    const id = await newPost();
+    expect(await reportPost({ reporterId: r1, postId: id, input: { reason: "child_safety" } })).toEqual({ ok: true, hidden: true });
+    expect(await postRow(id)).toEqual({ status: "hidden", before: "open" });
   });
 
   it("does not hide on two reports, hides on the third different student, and tells the owner once", async () => {

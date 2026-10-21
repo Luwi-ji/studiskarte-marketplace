@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { AGE_CHECKBOX, UNDER_18_NOTICE } from "@/lib/identity/age";
 import { DISPLAY_NAME_MAX, HANDLE_MAX } from "@/lib/identity/names";
 import { ROLE_LABEL, SCHOOL_ROLES } from "@/lib/identity/roles";
 import { finishSignUp, type WelcomeState } from "./actions";
@@ -91,8 +92,14 @@ export function WelcomeForm({ terms, askRole }: { terms: string | null; askRole:
       ) : null}
       {terms ? (
         <label className="flex items-start gap-3">
-          <input type="checkbox" name="adult" required className="mt-1 h-5 w-5 shrink-0" />
-          <span className="text-sm">I am 18 years old or older. Studiskarte Marketplace is for adults only.</span>
+          <input type="checkbox" name="age" required className="mt-1 h-5 w-5 shrink-0" />
+          <span className="text-sm">
+            {AGE_CHECKBOX} {UNDER_18_NOTICE}{" "}
+            <Link href="/legal/child-safety" target="_blank" className="underline">
+              Child Safety Standards
+            </Link>
+            .
+          </span>
         </label>
       ) : null}
       {errorFor("terms")}

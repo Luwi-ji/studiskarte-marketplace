@@ -69,8 +69,8 @@ export const student = pgTable(
     // Both null until they accept; a newer version asks again (src/lib/legal/documents.ts).
     termsVersion: text("terms_version"),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
-    // When the person confirmed they are 18 or older (asked together with the terms; null until they do).
-    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
+    // When the person confirmed they meet the minimum age (src/lib/identity/age.ts; asked together with the terms; null until they do).
+    ageConfirmedAt: timestamp("age_confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -842,7 +842,7 @@ export const report = pgTable(
   (t) => [
     check("report_one_target", sql`(${t.postId} is not null) <> (${t.studentId} is not null)`),
     check("report_not_self", sql`${t.studentId} is null or ${t.studentId} <> ${t.reporterId}`),
-    check("report_reason", sql`${t.reason} in ('spam', 'scam', 'prohibited', 'offensive', 'harassment', 'impersonation', 'other')`),
+    check("report_reason", sql`${t.reason} in ('spam', 'scam', 'prohibited', 'offensive', 'harassment', 'impersonation', 'child_safety', 'other')`),
     check("report_details_length", sql`${t.details} is null or char_length(btrim(${t.details})) between 1 and 500`),
     check("report_status", sql`${t.status} in ('open', 'dismissed', 'actioned')`),
     check("report_handled", sql`(${t.status} = 'open') = (${t.handledAt} is null)`),

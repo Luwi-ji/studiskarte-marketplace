@@ -4,7 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { student } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import { completeSignUp } from "@/lib/identity/profile";
-import { acceptTerms, AGE_REQUIRED, NOTHING_TO_ACCEPT, TERMS_CHANGED } from "@/lib/identity/terms";
+import { AGE_REQUIRED } from "@/lib/identity/age";
+import { acceptTerms, NOTHING_TO_ACCEPT, TERMS_CHANGED } from "@/lib/identity/terms";
 import type { LegalSet } from "@/lib/legal/documents";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
 
@@ -15,8 +16,8 @@ const db = getDb();
 const run = randomUUID().slice(0, 6);
 const newcomer = `tm-n-${run}`;
 const veteran = `tm-v-${run}`;
-const set = (version: string): LegalSet => ({ version, text: { terms: "t", privacy: "p", guidelines: "g" } });
-const row = async (id: string) => (await db.select({ v: student.termsVersion, at: student.termsAcceptedAt, adult: student.adultConfirmedAt, h: student.handle }).from(student).where(eq(student.id, id)))[0];
+const set = (version: string): LegalSet => ({ version, text: { terms: "t", privacy: "p", guidelines: "g", "child-safety": "c" } });
+const row = async (id: string) => (await db.select({ v: student.termsVersion, at: student.termsAcceptedAt, age: student.ageConfirmedAt, h: student.handle }).from(student).where(eq(student.id, id)))[0];
 
 beforeAll(async () => {
   await createTestStudent(newcomer);
@@ -36,7 +37,7 @@ describe("accepting the terms", () => {
     legal.current = set("v1");
     const now = new Date("2026-11-01T00:00:00Z");
     expect(await acceptTerms(veteran, "v1", true, now)).toEqual({ ok: true });
-    expect(await row(veteran)).toMatchObject({ v: "v1", at: now, adult: now });
+    expect(await row(veteran)).toMatchObject({ v: "v1", at: now, age: now });
   });
 
   it("refuses a version that is no longer current, and records nothing when there are no documents", async () => {
@@ -47,7 +48,7 @@ describe("accepting the terms", () => {
     expect((await row(veteran)).v).toBe("v1");
   });
 
-  it("records nothing when the person does not confirm they are 18 or older", async () => {
+  it("records nothing when the person does not confirm they meet the minimum age", async () => {
     legal.current = set("v4");
     expect(await acceptTerms(veteran, "v4", false)).toEqual({ ok: false, error: AGE_REQUIRED });
     expect((await row(veteran)).v).toBe("v1");
@@ -55,16 +56,16 @@ describe("accepting the terms", () => {
 });
 
 describe("finishing sign-up with legal documents", () => {
-  it("does not finish without accepting the current version and confirming being 18 or older, then records both", async () => {
+  it("does not finish without accepting the current version and confirming the minimum age, then records both", async () => {
     legal.current = set("v1");
     const input = { handle: `tmn_${run}`, displayName: "Newcomer" };
     for (const accepted of [undefined, null, "old"]) {
-      expect(await completeSignUp(newcomer, { ...input, acceptedTermsVersion: accepted, adultConfirmed: true })).toMatchObject({ ok: false, field: "terms" });
+      expect(await completeSignUp(newcomer, { ...input, acceptedTermsVersion: accepted, ageConfirmed: true })).toMatchObject({ ok: false, field: "terms" });
     }
     expect(await completeSignUp(newcomer, { ...input, acceptedTermsVersion: "v1" })).toEqual({ ok: false, field: "age", message: AGE_REQUIRED });
     expect((await row(newcomer)).h).toBeNull();
-    expect(await completeSignUp(newcomer, { ...input, acceptedTermsVersion: "v1", adultConfirmed: true })).toEqual({ ok: true });
+    expect(await completeSignUp(newcomer, { ...input, acceptedTermsVersion: "v1", ageConfirmed: true })).toEqual({ ok: true });
     expect(await row(newcomer)).toMatchObject({ v: "v1", h: `tmn_${run}` });
-    expect((await row(newcomer)).adult).toBeInstanceOf(Date);
+    expect((await row(newcomer)).age).toBeInstanceOf(Date);
   });
 });

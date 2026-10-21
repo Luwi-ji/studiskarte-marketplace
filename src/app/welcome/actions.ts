@@ -27,7 +27,7 @@ export async function finishSignUp(_prev: WelcomeState, formData: FormData): Pro
     ...values,
     role: parseSchoolRole(formData.get("role")),
     acceptedTermsVersion: typeof shown === "string" ? shown : null,
-    adultConfirmed: formData.get("adult") === "on",
+    ageConfirmed: formData.get("age") === "on",
   });
   if (!result.ok) return { values, error: { field: result.field, message: result.message } };
   redirect("/");

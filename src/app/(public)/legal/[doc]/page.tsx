@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { LegalText } from "@/components/legal-text";
 import { currentLegal, isLegalSlug, LEGAL_SLUGS, LEGAL_TITLES } from "@/lib/legal/documents";
 
-// Always the three documents (Cache Components needs at least one); without the owner's text each one answers 404.
+// Always every document (Cache Components needs at least one); without the owner's text each one answers 404.
 export function generateStaticParams() {
   return LEGAL_SLUGS.map((doc) => ({ doc }));
 }
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: PageProps<"/legal/[doc]">) {
   return { title: `${isLegalSlug(doc) ? LEGAL_TITLES[doc] : "Legal"} · Studiskarte Marketplace` };
 }
 
-/** The terms, privacy policy and community guidelines: readable by anyone, signed in or not. */
+/** The terms, privacy policy, community guidelines and child safety standards: readable by anyone, signed in or not. */
 export default async function LegalPage({ params }: PageProps<"/legal/[doc]">) {
   const { doc } = await params;
   const legal = currentLegal();

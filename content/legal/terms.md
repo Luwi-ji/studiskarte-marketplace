@@ -1,6 +1,6 @@
 # Terms of Service
 
-By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-21. If you do not agree, do not use the app.
+By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-22. If you do not agree, do not use the app.
 
 ## What the app is
 
@@ -13,7 +13,7 @@ The app lets members post **Showcase** listings (things or services they offer) 
 - You must give an email address you own and keep your password secret. You are responsible for what happens under your account.
 - One person, one account. Do not make several accounts, and do not pretend to be someone else, a school, or the app's staff.
 - Choosing a role (student, faculty or teacher, staff, alumni) or adding a school email does not mean the app has checked your identity unless a badge says so.
-- You must be 18 or older to use the app, and you confirm this when you sign up. We may close an account if we find that its owner is under 18.
+- You must be 16 or older to use the app, and you confirm this when you sign up. We may close an account if we find that its owner is younger than that. If you are under 18, tell a parent or guardian that you use the app. Read the Child Safety Standards.
 - You can delete your account at any time in Settings. We may suspend or remove an account that breaks these terms.
 
 ## Using the app
@@ -21,6 +21,7 @@ The app lets members post **Showcase** listings (things or services they offer) 
 You agree to:
 - Be honest in your listings, photos and messages, and keep your prices and details accurate.
 - Treat other members with respect. No harassment, threats, hate, or sexual content.
+- Never post, share or ask for sexual material that involves anyone under 18, or contact a child to harm them. This includes drawings, writing and AI-made material, and any streaming of it. We remove it at once, close the account for good, keep the evidence, and report it to the authorities without warning the account holder. See the Child Safety Standards.
 - Show up to meetings you agree to, or cancel in good time.
 
 ## What you may not post or do

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { AGE_CHECKBOX, UNDER_18_NOTICE } from "@/lib/identity/age";
 import { acceptTermsAction, type AcceptState } from "./actions";
 
 export function AcceptForm({ version }: { version: string }) {
@@ -13,6 +14,7 @@ export function AcceptForm({ version }: { version: string }) {
           ["terms", "Terms of Service"],
           ["privacy", "Privacy Policy"],
           ["guidelines", "Community Guidelines"],
+          ["child-safety", "Child Safety Standards"],
         ].map(([slug, title]) => (
           <li key={slug}>
             <Link href={`/legal/${slug}`} target="_blank" className="flex h-11 items-center justify-between rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
@@ -24,8 +26,14 @@ export function AcceptForm({ version }: { version: string }) {
       </ul>
       <input type="hidden" name="terms" value={version} />
       <label className="flex items-start gap-3">
-        <input type="checkbox" name="adult" required className="mt-1 h-5 w-5 shrink-0" />
-        <span className="text-sm">I am 18 years old or older. Studiskarte Marketplace is for adults only.</span>
+        <input type="checkbox" name="age" required className="mt-1 h-5 w-5 shrink-0" />
+        <span className="text-sm">
+            {AGE_CHECKBOX} {UNDER_18_NOTICE}{" "}
+            <Link href="/legal/child-safety" target="_blank" className="underline">
+              Child Safety Standards
+            </Link>
+            .
+          </span>
       </label>
       {state.error ? (
         <p role="alert" className="text-sm text-red-600">

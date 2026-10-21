@@ -14,6 +14,9 @@ const REPORT_LIMIT = { action: "report", max: REPORTS_PER_HOUR, windowSeconds: 6
 /** How many different active students must have an open report on a post before it is hidden. */
 export const REPORT_HIDE_THRESHOLD = 3;
 
+/** The reason that hides a post on the first report: a child may be at risk (child safety standards, RA 11930). */
+export const CHILD_SAFETY_REASON = "child_safety";
+
 export const ALREADY_REPORTED = "You already reported this. We will look at it.";
 export const CANT_REPORT_SELF = "You can't report yourself or your own post.";
 export const REPORT_TARGET_GONE = "This is no longer available to report.";
@@ -21,6 +24,7 @@ export const REPORT_TARGET_GONE = "This is no longer available to report.";
 const DETAILS_MAX = 500;
 
 const LABELS = {
+  child_safety: "A child is being harmed, or sexual content involving someone under 18",
   spam: "Spam or an advertisement",
   scam: "A scam or fraud",
   prohibited: "Something that is not allowed here",
@@ -55,6 +59,7 @@ function parseInput(input: unknown): { ok: true; reason: Reason; details: string
  * A student reports a post. One open report each. The moment
  * REPORT_HIDE_THRESHOLD different active students have an open report on an open or
  * reserved post, it is hidden pending the admin's decision (the owner is told once).
+ * A child safety report hides the post at once, on one report.
  * The post row is locked first, so three reports arriving together hide it exactly once.
  * A deal on a hidden post carries on.
  */
@@ -86,7 +91,7 @@ export async function reportPost(args: { reporterId: string; postId: string; inp
       .from(report)
       .innerJoin(student, eq(student.id, report.reporterId))
       .where(and(eq(report.postId, args.postId), eq(report.status, "open"), eq(student.accountStatus, "active")));
-    if (counted.reporters < REPORT_HIDE_THRESHOLD) return { ok: true, hidden: false };
+    if (parsed.reason !== CHILD_SAFETY_REASON && counted.reporters < REPORT_HIDE_THRESHOLD) return { ok: true, hidden: false };
 
     const now = new Date();
     await tx.update(post).set({ status: "hidden", statusBeforeHidden: found.status, updatedAt: now }).where(eq(post.id, args.postId));

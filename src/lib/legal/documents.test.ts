@@ -11,15 +11,15 @@ function legalDir(files: Record<string, string>): string {
   for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, name), body);
   return dir;
 }
-const complete = { VERSION: "2026-11-01\n", "terms.md": "# Terms", "privacy.md": "# Privacy", "guidelines.md": "# Guidelines" };
+const complete = { VERSION: "2026-11-01\n", "terms.md": "# Terms", "privacy.md": "# Privacy", "guidelines.md": "# Guidelines", "child-safety.md": "# Child safety" };
 
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
 describe("loading the legal documents", () => {
-  it("reads the version and all three documents", () => {
-    expect(loadLegal(legalDir(complete))).toEqual({ version: "2026-11-01", text: { terms: "# Terms", privacy: "# Privacy", guidelines: "# Guidelines" } });
+  it("reads the version and every document", () => {
+    expect(loadLegal(legalDir(complete))).toEqual({ version: "2026-11-01", text: { terms: "# Terms", privacy: "# Privacy", guidelines: "# Guidelines", "child-safety": "# Child safety" } });
   });
 
   it("is absent unless everything is there, so nobody is asked to accept text that does not exist", () => {

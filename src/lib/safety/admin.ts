@@ -186,6 +186,8 @@ export type SuspendedStudent = { id: string; handle: string | null; displayName:
 export type AdminQueue = { posts: QueuePost[]; students: QueueStudent[]; suspended: SuspendedStudent[] };
 
 const reporters = sql<number>`count(distinct ${report.reporterId})::int`;
+/** Child safety reports come before everything else (child safety standards: highest priority). */
+const childSafetyFirst = sql`bool_or(${report.reason} = 'child_safety') desc`;
 
 /** Open reports grouped by line, oldest first, per target id. */
 function groupLines(rows: { target: string | null; reason: string; details: string | null; createdAt: Date }[]): Map<string, ReportLine[]> {
@@ -200,7 +202,7 @@ function groupLines(rows: { target: string | null; reason: string; details: stri
 }
 
 /**
- * What the admin has to look at: posts with open reports (hidden first, then the most
+ * What the admin has to look at: posts with open reports (child safety first, then hidden, then the most
  * reporters, then the oldest), students with open reports, and suspended students.
  * Reporters are counted once however many times they reported. No email is read.
  */
@@ -225,7 +227,7 @@ export async function listAdminQueue(): Promise<AdminQueue> {
     .leftJoin(image, eq(image.id, postPhoto.imageId))
     .where(eq(report.status, "open"))
     .groupBy(post.id, student.id, image.id)
-    .orderBy(sql`(${post.status} = 'hidden') desc`, desc(reporters), asc(sql`min(${report.createdAt})`));
+    .orderBy(childSafetyFirst, sql`(${post.status} = 'hidden') desc`, desc(reporters), asc(sql`min(${report.createdAt})`));
   const postLines = posts.length
     ? groupLines(
         await db
@@ -248,7 +250,7 @@ export async function listAdminQueue(): Promise<AdminQueue> {
     .innerJoin(student, eq(student.id, report.studentId))
     .where(eq(report.status, "open"))
     .groupBy(student.id)
-    .orderBy(desc(reporters), asc(sql`min(${report.createdAt})`));
+    .orderBy(childSafetyFirst, desc(reporters), asc(sql`min(${report.createdAt})`));
   const studentLines = students.length
     ? groupLines(
         await db

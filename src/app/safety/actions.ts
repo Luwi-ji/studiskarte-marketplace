@@ -1,10 +1,12 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { after } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
+import { alertChildSafetyReport, isChildSafetyInput } from "@/lib/safety/child-safety-alert";
 import { blockStudent, unblockStudent } from "@/lib/safety/block";
 import { reportPost, reportStudent, REPORT_TARGET_GONE } from "@/lib/safety/report";
 
@@ -34,7 +36,9 @@ export async function reportPostAction(postId: unknown, input: unknown): Promise
   return act("report-post", async (reporterId) => {
     const id = idSchema.safeParse(postId);
     if (!id.success) return { ok: false, error: REPORT_TARGET_GONE };
-    return reportPost({ reporterId, postId: id.data, input, alert: sendAlertAfterResponse });
+    const result = await reportPost({ reporterId, postId: id.data, input, alert: sendAlertAfterResponse });
+    if (result.ok && isChildSafetyInput(input)) after(() => alertChildSafetyReport("post"));
+    return result;
   });
 }
 
@@ -43,7 +47,9 @@ export async function reportStudentAction(handle: unknown, input: unknown): Prom
   return act("report-student", async (reporterId) => {
     const parsed = handleSchema.safeParse(handle);
     if (!parsed.success) return { ok: false, error: REPORT_TARGET_GONE };
-    return reportStudent({ reporterId, handle: parsed.data, input });
+    const result = await reportStudent({ reporterId, handle: parsed.data, input });
+    if (result.ok && isChildSafetyInput(input)) after(() => alertChildSafetyReport("student"));
+    return result;
   });
 }
 
