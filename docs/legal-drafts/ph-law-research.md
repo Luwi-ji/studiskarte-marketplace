@@ -438,6 +438,8 @@ What the Act and IRR themselves say (read):
 Contact points read on an official page:
 - **MAKABATA Helpline 1383**, 24 hours a day, set up under Executive Order No. 79, series of 2024. The DSWD and the Council for the Welfare of Children tell the public to report OSAEC and CSAEM to law enforcement or to 1383 ([DSWD, 24 October 2025](https://www.dswd.gov.ph/dswd-cwc-urge-public-to-report-cases-of-child-abuse-to-makabata-helpline-1383/), read).
 
+Update 2026-10-22: the owner copied the PNP WCPC, PNP WCCPU, NBI AHTD, DOJ-OOC, NCC Secretariat and 1343 contacts from the official NCC reporting page; they are now in `content/legal/child-safety.md`. The NBI cybercrime and PNP-ACG lines below remain unread.
+
 Contact points **not read on an official page** (all [to confirm] before publishing):
 - The NCC-OSAEC-CSAEM site has a page "Reporting Channel" (https://ncc-osaec-csaem.doj.gov.ph/NCCServices/ReportingChannel). It refused connections from here (HTTP 403, then a Cloudflare check). A search result snippet of that page listed numbers for the PNP Women and Children Protection Center ("Aleng Pulis": 0966-725-5961 and 0919-777-7377) and the PNP Women and Children Cybercrime Protection Unit; the snippet was cut off. Numbers and the full list must be copied from the live page by a person.
 - **IACAT action line 1343**: seen only in a search result title of a 2015 DSWD post [to confirm it is current].

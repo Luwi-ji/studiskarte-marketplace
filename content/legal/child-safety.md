@@ -76,13 +76,15 @@ Removing something, or reporting it, in good faith is protected by the law. If y
 
 You can report to the authorities first, or at the same time as you report to us. Do not wait for us. Under Republic Act No. 11930 and its rules, anyone with direct knowledge of a case may report it, in person, in writing or by phone, to:
 
-- the nearest **police** station, in particular the **PNP Women and Children Protection Center** and the **PNP Anti-Cybercrime Group**;
-- the **NBI**, including its Cybercrime and anti-trafficking divisions;
-- the **Department of Justice Office of Cybercrime**;
+- the nearest **police** station, in particular the **PNP Women and Children Protection Center** ("Aleng Pulis": 0966-725-5961 or 0919-777-7377) and the **PNP Women and Children Cybercrime Protection Unit** (02 8723-0401 local 7494, or 0968-896-4759);
+- the **NBI Anti-Human Trafficking Division**: (02) 8521-9208;
+- the **Department of Justice Office of Cybercrime**: cybercrime@doj.gov.ph, (02) 8524-8216;
+- the **NCC-OSAEC-CSAEM Secretariat**: ncc.osaec.csaem@doj.gov.ph, (02) 8524-8939;
+- the **1343 Actionline Against Human Trafficking**: 1343, 1343actionline@cmev.gov.ph;
 - the **barangay** (its Council for the Protection of Children), the **city or municipal social welfare office**, or your **school's child protection committee**;
 - the **MAKABATA Helpline 1383**.
 
-Whoever receives the report must act on it within 24 hours.
+Whoever receives the report must act on it within 24 hours. These numbers were copied from the official NCC-OSAEC-CSAEM reporting page on 2026-10-22; they may change.
 
 ## Safety tips for members under 18
 
