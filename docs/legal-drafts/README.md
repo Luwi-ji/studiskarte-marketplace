@@ -51,7 +51,7 @@ Read from official sites (each draft cites by section number only what was read)
 Findings that differ from the review doc, because the primary sources were read now:
 - **ITA Sec 3 excludes consumer-to-consumer transactions** (defined in Sec 4(c)); the review doc worked from summaries. This may take the app, or student occasional sellers, outside the Act. The drafts are written to work either way. First question for the lawyer.
 - **Breach timing is no longer a guess:** Circular 16-03 Secs 17(A) and 18(A) give 72 hours to notify the NPC and the affected people from knowledge, no delay if 100 or more people or sensitive data harm, full report within 5 days (Sec 17(C)); IRR Sec 38 repeats the 72 hours. The runbook uses these.
-- **Rights response time:** no response period for data subject requests was found in the Act or IRR. The only number found: the NPC's Rules of Procedure Rule II Sec 2 say a complaint is not given due course unless the person first told the controller in writing and the controller did not respond within 15 calendar days. The drafts keep `[X days, lawyer to set]`.
+- **Rights response time:** no response period for data subject requests was found in the Act or IRR. The only number found: the NPC's Rules of Procedure Rule II Sec 2 say a complaint is not given due course unless the person first told the controller in writing and the controller did not respond within 15 calendar days. The drafts now use 15 days (lawyer to confirm).
 - ITA Sec 24: the platform's internal redress is deemed exhausted if a complaint is unresolved after 7 calendar days.
 
 ## Questions for the lawyer
@@ -59,7 +59,7 @@ Findings that differ from the review doc, because the primary sources were read 
 1. Does the ITA apply at all (C2C exclusion, Sec 3; "ordinary course of business", Sec 4(c))? If yes, which duties of Sec 22 bind a platform with no payment or delivery role, and when is a student seller an "online merchant"? What do the IRR require of notices and speed of takedown?
 2. Registration with the NPC (Circular 2022-04 Secs 5, 6): mandatory or sworn declaration (Annex 1)? Is the owner an "Individual Professional" (the de facto DPO), and does the Circular require the DPO to be an organic employee otherwise? The Circular wants a dedicated DPO email, separate from personal email (Sec 8). Which route fits an individual owner who runs the app unregistered as a business?
 3. Minimum age 16 by self-declaration only: enough, and is 16 the right floor? `.edu.ph` addresses are accepted and may include schools with students under 18 [to confirm]. Is a Child Privacy Impact Assessment required for a service that may be "likely to be accessed by children" (Advisory 2024-03 Secs 1, 2(A))? Effect on contracts if a minor gets in anyway.
-4. Response times to set: rights requests `[X days, lawyer to set]`; takedown `[X hours, lawyer to set]` (urgent) and `[Y days, lawyer to set]` (other); appeals and complaints `[Z days, lawyer to set]`.
+4. Response times, now set to 15 days (rights requests), 24 hours (urgent takedown), 3 working days (other), 7 days (appeals): confirm.
 5. Consent and ID verification: is consent "freely given" if verification is optional but some features are limited for unverified students (Circular 2023-04 Sec 7)? Should the ID check also serve as the age check, and if so how must the purpose read? What may be kept after consent is withdrawn (status, reviewer, date, reason)? How long to keep proof of consent after account deletion?
 6. Do school and role (education data, Data Privacy Act Sec 3(l)) need their own consent line at sign-up, or is acceptance of the Terms and Policy enough (Circular 2023-04 Secs 8, 19)?
 7. Retention after account deletion: messages, message pictures, finished reservations, reviews, listing text and photos and reports stay. Proportionate (Sec 11(e), 16(e))? Should the app erase or anonymise them on request?
@@ -74,7 +74,7 @@ Findings that differ from the review doc, because the primary sources were read 
 ## Decisions for the owner
 
 - Name a Data Protection Officer and a dedicated email (Circular 2022-04 Sec 8) and fill the placeholder everywhere.
-- Name yourself in the policy (`[Owner's full name]`).
+- Name yourself in the policy (`Lowel-Jay Rubino`).
 - Confirm with each provider: data regions (Vercel functions, R2 bucket, Resend, Sentry project), retention (Sentry, Resend, support mail), and that their data-processing terms are accepted.
 - Set retention for named pre-change Neon copies.
 - Set the ID verification numbers (resubmissions, pending image cleanup, alumni documents, limits for unverified students).
@@ -87,23 +87,21 @@ The owner passed on a written review of the 14 questions. Applied to the drafts:
 
 ## Placeholders (all in square brackets)
 
-Filled by the lawyer:
-- `[X days, lawyer to set]` (rights response time): privacy.md, rights-requests.md
-- `[X hours, lawyer to set]`, `[Y days, lawyer to set]`, `[Z days, lawyer to set]`: terms.md, takedown-procedure.md
-- `[court venue, lawyer to set]`: terms.md
-- `[period after deletion: lawyer to set]` (consent proof), `[period, lawyer to set]` (takedown log), `[lawyer to set]` (rights log): privacy.md, id-verification-consent.md, takedown-procedure.md, rights-requests.md
-- Many inline `[lawyer: confirm ...]` and `[to confirm]` notes.
+Set on 2026-10-22 (owner's decisions and the recommended numbers; the lawyer may change any):
+- Owner and DPO: Lowel-Jay Rubino, dpo@studiskarte.com.
+- Response times: 24 hours (urgent and child safety), 3 working days (other reports), 7 days (appeals), 15 days (rights requests), 2 working days to acknowledge a rights request, 14 days to write an incident review.
+- Court venue: Parañaque City.
+- Retention: consent proof 3 years after deletion; takedown and rights logs 2 years; support mail 1 year; pre-change database copies 30 days; pending ID pictures 7 days; 3 ID attempts.
+- Minimum age 16. Admin rhythm: morning and evening.
 
-Filled by the owner:
-- `[DPO name and dedicated email to be designated]`: privacy.md, breach-response.md, rights-requests.md, id-verification-consent.md
-- `[Owner's full name]`: privacy.md, terms.md, id-verification-consent.md, breach-response.md
-- `[date of adoption]`: privacy.md, terms.md
+Still open, for the owner:
+- `[date of adoption]`: privacy.md, terms.md, refund.md, cookies.md
 - `[Sentry data region: confirm from the Sentry project settings]`, `[Vercel function region: confirm]`, `[R2 bucket location: confirm]`, `[Resend region: confirm]`, `[Sentry retention: confirm]`, `[Resend retention: confirm]`: privacy.md
-- `[mailbox provider: owner to name]`, `[support mail retention: owner to set]`, `[pre-change copies are removed after X days, owner to set]`: privacy.md (the last also in rights-requests.md)
-- `[N attempts, owner to set]`, `[pending ID images deleted after N days, owner to set]`, `[limits for unverified students: owner to confirm ...]`, `[Graduates (alumni): documents to be decided.]`: privacy.md, id-verification-consent.md
-- `[2 working days, owner to set]`, `[owner to set, for example every morning and evening]`, `[X days, owner to set]`, `[lawyer name and contact]`, `[from account]` support contacts: rights-requests.md, takedown-procedure.md, breach-response.md
-- `[date]` (runbook review dates): breach-response.md
+- `[mailbox provider: owner to name]`: privacy.md
+- `[limits for unverified students: owner to confirm ...]`, `[Graduates (alumni): documents to be decided.]`: privacy.md, id-verification-consent.md
+- `[lawyer name and contact]`, `[from account]` support contacts, `[date]` runbook review dates: rights-requests.md, takedown-procedure.md, breach-response.md
 - `[applies once ID verification opens]`, `[applies once visitor sign-up opens]`: markers to drop when the feature opens.
+- Many inline `[lawyer: confirm ...]` and `[to confirm]` notes.
 
 ## Build items the drafts rely on
 

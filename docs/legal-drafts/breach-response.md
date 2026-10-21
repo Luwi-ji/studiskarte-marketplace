@@ -9,7 +9,7 @@ Review this runbook at least once a year and write the date here (Sec 10): last 
 ## 0. Who does what
 
 - The **owner** is the response team (Sec 5 requires at least one member with authority to make immediate decisions). Functions may be outsourced, but accountability stays with the owner (Sec 5).
-- **Data Protection Officer:** [DPO name and dedicated email to be designated]. The notification to the NPC must name the DPO and a designated representative (Sec 17(E)). If the DPO is not the one handling the incident, send the DPO a written report of actions taken (Sec 5).
+- **Data Protection Officer:** Lowel-Jay Rubino, dpo@studiskarte.com. The notification to the NPC must name the DPO and a designated representative (Sec 17(E)). If the DPO is not the one handling the incident, send the DPO a written report of actions taken (Sec 5).
 - **Legal help:** [lawyer name and contact].
 - The obligation to notify stays with the owner even though Vercel, Neon, Cloudflare, Resend and Sentry process the data (Sec 15). Each should tell us if they have a breach (Sec 16): see the contact list at the end.
 
@@ -108,7 +108,7 @@ Annually, send the NPC a summary: number of incidents and breaches, by impact on
 
 ## 7. After
 
-- Fix the cause and write the review within [X days, owner to set] of closing the incident.
+- Fix the cause and write the review within 14 days of closing the incident.
 - Tell the processors involved if the cause is on their side, and use their incident channels.
 - Offer help to affected people (Sec 8(H)).
 - Update this runbook and the Privacy Policy if something changed.
@@ -120,7 +120,7 @@ Annually, send the NPC a summary: number of incidents and breaches, by impact on
 - **Nature of the breach:** how it happened and what weakness allowed it; chronology of events up to loss of control over the data; approximate number of people and records; kind of breach (availability, integrity, confidentiality); likely consequences; name and contact details of the DPO or other accountable person.
 - **Data possibly involved:** the sensitive personal information; other information that could enable identity fraud.
 - **Measures taken:** to address the breach; to secure or recover the data; to reduce harm; how and when people are being told (or the reason for delay); steps to prevent it happening again.
-- **Contacts:** DPO [DPO name and dedicated email to be designated]; designated representative of the controller: [Owner's full name], support@studiskarte.com.
+- **Contacts:** DPO Lowel-Jay Rubino, dpo@studiskarte.com; designated representative of the controller: Lowel-Jay Rubino, support@studiskarte.com.
 
 ### B. Notice to affected people (Sec 18(C))
 
@@ -133,7 +133,7 @@ Annually, send the NPC a summary: number of incidents and breaches, by impact on
 > **What we have done:** [containment and recovery steps].
 > **What we are doing so it does not happen again:** [steps].
 > **What you can do:** [for example be careful about emails asking for your code or password, change your password, watch for fake messages from "support"].
-> **Who to ask:** [Owner's full name], support@studiskarte.com, or our Data Protection Officer [DPO name and dedicated email to be designated]. **Help we can give:** [for example help to delete your account or get a copy of your data].
+> **Who to ask:** Lowel-Jay Rubino, support@studiskarte.com, or our Data Protection Officer Lowel-Jay Rubino, dpo@studiskarte.com. **Help we can give:** [for example help to delete your account or get a copy of your data].
 >
 > You also have the right to complain to the National Privacy Commission (privacy.gov.ph).
 
@@ -145,4 +145,4 @@ Send two notices: the same facts as B, to the parent or guardian, and a shorter,
 
 - NPC: privacy.gov.ph [current notification channel to confirm].
 - Neon support: [from account]. Vercel support: [from account]. Cloudflare support: [from account]. Resend support: [from account]. Sentry support: [from account].
-- Lawyer: [name and contact]. DPO: [DPO name and dedicated email to be designated].
+- Lawyer: [name and contact]. DPO: Lowel-Jay Rubino, dpo@studiskarte.com.

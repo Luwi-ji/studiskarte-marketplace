@@ -29,7 +29,7 @@ You can ask the owner to check that you really are a student, teacher, staff mem
 - **You can say no.** The rest of the app still works [limits for unverified students: owner to confirm and list here before launch].
 - **You can change your mind** at any time, in Settings, with one tap.
 
-Studiskarte Marketplace is run by [Owner's full name]. Questions or requests: support@studiskarte.com. Data Protection Officer: [DPO name and dedicated email to be designated].
+Studiskarte Marketplace is run by Lowel-Jay Rubino. Questions or requests: support@studiskarte.com. Data Protection Officer: Lowel-Jay Rubino, dpo@studiskarte.com.
 
 [How ID checks work, in full] (link to the "ID verification" section of the Privacy Policy, /legal/privacy; a heading anchor is a build item)
 
@@ -41,7 +41,7 @@ Studiskarte Marketplace is run by [Owner's full name]. Questions or requests: su
 
 ## Layer 2: where the detail lives
 
-The "ID verification" section of the Privacy Policy (draft in privacy.md) covers: what is collected, why, who sees it, storage, deletion at the decision, what is kept, resubmission limit [N attempts, owner to set], 12-month validity, withdrawal, and rights.
+The "ID verification" section of the Privacy Policy (draft in privacy.md) covers: what is collected, why, who sees it, storage, deletion at the decision, what is kept, resubmission limit 3 attempts, 12-month validity, withdrawal, and rights.
 
 ## What is recorded as proof of consent
 
@@ -56,7 +56,7 @@ Circular 2023-04 Sec 12(B) requires proof of three things: the information shown
 - **Withdrawal:** the time of withdrawal and the channel (Settings or email), if it happens. The consent row is not overwritten; a withdrawal is a new event.
 - **Not recorded:** IP address, browser details, the ID images, or anything copied from the ID. [Lawyer: confirm that this is enough evidence.]
 
-How long the record is kept: while the account exists and for [period after deletion: lawyer to set], so the owner can show consent if challenged (Data Privacy Act Sec 11(e): retention for the establishment, exercise or defense of legal claims).
+How long the record is kept: while the account exists and for 3 years, so the owner can show consent if challenged (Data Privacy Act Sec 11(e): retention for the establishment, exercise or defense of legal claims).
 
 ## Withdrawal screen (Settings, "ID check", one tap)
 

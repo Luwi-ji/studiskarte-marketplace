@@ -8,10 +8,10 @@ Reference point for the response time: the NPC's 2021 Rules of Procedure, as ame
 
 ## 1. Receive and log
 
-- Requests arrive at support@studiskarte.com, at the DPO address [DPO name and dedicated email to be designated], or as a complaint about a privacy matter. Read the mailbox daily.
+- Requests arrive at support@studiskarte.com, at the DPO address Lowel-Jay Rubino, dpo@studiskarte.com, or as a complaint about a privacy matter. Read the mailbox daily.
 - Open a log row the same day: request id, date received (the day the 15 or [X] day clock starts), channel, type (access, correction, erasure or blocking, objection, portability, withdrawal of consent, other), requester's email as written, the account handle if known, status, date answered, outcome, what was sent.
-- Reply within [2 working days, owner to set] to say it was received and when to expect an answer.
-- The log holds as little as possible: no copy of the data sent, and no copy of any ID. Retention of the log: [lawyer to set].
+- Reply within 2 working days to say it was received and when to expect an answer.
+- The log holds as little as possible: no copy of the data sent, and no copy of any ID. Retention of the log: 2 years.
 
 ## 2. Check who is asking
 
@@ -59,7 +59,7 @@ The right is exercisable on discovery and substantial proof that data is incompl
 - **Self-service first:** Delete my account (src/lib/identity/delete-account.ts). It erases: email and school email (replaced by a random address), handle, display name, picture file, calendar link, password and Google link (`account`), sessions, device alerts, notifications, follows, hearts, blocks, view history, pending sign-in codes and sign-in attempt rows keyed to the person. It withdraws open listings, closes pending offers, ends reservations being arranged (the other person is told), and dismisses the open reports the person made and the open reports on their listings.
 - **What deletion leaves behind** (see the Privacy Policy "How long we keep it"): messages and message pictures, finished reservations, reviews, withdrawn listings with their text and photos, reports the person made, and a closed account row with no name, email or handle but with the terms version and times.
 - **If the person wants those removed too:** decide item by item. Erase or anonymise on request unless keeping the item is needed for other members' record or for legal claims (Data Privacy Act Sec 11(e); Sec 13(f)). [Lawyer: set the rule. The review doc flags this as a proportionality question.] Tools: delete the person's listing photos and text; replace message text with a placeholder; keep the other person's side of a conversation unless they ask too.
-- **Backups and copies:** the last 6 hours of history at Neon and any named pre-change copies (docs/release.md) may still hold deleted data until removed. Say so in the reply, with the date they go [pre-change copies removed after X days, owner to set].
+- **Backups and copies:** the last 6 hours of history at Neon and any named pre-change copies (docs/release.md) may still hold deleted data until removed. Say so in the reply, with the date they go pre-change copies are removed after 30 days.
 - **An administrator account** cannot be deleted in the app (`DELETE_ADMIN`); the owner removes admin first.
 - Reply listing exactly what was erased and what was kept and why.
 

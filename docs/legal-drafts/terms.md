@@ -17,7 +17,7 @@ By creating an account or using Studiskarte Marketplace ("the app") you agree to
 
 ## What the app is
 
-The app lets members post Showcase listings and Wishlist items, message each other, make offers, reserve, and arrange a handover. It is run by its owner, [Owner's full name], an individual, not a company. Contact: support@studiskarte.com.
+The app lets members post Showcase listings and Wishlist items, message each other, make offers, reserve, and arrange a handover. It is run by its owner, Lowel-Jay Rubino, an individual, not a company. Contact: support@studiskarte.com.
 
 **The app is a meeting place, not a party to your deals.** We do not buy, sell, hold or deliver anything. We do not check what members say about themselves or their listings.
 
@@ -118,7 +118,7 @@ We may change these terms. We will change the date above and ask you to accept t
 
 ## Law and disputes
 
-These terms are governed by the laws of the Republic of the Philippines. Please write to us first so we can try to settle a disagreement. Any court case will be brought in [court venue, lawyer to set].
+These terms are governed by the laws of the Republic of the Philippines. Please write to us first so we can try to settle a disagreement. Any court case will be brought in the proper courts of Parañaque City [lawyer: confirm venue; the owner chose Parañaque on 2026-10-22].
 
 ## Contact
 

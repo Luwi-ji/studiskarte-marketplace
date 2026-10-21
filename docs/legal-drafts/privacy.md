@@ -8,7 +8,7 @@ Studiskarte Marketplace ("the app", "we") is a marketplace where students and ot
 
 ## At a glance
 
-- **Who we are.** The app is run by one person, [Owner's full name], not a company. Write to us at support@studiskarte.com. Our Data Protection Officer is [DPO name and dedicated email to be designated].
+- **Who we are.** The app is run by one person, Lowel-Jay Rubino, not a company. Write to us at support@studiskarte.com. Our Data Protection Officer is Lowel-Jay Rubino, dpo@studiskarte.com.
 - **16 and over.** You must be 16 or older to use the app. Members under 18 should tell a parent or guardian. We ask you to confirm your age when you sign up.
 - **What we collect.** Your email address, a scrambled form of your password, your handle and display name, and what you post and send in the app: listings, photos, messages, offers, reservations and reviews. We also keep basic sign-in details (your network address and browser) for 30 days.
 - **ID check (optional, later).** When it opens, you may choose to show a school ID or certificate of registration and a photo of you holding it. We ask for your consent on a separate screen. Only the owner sees the pictures, and they are deleted as soon as we decide.
@@ -19,10 +19,10 @@ Studiskarte Marketplace ("the app", "we") is a marketplace where students and ot
 
 ## Who is responsible for your data
 
-[Owner's full name], an individual, decides what data the app collects and why. In the language of the Data Privacy Act of 2012 (Republic Act No. 10173) that makes the owner the "personal information controller".
+Lowel-Jay Rubino, an individual, decides what data the app collects and why. In the language of the Data Privacy Act of 2012 (Republic Act No. 10173) that makes the owner the "personal information controller".
 
 - Contact for anything about your data: support@studiskarte.com
-- Data Protection Officer: [DPO name and dedicated email to be designated]
+- Data Protection Officer: Lowel-Jay Rubino, dpo@studiskarte.com
 
 ## Who may use the app
 
@@ -94,8 +94,8 @@ ID verification is optional. It lets you show that you are a real person who stu
 - **Your consent.** We ask for it on its own screen, before you upload anything, separate from accepting the Terms. You can say no and use the rest of the app.
 - **Who sees it.** Only the owner. The pictures are kept in a private area, separate from listing photos, and the owner opens them only through short-lived links. Each time the pictures are opened is logged. We do not share them with anyone, and they do not appear anywhere in the app.
 - **What happens after the decision.** As soon as we approve or reject, the pictures are deleted. We keep only the result (approved or rejected), who decided, the date, and a short reason. We do not copy numbers or other details from your ID into our records [confirm when built]. We keep no copy of the pictures [confirm when built that no storage version or backup holds them].
-- **If you start but do not finish,** pictures that have not been decided are deleted after [pending ID images deleted after N days, owner to set].
-- **If we reject it,** you may try again, up to [N attempts, owner to set].
+- **If you start but do not finish,** pictures that have not been decided are deleted after 7 days.
+- **If we reject it,** you may try again, up to 3 attempts.
 - **How long a check lasts.** 12 months. After that you can verify again to keep the badge. [Graduates (alumni): documents to be decided.]
 - **Withdrawing your consent.** You can withdraw at any time, as easily as you gave it: in Settings [location to be built] or by writing to us. If the pictures are still waiting for a decision, we delete them right away and stop the check. If we have already decided, the pictures are already gone. You can ask us to remove your "ID checked" badge, and then we delete the record of the check [lawyer: confirm what, if anything, we may keep]. Withdrawing does not undo what we did while you consented.
 
@@ -111,12 +111,12 @@ ID verification is optional. It lets you show that you are a real person who stu
 - A closed account's record: after deletion we keep a row with no name, no email, no handle and no school, only that the account existed, when it was made, and which version of the Terms and age confirmation it accepted.
 - Reports you made about listings or people: kept in our records, no longer linked to a name after you delete your account.
 - ID verification: see the section above. Result only; pictures are deleted at the decision.
-- Proof of your consent to an ID check (which text you saw, when you agreed, and when you withdrew, if you did): kept while your account exists and for [period after deletion: lawyer to set], so we can show that you agreed.
+- Proof of your consent to an ID check (which text you saw, when you agreed, and when you withdrew, if you did): kept while your account exists and for 3 years after it is deleted, so we can show that you agreed.
 - Error reports at Sentry: [Sentry retention: confirm].
 - Vercel request logs: about an hour of runtime logs on our plan [confirm].
 - Emails at Resend (delivery records): [Resend retention: confirm].
-- Emails you send to support@studiskarte.com and our replies: [support mail retention: owner to set].
-- Backup copies of the database: Neon keeps the last 6 hours of history. We also make named copies of the database before some updates to the app. A copy can still hold data you have deleted until we remove the copy: [pre-change copies are removed after X days, owner to set].
+- Emails you send to support@studiskarte.com and our replies: kept for 1 year.
+- Backup copies of the database: Neon keeps the last 6 hours of history. We also make named copies of the database before some updates to the app. A copy can still hold data you have deleted until we remove the copy: pre-change copies are removed after 30 days.
 
 ## Deleting your account
 
@@ -140,7 +140,7 @@ Under the Data Privacy Act of 2012 (Republic Act No. 10173) you have the right t
 - **Claim compensation** for damage caused by wrongful use of your data.
 - If you have died or cannot act, your **lawful heirs or assigns** may use these rights for you.
 
-**How to use them.** Email support@studiskarte.com, or our Data Protection Officer at [DPO name and dedicated email to be designated]. Write from the email address on your account, and say which right you want to use. Some things you can do yourself: change your picture, display name and handle, switch device alerts off, remove your calendar link, block someone, and delete your account, all in Settings. We may ask you to confirm who you are before we give out or change anything, and we will ask for no more than we need.
+**How to use them.** Email support@studiskarte.com, or our Data Protection Officer at Lowel-Jay Rubino, dpo@studiskarte.com. Write from the email address on your account, and say which right you want to use. Some things you can do yourself: change your picture, display name and handle, switch device alerts off, remove your calendar link, block someone, and delete your account, all in Settings. We may ask you to confirm who you are before we give out or change anything, and we will ask for no more than we need.
 
 **How fast.** We will answer within 15 days. If we cannot do what you ask, or can do only part of it, we will say why.
 
@@ -162,7 +162,7 @@ If this policy changes, we will change the date above and ask you to accept the 
 
 ## Contact
 
-support@studiskarte.com, or our Data Protection Officer at [DPO name and dedicated email to be designated].
+support@studiskarte.com, or our Data Protection Officer at Lowel-Jay Rubino, dpo@studiskarte.com.
 
 ## Notes for the lawyer (delete before publishing)
 

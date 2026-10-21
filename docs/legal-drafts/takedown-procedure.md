@@ -38,7 +38,7 @@ If we removed your listing or suspended your account and you think we got it wro
 | Email to support@studiskarte.com | Nothing in the app. | Gap: see 3, "Notices that arrive by email". |
 | Order or request from a government agency (DTI, police, another regulator) | Nothing in the app. | See 5. |
 
-Read the support mailbox and the /admin queue on a fixed rhythm: [owner to set, for example every morning and evening]. The code does not alert the owner when a report is filed (none was found; not exhaustively checked). A report that sits unseen is the main risk to the response times.
+Read the support mailbox and the /admin queue on a fixed rhythm: every morning and evening. The code does not alert the owner when a report is filed (none was found; not exhaustively checked). A report that sits unseen is the main risk to the response times.
 
 ### 2. Triage: set the priority and start the clock
 
@@ -107,7 +107,7 @@ The app's own record: each `report` row keeps reporter, target, reason, details,
 - Appeal received and outcome.
 - Government order details if any.
 
-Check once a month: how many notices, how many met the target time, any repeat offenders. Keep the log for [period, lawyer to set]. It holds personal data (names, emails of reporters), so it follows the same rules as everything else.
+Check once a month: how many notices, how many met the target time, any repeat offenders. Keep the log for 2 years. It holds personal data (names, emails of reporters), so it follows the same rules as everything else.
 
 ## Notes for the lawyer
 

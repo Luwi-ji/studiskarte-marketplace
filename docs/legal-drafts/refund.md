@@ -80,7 +80,7 @@ Services (tutoring, printing, design and the like) carry more risk than a thing 
 
 ## If you are under 18
 
-- You may use the app if you meet the minimum age of [minimum age: owner to set; the code says 16]. Tell a parent or guardian that you are using it and who you are meeting.
+- You may use the app if you meet the minimum age of 16. Tell a parent or guardian that you are using it and who you are meeting.
 - Ask a parent or guardian before you buy or sell anything costly, or anything that needs a large payment.
 - Meet in a public place, in daylight, in school hours. Bring a friend or an adult for a costly deal. Do not go alone to a place you do not know.
 - Under the Civil Code, unemancipated minors cannot give consent to a contract (Art. 1327), and a contract where a party cannot consent is voidable (Art. 1390). A minor who must give back what they got is only obliged to return what they benefited from (Art. 1399). We do not decide whether a particular deal is valid. [lawyer: confirm how these rules apply, and the age of majority; not read.]
@@ -156,6 +156,6 @@ Statements about the app, from the code (verify before adoption):
 - Minimum age: `src/lib/identity/age.ts` sets `MIN_AGE = 16` (decided 2026-10-22) with a nudge to tell a parent or guardian if under 18; `terms.md` now says the same. The under-18 section above uses a placeholder.
 - "The app never handles money" is stated in `terms.md`; keep both aligned.
 
-Placeholders: `[date of adoption]`, `[minimum age: owner to set; the code says 16]`, and the inline `[lawyer: ...]`, `[to confirm]` and `[owner to confirm ...]` notes.
+Placeholders: `[date of adoption]`, `16`, and the inline `[lawyer: ...]`, `[to confirm]` and `[owner to confirm ...]` notes.
 
 Assumptions: the "final sale" rule, the suggested 24 to 48 hour testing period (borrowed from a similar campus marketplace's policy; not a legal rule), and the request that a refund is paid the same way as the original payment are policy choices of the draft, not law.
