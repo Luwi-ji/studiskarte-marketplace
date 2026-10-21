@@ -9,7 +9,7 @@ Studiskarte Marketplace ("the app", "we") is a marketplace where students and ot
 ## At a glance
 
 - **Who we are.** The app is run by one person, [Owner's full name], not a company. Write to us at support@studiskarte.com. Our Data Protection Officer is [DPO name and dedicated email to be designated].
-- **18 and over only.** You must be 18 or older to use the app. We ask you to confirm this when you sign up.
+- **16 and over.** You must be 16 or older to use the app. Members under 18 should tell a parent or guardian. We ask you to confirm your age when you sign up.
 - **What we collect.** Your email address, a scrambled form of your password, your handle and display name, and what you post and send in the app: listings, photos, messages, offers, reservations and reviews. We also keep basic sign-in details (your network address and browser) for 30 days.
 - **ID check (optional, later).** When it opens, you may choose to show a school ID or certificate of registration and a photo of you holding it. We ask for your consent on a separate screen. Only the owner sees the pictures, and they are deleted as soon as we decide.
 - **No ads, no selling.** We do not use advertising or analytics trackers. We do not sell your data. We never handle money: payments happen between members, outside the app.
@@ -26,7 +26,7 @@ Studiskarte Marketplace ("the app", "we") is a marketplace where students and ot
 
 ## Who may use the app
 
-You must be **18 years old or older**. We ask you to tick a box to say so when you create an account. If we learn that someone under 18 has an account, we will close it and delete it as described under "Deleting your account". If you think a person under 18 is using the app, write to us.
+You must be **16 years old or older**. We ask you to tick a box to say so when you create an account. If we learn that someone younger has an account, we will close it and delete it as described under "Deleting your account". Members aged 16 and 17 are welcome. Tell a parent or guardian that you use the app, and read our Child Safety Standards. If you think a person younger than 16 is using the app, write to us. [Lawyer: Advisory 2024-03 children's notice, high privacy defaults for under-18 accounts, and a Child Privacy Impact Assessment: see ph-law-research.md item 6.]
 
 ## What we collect
 
@@ -37,7 +37,7 @@ When you create an account:
 - **If you add a school email later,** that school email, the school it belongs to, and the role you choose (student, faculty or teacher, staff, alumni). Your school and role are information about your education. We use them only to show your school and role and to decide what you may do in the app (for example, only students can post a Showcase).
 - **If you use Google to sign in,** Google sends us your basic profile (the email address it confirms for you, your name and your picture). We keep only the email address and discard the name and picture. We do not ask for or read anything else in your Google account.
 - **Your handle and display name,** which other signed-in members see, and an optional profile picture.
-- **That you are 18 or older,** which version of the Terms and this policy you accepted, and when.
+- **That you are 16 or older,** which version of the Terms and this policy you accepted, and when.
 
 When you use the app:
 
@@ -90,7 +90,7 @@ Photos, messages, reservations and the rest of your data are stored and handled 
 ID verification is optional. It lets you show that you are a real person who studies or works at the school you chose, so other members can trust a badge that says "ID checked". Until you verify, you can still browse, ask for things and post Wishlist items [limits for unverified students: owner to confirm before launch, and say them here].
 
 - **What we collect.** A picture of your school ID or certificate of registration, and a photo of you holding it. These show information about your education and are issued by your school, so we treat them with extra care.
-- **Why.** Only to decide whether to give your account an "ID checked" badge for the school and role you chose [state here whether the check also confirms that you are 18 or older: owner to decide before launch]. We do not use the pictures for anything else.
+- **Why.** Only to decide whether to give your account an "ID checked" badge for the school and role you chose [state here whether the check also confirms that you meet the minimum age: owner to decide before launch]. We do not use the pictures for anything else.
 - **Your consent.** We ask for it on its own screen, before you upload anything, separate from accepting the Terms. You can say no and use the rest of the app.
 - **Who sees it.** Only the owner. The pictures are kept in a private area, separate from listing photos, and the owner opens them only through short-lived links. Each time the pictures are opened is logged. We do not share them with anyone, and they do not appear anywhere in the app.
 - **What happens after the decision.** As soon as we approve or reject, the pictures are deleted. We keep only the result (approved or rejected), who decided, the date, and a short reason. We do not copy numbers or other details from your ID into our records [confirm when built]. We keep no copy of the pictures [confirm when built that no storage version or backup holds them].

@@ -14,7 +14,12 @@ Not legal advice and nothing here says the app is compliant. These are engineeri
 | `age-confirmation.md` | The "18 or older" sign-up checkbox, the message when someone cannot confirm, what is stored, handling an under-18 account | App UI text and one stored timestamp |
 | `breach-response.md` | Internal runbook for a solo owner (detect, contain, assess, notify, log, templates) | Internal; keep outside the public site |
 | `rights-requests.md` | Internal procedure for access, correction, erasure, objection, portability requests | Internal |
+| `refund.md` | Refund, Returns and Disputes Policy (the app moves no money; Civil Code hidden-defect rule; minors) in the style of marketusm.me/refund | New page `content/legal/refund.md` (add the slug in `src/lib/legal/documents.ts`) |
+| `cookies.md` | Cookies and Local Storage Policy from a real inventory of what the app stores | New page `content/legal/cookies.md` (same) |
+| `ph-law-research.md` | Research memo: RA 11930, RA 8792, RA 11967, RA 7394, Civil Code, RA 10173, cybercrime and related laws, cookies, regulated goods; where each lands in our pages | Internal |
 | `takedown-procedure.md` | Public wording for reporting prohibited or unsafe listings, plus the admin procedure in the existing /admin queue | Part 1 into Terms and Guidelines (or a /report page); Part 2 internal |
+
+**Already live (2026-10-22):** `content/legal/child-safety.md` (Child Safety Standards, RA 11930), the minimum age of 16 in `terms.md`/`privacy.md`/`guidelines.md`, and a new `VERSION`. Everything else in this folder is still a draft.
 
 `privacy.md` and `terms.md` use only what the app's legal-page reader supports (`src/lib/legal/markdown.ts`: headings, paragraphs, bullet and numbered lists, bold, italic, links; **no tables**). They end with a "Notes for the lawyer" section and open with a status note; delete both before publishing.
 
@@ -22,14 +27,14 @@ Not legal advice and nothing here says the app is compliant. These are engineeri
 
 Privacy Policy:
 - Contact changed from `studiskartemarketplace@gmail.com` to `support@studiskarte.com`; added the Data Protection Officer placeholder and the owner's name placeholder.
-- "Young people (under 18 with permission)" replaced by 18 and over only.
+- "Young people (under 18 with permission)" replaced by a minimum age of 16, under 18 allowed (changed 2026-10-22; first drafted as 18 and over).
 - Processor list rewritten: Google (Gmail) sending removed; Resend, Cloudflare (DNS, email routing, R2) and Sentry added; Google sign-in and push services now described as "only if you choose"; Vercel and Neon kept. Each with where it is and what it gets. Cross-border statement added (Data Privacy Act Sec 21).
 - Layered: short "At a glance" first.
 - Added: how we collect, legal reason for each purpose, retention list (now includes unused photos after 24 hours, withdrawn and expired listing visibility, closed-account row, reports, backups and pre-change database copies, consent proof), the rights list with how to use them, response time placeholder, withdrawing consent, how to complain to the NPC, breach promise, and the ID verification section (marked "applies once ID verification opens").
 - The deletion paragraph now matches `src/lib/identity/delete-account.ts`, and says plainly what stays (messages, message pictures, finished reservations, reviews, listing text and photos, reports).
 
 Terms:
-- 18 and over only; roles and what each may do (only students post a Showcase; others post a Wishlist; non-students may contact a Showcase seller only if the seller allowed it, per `src/lib/posts/audience.ts`); venue not a party; no money handled.
+- Minimum age 16, under 18 allowed (changed 2026-10-22; was 18+); roles and what each may do (only students post a Showcase; others post a Wishlist; non-students may contact a Showcase seller only if the seller allowed it, per `src/lib/posts/audience.ts`); venue not a party; no money handled.
 - New "Reporting a problem and taking listings down" section with response time placeholders and an appeal route.
 - Suspension section; content licence made explicit; occasional-seller and permit sentences added.
 - Limitation of liability reworded so it does not claim to override statute.
@@ -53,7 +58,7 @@ Findings that differ from the review doc, because the primary sources were read 
 
 1. Does the ITA apply at all (C2C exclusion, Sec 3; "ordinary course of business", Sec 4(c))? If yes, which duties of Sec 22 bind a platform with no payment or delivery role, and when is a student seller an "online merchant"? What do the IRR require of notices and speed of takedown?
 2. Registration with the NPC (Circular 2022-04 Secs 5, 6): mandatory or sworn declaration (Annex 1)? Is the owner an "Individual Professional" (the de facto DPO), and does the Circular require the DPO to be an organic employee otherwise? The Circular wants a dedicated DPO email, separate from personal email (Sec 8). Which route fits an individual owner who runs the app unregistered as a business?
-3. 18 and over by self-declaration only: enough? `.edu.ph` addresses are accepted and may include schools with students under 18 [to confirm]. Is a Child Privacy Impact Assessment required for a service that may be "likely to be accessed by children" (Advisory 2024-03 Secs 1, 2(A))? Effect on contracts if a minor gets in anyway.
+3. Minimum age 16 by self-declaration only: enough, and is 16 the right floor? `.edu.ph` addresses are accepted and may include schools with students under 18 [to confirm]. Is a Child Privacy Impact Assessment required for a service that may be "likely to be accessed by children" (Advisory 2024-03 Secs 1, 2(A))? Effect on contracts if a minor gets in anyway.
 4. Response times to set: rights requests `[X days, lawyer to set]`; takedown `[X hours, lawyer to set]` (urgent) and `[Y days, lawyer to set]` (other); appeals and complaints `[Z days, lawyer to set]`.
 5. Consent and ID verification: is consent "freely given" if verification is optional but some features are limited for unverified students (Circular 2023-04 Sec 7)? Should the ID check also serve as the age check, and if so how must the purpose read? What may be kept after consent is withdrawn (status, reviewer, date, reason)? How long to keep proof of consent after account deletion?
 6. Do school and role (education data, Data Privacy Act Sec 3(l)) need their own consent line at sign-up, or is acceptance of the Terms and Policy enough (Circular 2023-04 Secs 8, 19)?
@@ -99,7 +104,7 @@ Filled by the owner:
 ## Build items the drafts rely on
 
 From the review doc, section 5, plus ones found while drafting. Do not publish a sentence before its item exists.
-- Age checkbox and a stored `age_confirmed_at`, asked before the code is sent; shown on every sign-up route and on re-acceptance for existing members.
+- Age checkbox and a stored `age_confirmed_at` (built, 2026-10-22; asked at sign-up and on re-acceptance); shown on every sign-up route and on re-acceptance for existing members.
 - The ID verification consent screen, consent record, one-tap withdrawal in Settings, deletion at decision, private bucket, an admin audit log of every view of an ID image and every moderation action. The privacy text promises "each time the pictures are opened is logged": that needs the audit log first.
 - A heading anchor, or a short page, so the consent screen can link to the ID section of the policy.
 - A way to record a notice that arrived by email, and a reason the admin gives that the poster sees; today /admin has no such field and no new-report alert.
@@ -110,7 +115,7 @@ From the review doc, section 5, plus ones found while drafting. Do not publish a
 
 1. Lawyer reviews all seven files; answers the questions above; the owner designates the DPO and decides the NPC registration route.
 2. Owner confirms the provider facts and retention numbers; fills the placeholders.
-3. Build the age checkbox and the stored confirmation.
+3. Age checkbox and stored confirmation: built (`age_confirmed_at`, migration 0031).
 4. Publish `privacy.md`, `terms.md` (with the status note and the lawyer section removed, and the ID section left out), a matching `guidelines.md`, and a new `VERSION`, **in one release**, so members accept once. The age confirmation goes live in the same release.
 5. Put the takedown wording (Part 1) in the Terms and Guidelines in the same release, and start following Part 2. Keep `breach-response.md` and `rights-requests.md` ready from the same day (internal; no deploy).
 6. Before ALLOW_VISITORS is turned on: the visitor safety rules, and the visitor sentence in the Terms live (drop "[applies once visitor sign-up opens]").

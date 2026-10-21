@@ -1,59 +1,49 @@
 DRAFT for lawyer review, not live.
 
-# Age confirmation (18 or older)
+# Age confirmation (minimum age 16; under 18 allowed)
 
-The owner's decision (docs/privacy-and-legal-review-2026-10-20.md, section 1): the app is for people 18 and over only. This replaces "If you are under 18, use it only with the permission of a parent or guardian" in the live Privacy Policy and Terms. This file gives the wording of the sign-up checkbox, the message for someone who cannot confirm, what is stored, and how an under-18 account is handled. No code exists yet.
+Changed 2026-10-22. The owner first chose "18 and over only" (commit 97f23ca) and then decided that minors may use the app. The rule is now a **minimum age of 16**, confirmed by a checkbox, with a short nudge for members under 18 to tell a parent or guardian and a link to the Child Safety Standards (`content/legal/child-safety.md`). The number lives in one place, `MIN_AGE` in `src/lib/identity/age.ts`. The lawyer may change it (15? 16? 18?); changing it changes the checkbox, the error message and the text in `content/legal/terms.md` and `privacy.md`, which are plain text and must be edited by hand.
 
-## Where it appears
+Why 16 and not "any age": the school email check accepts any `.edu.ph` address, and the app's audience is college and senior high school students. A floor keeps young children out. It is a self-declaration and does not prove age.
 
-- On the sign-up screen, as its own checkbox, separate from the Terms and Privacy Policy checkbox (the NPC consent guidance asks that things are not bundled, Circular 2023-04 Sec 8(B)). The account cannot be created until both are ticked.
-- **Before** the emailed code is sent, so nothing is sent to, or stored for, a person who cannot confirm.
-- On every route that creates an account: school email, personal email (when visitor sign-up opens), and Google sign-in.
-- For existing accounts: on the same screen that asks them to accept the new version of the legal text (`needsTerms` in src/lib/legal/documents.ts asks again when `content/legal/VERSION` changes). They must confirm before they can go on.
+## What the member sees
 
-## Checkbox wording (unchecked when the screen opens)
+At sign-up (`/welcome`) and on re-acceptance (`/accept-terms`), before the code is accepted, one checkbox (required, not pre-ticked), next to the Terms acceptance:
 
-> I am 18 years old or older.
+> I am 16 years old or older. If you are under 18, tell a parent or guardian you are using the app. Read our Child Safety Standards.
 
-Help line under it, small text:
+If the box is not ticked, the form does not go on and says:
 
-> Studiskarte Marketplace is only for people aged 18 and over.
+> You must be 16 or older to use Studiskarte Marketplace. If you are younger, please do not sign up.
 
-## Message when someone cannot confirm
-
-Shown when a person leaves the box unticked and tries to continue (new sign-up), in place of an error code:
-
-> **Studiskarte Marketplace is for people aged 18 and over.**
->
-> We cannot create an account for you. We have not saved any of your details. You are welcome to come back when you are 18.
-
-For an **existing account** that chooses "I am under 18" on the re-acceptance screen:
-
-> **Studiskarte Marketplace is for people aged 18 and over.**
->
-> We will close your account and delete your details as described in the Privacy Policy. Write to support@studiskarte.com and we will do it for you, or sign out now. Until then you will not be able to use the app.
-
-[Build: the account is suspended at once so the person cannot go on using it; the owner then deletes it as in "Handling an under-18 account" below. Lawyer: confirm the wording.]
+Nothing is saved for someone who cannot confirm.
 
 ## What is stored
 
-- A timestamp that the person confirmed they are 18 or older, kept with the terms acceptance (`terms_version`, `terms_accepted_at` on the student row). Build item: one new column, for example `age_confirmed_at`, set in the same step. Per the review doc, section 5.
-- **Not stored:** a date of birth, an ID, or anything else about age. The app does not need it, and collecting it would be more data than the purpose needs (Data Privacy Act Sec 11(d), adequate and not excessive).
-- For someone who cannot confirm: nothing.
+- `student.age_confirmed_at` (migration 0031, renamed from `adult_confirmed_at`, which 0030 added): the moment the person confirmed they meet the minimum age, set in the same step as the terms acceptance. Members who confirmed "18 or older" under the earlier wording keep their timestamp and meet the new rule.
+- **Not stored:** a date of birth, an ID, or anything else about age (Data Privacy Act Sec 11(d), adequate and not excessive).
 
-## Handling an under-18 account (internal)
+## Members under 18
 
-When a member reports that someone is under 18, or the owner learns it:
+- They may use the app like anyone else. They are not given extra features.
+- The Terms and Privacy Policy tell them to involve a parent or guardian and point to the Child Safety Standards.
+- Reports about content that sexualises a child hide the listing at once and alert the owner (see `docs/admin-dashboard-plan.md`).
+- Open design question for the owner: should a member under 18 be reachable by adults the same way? The app does not store who is under 18 (only that they confirmed 16+), so it cannot restrict contact. RA 11930 treats grooming and luring as offences even if the child agrees (Sec 4(m), Sec 5); see `ph-law-research.md`, item 1.
 
-1. Do not ask the person for proof of age unless it is necessary to decide; do not ask for an ID by email.
-2. Suspend the account in /admin (Students reported, Suspend) so it stops at once. Suspension signs the person out everywhere.
-3. Delete the account as in rights-requests.md (erasure), so that the data erased is the data listed in the Privacy Policy. Messages and reviews other members rely on stay as "Deleted account".
-4. If a breach involves a person who turns out to be under 18, notify the child and a parent or guardian, in language the child understands (NPC Advisory 2024-03 Sec 4; see breach-response.md).
+## Handling a member younger than 16 (internal)
+
+When someone reports that a member is younger than 16, or the owner learns it:
+
+1. Do not ask for an ID by email.
+2. Suspend the account in /admin (Moderation, Students reported, Suspend). Suspension signs the person out everywhere.
+3. Delete the account as in `rights-requests.md` (erasure). Messages and reviews that other members rely on stay as "Deleted account".
+4. If a breach involves a child, notify the child and a parent or guardian in language the child understands (NPC Advisory 2024-03 Sec 4; see `breach-response.md`).
 5. Write one line in the record: date, how it came to light, what was done. No name beyond the account handle.
 
 ## Limits and questions for the lawyer
 
-- This is a self-declaration. NPC Advisory 2024-03 Sec 2(B)(1) (read) says relying only on self-declaration "may be inadequate for high-risk processing activities", and Sec 1 applies the advisory to services "likely to be accessed by children". The advisory also asks for a Child Privacy Impact Assessment before launching such a service (Sec 2(A)). Whether this app is "likely to be accessed by children", and what is enough, is a lawyer's question.
-- The school email check accepts any address ending in `.edu.ph` (check constraint `student_school_email_shape` in src/db/schema.ts). Such addresses are not limited to colleges; whether they can belong to people under 18 is not established here [to confirm]. A school email therefore does not prove age.
-- The ID verification feature, once built, could also serve as an age check; that is only so if the consent screen says so (see id-verification-consent.md).
-- No age of digital consent exists in Philippine law and capacity is governed by the Civil Code (NPC FAQ on the advisory, Q6, read); the effect on contracts made by a minor is not covered here [to confirm].
+- Self-declaration only. NPC Advisory 2024-03 Sec 2(B)(1) (read) says relying only on self-declaration "may be inadequate for high-risk processing activities", and Sec 1 applies the advisory to services "likely to be accessed by children". It also asks for a Child Privacy Impact Assessment before launching such a service (Sec 2(A)). Whether this app is "likely to be accessed by children", and what is enough, is a lawyer's question. Because members under 18 are now expressly allowed, the answer is probably yes [to confirm].
+- Contracts: no age of digital consent exists in Philippine law and capacity is governed by the Civil Code (NPC FAQ on the advisory, Q6; Civil Code Arts 1327(1), 1390 to 1399). A deal with a minor may be voidable. The Terms and `refund.md` must not promise otherwise.
+- Is 16 a defensible floor? Is parental involvement something to require rather than suggest (for example under 18, a guardian's consent)?
+- The school email check accepts any address ending in `.edu.ph` (check constraint `student_school_email_shape` in `src/db/schema.ts`). A school email does not prove age.
+- ID verification, once built, could also serve as an age check, but only if the consent screen says so (see `id-verification-consent.md`).

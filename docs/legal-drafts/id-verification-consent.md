@@ -12,7 +12,7 @@ Applies only when ID verification opens (docs/roles-and-verification-plan.md: up
 
 ## When the screen appears
 
-- Only after the person has confirmed they are 18 or older (see age-confirmation.md).
+- Only after the person has confirmed they meet the minimum age (see age-confirmation.md).
 - Only when they tap "Verify my ID" (from the profile, from onboarding "verify now or later", or from a prompt). Never at sign-up, never in the same step as the Terms.
 - Before the camera or file chooser opens. The person cannot reach the upload step without ticking the box.
 

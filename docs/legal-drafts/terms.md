@@ -8,7 +8,7 @@ By creating an account or using Studiskarte Marketplace ("the app") you agree to
 
 ## At a glance
 
-- You must be 18 or older.
+- You must be 16 or older. If you are under 18, tell a parent or guardian.
 - Only students can post a **Showcase** (things or services they offer). Everyone else can post a **Wishlist** (things or services they look for).
 - The app is a meeting place. We are not part of any deal between members, and the app never handles money.
 - Some things are not allowed. You can report a listing or a person, and we review reports.
@@ -25,7 +25,7 @@ The app lets members post Showcase listings and Wishlist items, message each oth
 
 ## Who may use the app
 
-You must be **18 years old or older**. We ask you to confirm this when you sign up. If we learn that you are under 18, we may close your account.
+You must be **16 years old or older**. We ask you to confirm this when you sign up. If we learn that you are younger, we may close your account. Members under 18 are welcome: tell a parent or guardian that you use the app, and read our Child Safety Standards. A contract you make may be cancelled if you are under 18 [lawyer: confirm Civil Code Arts 1327, 1390].
 
 ### Roles and what each may do
 
