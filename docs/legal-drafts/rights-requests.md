@@ -2,7 +2,7 @@ DRAFT for lawyer review, not live.
 
 # Handling data rights requests (internal procedure)
 
-Internal. Covers requests under the Data Privacy Act of 2012 (RA 10173), read on privacy.gov.ph: Sec 16 (rights to be informed, to access, to correct, to suspend, withdraw, block, remove or destroy, and to damages), Sec 17 (heirs and assigns), Sec 18 (portability), and the IRR Secs 34 and 36 (also read: right to object). The Privacy Policy draft (privacy.md) promises these rights and a response time of [X days, lawyer to set].
+Internal. Covers requests under the Data Privacy Act of 2012 (RA 10173), read on privacy.gov.ph: Sec 16 (rights to be informed, to access, to correct, to suspend, withdraw, block, remove or destroy, and to damages), Sec 17 (heirs and assigns), Sec 18 (portability), and the IRR Secs 34 and 36 (also read: right to object). The Privacy Policy draft (privacy.md) promises these rights and a response time of 15 days.
 
 Reference point for the response time: the NPC's 2021 Rules of Procedure, as amended, Rule II Sec 2 (read), do not give a complaint due course unless the person first told the controller in writing and the controller did not act in time, or did not respond within 15 calendar days of receiving the written notice. The NPC may waive that. The lawyer may want the published response time to sit within 15 calendar days.
 
@@ -87,7 +87,7 @@ The right is exercisable on discovery and substantial proof that data is incompl
 
 ## 5. Answer
 
-- Answer within [X days, lawyer to set] of receipt. If more time is needed, say so before the deadline, with the reason and a date.
+- Answer within 15 days of receipt. If more time is needed, say so before the deadline, with the reason and a date.
 - State what was done, what was not and why, and the person's right to complain to the NPC (privacy.gov.ph). Write in plain language.
 - Record in the log: date answered, outcome, what was sent.
 - If a request is vexatious or unreasonable, you may refuse correction (Sec 16(d)); write down why.

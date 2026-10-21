@@ -17,7 +17,7 @@ If you see something that breaks the rules, tell us.
 **What we do**
 
 - A listing reported by three different members is hidden at once and goes to the owner. A listing with fewer reports also goes to the owner, but stays up until the owner decides.
-- The owner decides whether to restore the listing, remove it, or suspend an account. Urgent reports about illegal, unsafe or dangerous listings come first: we aim to act within [X hours, lawyer to set]. We aim to look at every other report within [Y days, lawyer to set].
+- The owner decides whether to restore the listing, remove it, or suspend an account. Urgent reports about illegal, unsafe or dangerous listings come first: we aim to act within 24 hours. We aim to look at every other report within 3 working days.
 - If we hide or remove a listing, the member who posted it is told in the app. Any reservation on a removed listing ends.
 - If you reported by email, we reply to that email with what we decided.
 - We do not tell the member you reported who reported them.
@@ -25,7 +25,7 @@ If you see something that breaks the rules, tell us.
 
 **If you disagree with a decision**
 
-If we removed your listing or suspended your account and you think we got it wrong, or if a report you made was ignored, write to support@studiskarte.com. We will answer within [Z days, lawyer to set].
+If we removed your listing or suspended your account and you think we got it wrong, or if a report you made was ignored, write to support@studiskarte.com. We will answer within 7 days.
 
 ## Part 2: internal procedure
 
@@ -44,9 +44,9 @@ Read the support mailbox and the /admin queue on a fixed rhythm: [owner to set, 
 
 Write the time the notice was received. That is the start of the response time.
 
-- **P1: prohibited, unsafe or dangerous, apparent from the photo or description.** Examples named in the Internet Transactions Act Sec 15(a): endangered animals, illicit drugs, fireworks and other explosives, counterfeit goods; plus anything the Terms forbid outright (medicine, alcohol, tobacco, vapes, weapons, past exams, school IDs). Target: [X hours, lawyer to set].
-- **P2: other rule breaks** (scam, misleading listing, spam, impersonation, offensive). Target: [Y days, lawyer to set].
-- **P3: harassment or conduct by a person.** Target: [Y days]. Act sooner if there is a safety risk.
+- **P1: prohibited, unsafe or dangerous, apparent from the photo or description.** Examples named in the Internet Transactions Act Sec 15(a): endangered animals, illicit drugs, fireworks and other explosives, counterfeit goods; plus anything the Terms forbid outright (medicine, alcohol, tobacco, vapes, weapons, past exams, school IDs). Target: 24 hours.
+- **P2: other rule breaks** (scam, misleading listing, spam, impersonation, offensive). Target: 3 working days.
+- **P3: harassment or conduct by a person.** Target: 3 working days. Act sooner if there is a safety risk.
 - **P4: intellectual property claim** (a right holder says a listing infringes). Treat like P1 once the claim is clear. The Act refers to failing, after notice, to remove or disable goods that infringe intellectual property (Sec 26(b)).
 - **P5: government order.** Same day. See 5.
 
@@ -80,7 +80,7 @@ For P1 and P4: open the listing, decide, and press **Remove**. Nothing hides a p
 - **Poster:** told in the app when a post is hidden, restored or removed (notification types `post_hidden`, `post_restored`, `post_removed`). The notice has no reason text today. Build item: let the admin add a reason that the poster sees, so that the poster can understand and appeal.
 - **Reporter:** if the report came by email, reply with the outcome within the response time. In-app reporters are not told the outcome today [decide whether to build that before promising it; Part 1 only promises an email reply for email reports].
 - **Repeat or serious cases:** suspend the account (see 3) and tell the person by email, with the reason and how to appeal.
-- **Appeals:** the owner re-reads the decision with fresh eyes, within [Z days, lawyer to set]. If it was wrong: **Restore** (if the post was hidden) or ask the poster to post again (a removed post cannot be restored in the app). Write the outcome in the log.
+- **Appeals:** the owner re-reads the decision with fresh eyes, within 7 days. If it was wrong: **Restore** (if the post was hidden) or ask the poster to post again (a removed post cannot be restored in the app). Write the outcome in the log.
 - **Complaints that remain unresolved:** the Act treats the platform's internal redress as exhausted if a complaint is unresolved 7 calendar days after filing (Sec 24, read). Aim to reply well inside that.
 
 ### 5. Government takedown orders and requests
@@ -113,5 +113,6 @@ Check once a month: how many notices, how many met the target time, any repeat o
 
 - Internet Transactions Act (RA 11967), lawphil.net, read in full: Sec 3 excludes consumer-to-consumer transactions (Sec 4(c): between end-users for personal, family or household purposes and not in the ordinary course of business). If occasional student resales are outside the Act, the platform duties of Sec 22 may not apply; if a seller is a business, they may. The procedure above is deliberately the same either way.
 - Sec 22(d): digital platforms that do not retain oversight of the consummation of the transaction must provide an effective and responsive redress mechanism to report a user or information that violates relevant laws. Sec 26(b) and Sec 27: liability if, after notice, the platform fails to act expeditiously to remove goods that infringe intellectual property or are under a takedown order (Sec 26(b)), or goods prohibited by law, imminently injurious, unsafe or dangerous (Sec 27). What "notice" and "expeditiously" mean in practice, and any formal requirements for a notice, are in the Act's Implementing Rules (Joint Administrative Order 24-03), which could not be fetched (the DTI site did not answer) [to confirm].
-- The response times [X hours], [Y days] and [Z days] are placeholders to set against the IRR.
+- Response times (set 2026-10-22 from the owner's legal review, still for the lawyer to confirm against the IRR): 24 hours for urgent and child safety reports (RA 11930 Sec 9(a)(3)), 3 working days for other reports, 7 days for appeals and complaints (ITA Sec 24), 15 days for data rights requests (NPC Rules of Procedure Rule II Sec 2).
+- A single formal notice (from a government agency, a rights-holder, or an affected person) about a P1 listing is actioned by the owner at once; the 3-report counter does not apply. Child safety reports already hide a listing on the first report (built, migration 0032).
 - Open: whether the app must flag accounts that sell regularly (Sec 22(a), (e)); whether regulated goods such as food need a permit or licence shown on the listing (Sec 22(b)); whether the 3-report threshold is consistent with acting expeditiously on a single clear notice.

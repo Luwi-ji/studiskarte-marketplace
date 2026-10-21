@@ -91,14 +91,14 @@ You keep ownership of what you post. You give us a non-exclusive, royalty-free p
 **What happens next.**
 
 - A listing reported by three different members is hidden at once and goes to the owner for review. A report by fewer members is also reviewed, but the listing stays up until the owner decides.
-- Listings that look prohibited by law, unsafe or dangerous are handled first. We aim to act within [X hours, lawyer to set] of a clear report. We aim to look at every other report within [Y days, lawyer to set].
+- Listings that look prohibited by law, unsafe or dangerous are handled first. We aim to act within 24 hours of a clear report. We aim to look at every other report within 3 working days.
 - The owner may restore a listing, remove it, or suspend an account. The owner has no team, so some reviews take longer; we will say so if we need more time.
 - When we hide or remove a listing, the member who posted it is told in the app. We end any reservation on a removed listing.
 - If a government agency orders us to take a listing down, we will do so, and we may tell the member who posted it.
 - If you reported by email, we will reply to that email with what we decided.
 - We do not tell the person you reported who reported them.
 
-**Complaints and disagreement.** If you think we got a decision wrong (a listing was removed, an account suspended, or a report ignored), email support@studiskarte.com with the details. We will answer within [Z days, lawyer to set]. If we have not resolved your complaint [Z days] after you sent it, you may take it further, for example to the Department of Trade and Industry or the courts [lawyer: confirm wording against the Internet Transactions Act, Sec 24].
+**Complaints and disagreement.** If you think we got a decision wrong (a listing was removed, an account suspended, or a report ignored), email support@studiskarte.com with the details. We will answer within 7 days. If we have not resolved your complaint 7 days after you sent it, you may take it further, for example to the Department of Trade and Industry or the courts [lawyer: confirm wording against the Internet Transactions Act, Sec 24].
 
 False or repeated reports used to harm someone may lead to action against the reporter.
 

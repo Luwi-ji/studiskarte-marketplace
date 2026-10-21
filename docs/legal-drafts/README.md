@@ -81,6 +81,10 @@ Findings that differ from the review doc, because the primary sources were read 
 - Decide how often you check /admin and the support mailbox.
 - Statements carried from the live text and not re-checked: "the only cookie is the one that keeps you signed in", photos have location and camera data removed on upload, Google sign-in keeps only the email.
 
+## Review input received 2026-10-22
+
+The owner passed on a written review of the 14 questions. Applied to the drafts: response times set to 24 hours (urgent), 3 working days (other reports), 7 days (appeals and complaints), 15 days (data rights requests); takedown draft says a single formal notice bypasses the 3-report counter; refund draft says "as is" does not excuse a known fault. **Not applied, because the review gave no source or it conflicts with the research:** a fixed court venue (Parañaque or Pasig), five-year retention of consent logs, a 30-day cap on pre-change database copies (owner decision), and a dedicated DPO mailbox name. Its claims that a Child Privacy Impact Assessment is "compulsory" and that Vercel Hobby breaches its terms for a marketplace with perks are stated more firmly than the sources read support; both stay questions for the lawyer. Its NPC registration thresholds (1,000 people with sensitive data, 250 staff) match Circular 2022-04 as far as I know but were not re-read [to confirm]. It also says the C2C exception covers occasional resales; the research found the same, and that regular sellers may be presumed businesses.
+
 ## Placeholders (all in square brackets)
 
 Filled by the lawyer:

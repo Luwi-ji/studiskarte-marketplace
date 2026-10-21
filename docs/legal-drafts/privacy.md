@@ -142,7 +142,7 @@ Under the Data Privacy Act of 2012 (Republic Act No. 10173) you have the right t
 
 **How to use them.** Email support@studiskarte.com, or our Data Protection Officer at [DPO name and dedicated email to be designated]. Write from the email address on your account, and say which right you want to use. Some things you can do yourself: change your picture, display name and handle, switch device alerts off, remove your calendar link, block someone, and delete your account, all in Settings. We may ask you to confirm who you are before we give out or change anything, and we will ask for no more than we need.
 
-**How fast.** We will answer within [X days, lawyer to set]. If we cannot do what you ask, or can do only part of it, we will say why.
+**How fast.** We will answer within 15 days. If we cannot do what you ask, or can do only part of it, we will say why.
 
 **Complaints.** If you are not satisfied, you may complain to the National Privacy Commission (privacy.gov.ph). The Commission's rules generally expect you to tell us in writing first and to give us 15 calendar days to respond, unless the Commission excuses that [lawyer: confirm].
 
