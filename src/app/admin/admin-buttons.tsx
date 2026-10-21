@@ -14,15 +14,15 @@ const ACTIONS = {
 
 export type AdminActionKind = keyof typeof ACTIONS;
 
-/** One admin decision on one post or student; asks first when `confirm` is given, and shows any error under the button. */
-export function AdminButton({ kind, id, label, confirm, danger }: { kind: AdminActionKind; id: string; label: string; confirm?: string; danger?: boolean }) {
+/** One admin decision on one post or student; asks first when `confirm` is given, and shows any error under the button. `compact` fits a table row. */
+export function AdminButton({ kind, id, label, confirm, danger, compact }: { kind: AdminActionKind; id: string; label: string; confirm?: string; danger?: boolean; compact?: boolean }) {
   const step = useAction();
   return (
     <div className="flex flex-col gap-1">
       <button
         type="button"
         disabled={step.busy}
-        className={`h-11 w-full rounded-lg border px-3 text-sm font-medium disabled:opacity-60 ${danger ? "border-red-300 text-red-700 dark:border-red-900 dark:text-red-400" : "border-zinc-300 dark:border-zinc-700"}`}
+        className={`rounded-lg border px-3 text-sm font-medium disabled:opacity-60 ${compact ? "h-9" : "h-11 w-full"} ${danger ? "border-red-300 text-red-700 dark:border-red-900 dark:text-red-400" : "border-zinc-300 dark:border-zinc-700"}`}
         onClick={() => {
           if (confirm && !window.confirm(confirm)) return;
           void step.run(() => ACTIONS[kind](id));
