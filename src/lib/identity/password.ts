@@ -37,9 +37,13 @@ export async function findByIdentifier(raw: string): Promise<Found | null> {
   return row ?? null;
 }
 
-export type LoginResult = { ok: true } | { ok: false; reason: "wrong" | "too_many_requests" };
+export type LoginResult = { ok: true } | { ok: false; reason: "wrong" | "too_many_requests" | "suspended" };
 
-/** Signs in with an email or handle and a password. Every failure looks the same, except the rate limit. */
+/**
+ * Signs in with an email or handle and a password. Every failure looks the same, except the rate limit and one more:
+ * a suspended person who gives the right password is told their account is suspended, so they know why they cannot get in.
+ * With a wrong password a suspended account looks like any other failure, so nobody can find out who is suspended.
+ */
 export async function loginWithPassword(identifier: string, password: string, headers: Headers): Promise<LoginResult> {
   const typed = identifier.trim().toLowerCase().replace(/^@/, "");
   if (typed === "" || typed.length > 254 || password === "" || password.length > PASSWORD_MAX) {
@@ -51,6 +55,14 @@ export async function loginWithPassword(identifier: string, password: string, he
   if (!identifierAllowed || !ipAllowed) return { ok: false, reason: "too_many_requests" };
 
   const found = await findByIdentifier(typed);
+  if (found && found.status === "suspended") {
+    const [credential] = await getDb()
+      .select({ hash: account.password })
+      .from(account)
+      .where(and(eq(account.userId, found.id), eq(account.providerId, "credential"), isNotNull(account.password)));
+    const proved = credential?.hash ? await (await auth.$context).password.verify({ hash: credential.hash, password }) : false;
+    return { ok: false, reason: proved ? "suspended" : "wrong" };
+  }
   const usable = found && found.status === "active" ? found : null;
   try {
     await auth.api.signInEmail({ body: { email: usable?.email ?? NO_ACCOUNT_EMAIL, password }, headers });

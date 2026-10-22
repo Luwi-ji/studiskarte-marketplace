@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { idConsent, idImageView, idVerification, image, post, rateLimitEvent, student } from "@/db/schema";
+import { idConsent, idImageView, idVerification, image, notification, post, rateLimitEvent, student } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
 import { createPost, type SaveResult, SHOWCASE_NEEDS_ID_CHECK } from "@/lib/posts/create";
@@ -165,6 +165,22 @@ describe("the owner's decision", () => {
     expect(await row(id)).toMatchObject({ status: "approved", documentKey: null, holdingKey: null, decidedBy: admin, decidedAt: now });
     expect(await studentRow(ann)).toEqual({ at: now, until: new Date(now.getTime() + CHECK_VALID_DAYS * DAY) });
     expect(await decideCheck({ adminId: admin, verificationId: id, decision: "approve", store })).toMatchObject({ ok: false });
+  });
+
+  it("tells the person in their notifications, with the reason when rejected, and never without a decision", async () => {
+    const { store } = memoryStore();
+    const notices = async () => db.select({ type: notification.type, detail: notification.detail }).from(notification).where(eq(notification.recipientId, ann));
+    await db.delete(notification).where(eq(notification.recipientId, ann));
+    const first = await pendingCheck(store);
+    expect(await notices()).toEqual([]);
+    expect(await decideCheck({ adminId: ann, verificationId: first, decision: "approve", store })).toMatchObject({ ok: false });
+    expect(await notices()).toEqual([]);
+    await decideCheck({ adminId: admin, verificationId: first, decision: "reject", reason: "Too dark", store });
+    expect(await notices()).toEqual([{ type: "id_check_rejected", detail: "Too dark" }]);
+    await db.delete(notification).where(eq(notification.recipientId, ann));
+    const second = await pendingCheck(store);
+    await decideCheck({ adminId: admin, verificationId: second, decision: "approve", store });
+    expect(await notices()).toEqual([{ type: "id_check_approved", detail: null }]);
   });
 
   it("refuses anyone who is not an admin and changes nothing", async () => {

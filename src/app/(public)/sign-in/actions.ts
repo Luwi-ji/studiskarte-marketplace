@@ -10,12 +10,13 @@ export type SignInState = { error?: string; identifier?: string };
 const WRONG =
   "Wrong email, handle or password. If you signed up with a code or with Google and never chose a password, use Forgot password.";
 const TRY_LATER = "Too many attempts. Try again later.";
+const SUSPENDED = "Your account is suspended. If you think this is a mistake, write to support@studiskarte.com from your account email and say what happened.";
 
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const identifier = String(formData.get("identifier") ?? "");
   const password = String(formData.get("password") ?? "");
   const result = await loginWithPassword(identifier, password, await headers());
-  if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : WRONG };
+  if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : result.reason === "suspended" ? SUSPENDED : WRONG };
   redirect("/");
 }
 

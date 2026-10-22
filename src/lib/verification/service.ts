@@ -5,6 +5,7 @@ import { type DbTransaction, getDb } from "@/lib/db";
 import { InvalidImageError, processImage } from "@/lib/images/process";
 import type { ObjectStore } from "@/lib/images/store";
 import { currentLegal } from "@/lib/legal/documents";
+import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
 import { CHECK_VALID_DAYS, type DocumentKind, DOCUMENT_KINDS, idCheckIsCurrent, MAX_REJECTED_CHECKS, OPEN_CHECK_KEEP_DAYS, VIEW_LINK_SECONDS, verificationEnabled } from "@/lib/verification/config";
 import { ID_CONSENT_VERSION } from "@/lib/verification/consent";
@@ -276,9 +277,9 @@ export async function viewPicture(args: { adminId: string; verificationId: strin
 /**
  * The owner decides a pending check. The pictures are deleted from the bucket first; if that fails nothing is decided.
  * Approving gives the person the "ID checked" badge for CHECK_VALID_DAYS and confirms that the ID shows they meet the minimum age.
- * Rejecting needs a reason, which the person sees.
+ * Rejecting needs a reason, which the person sees. The person is told in their notifications either way.
  */
-export async function decideCheck(args: { adminId: string; verificationId: string; decision: "approve" | "reject"; reason?: string; store: ObjectStore; now?: Date }): Promise<Result> {
+export async function decideCheck(args: { adminId: string; verificationId: string; decision: "approve" | "reject"; reason?: string; store: ObjectStore; alert?: AlertSink; now?: Date }): Promise<Result> {
   const now = args.now ?? new Date();
   const reason = (args.reason ?? "").trim();
   if (reason.length > REASON_MAX) return { ok: false, error: `Use at most ${REASON_MAX} characters for the reason.` };
@@ -292,7 +293,8 @@ export async function decideCheck(args: { adminId: string; verificationId: strin
 
   await args.store.delete([before.documentKey, before.holdingKey].filter((k): k is string => k !== null));
 
-  return db.transaction(async (tx): Promise<Result> => {
+  let told = null as Recorded | null;
+  const result = await db.transaction(async (tx): Promise<Result> => {
     const [row] = await tx.select().from(idVerification).where(eq(idVerification.id, args.verificationId)).for("update");
     if (!row || row.status !== "pending") return { ok: false, error: "That check is not waiting for a decision." };
     await tx
@@ -305,8 +307,16 @@ export async function decideCheck(args: { adminId: string; verificationId: strin
         .set({ idCheckedAt: now, idCheckExpiresAt: new Date(now.getTime() + CHECK_VALID_DAYS * DAY), updatedAt: now })
         .where(eq(student.id, row.studentId));
     }
+    told = await recordNotification(tx, {
+      type: args.decision === "approve" ? "id_check_approved" : "id_check_rejected",
+      recipientId: row.studentId,
+      onceKey: `id-check:${args.verificationId}`,
+      detail: args.decision === "reject" ? reason : null,
+    });
     return { ok: true };
   });
+  if (result.ok && told?.alert) args.alert?.(told.id);
+  return result;
 }
 
 /**

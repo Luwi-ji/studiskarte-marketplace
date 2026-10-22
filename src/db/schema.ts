@@ -533,7 +533,7 @@ export const notification = pgTable(
     detail: text("detail"),
   },
   (t) => [
-    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'post_hidden', 'post_restored', 'post_removed', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_handover_rejected', 'deal_review_reminder', 'deal_proposal_declined', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed')`),
+    check("notification_type", sql`${t.type} in ('message', 'heart', 'post_expiring', 'post_expired', 'post_hidden', 'post_restored', 'post_removed', 'offer_received', 'offer_accepted', 'offer_declined', 'offer_expired', 'deal_cancelled', 'deal_proposed', 'deal_scheduled', 'deal_confirmed', 'deal_handover_rejected', 'deal_review_reminder', 'deal_proposal_declined', 'deal_completed', 'deal_reminder', 'deal_confirm_reminder', 'deal_expired', 'deal_paid', 'deal_payment_confirmed', 'deal_payment_requested', 'deal_cash_requested', 'deal_cash_answered', 'deal_cash_given', 'deal_cash_received', 'deal_payment_rejected', 'deal_reported', 'deal_disputed', 'id_check_approved', 'id_check_rejected')`),
     check("notification_count", sql`${t.count} >= 1`),
     uniqueIndex("notification_fold_idx").on(t.recipientId, t.type, t.foldKey).where(sql`${t.readAt} is null and ${t.foldKey} is not null`),
     uniqueIndex("notification_once_idx").on(t.recipientId, t.onceKey).where(sql`${t.onceKey} is not null`),

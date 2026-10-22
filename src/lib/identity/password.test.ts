@@ -82,9 +82,11 @@ describe("logging in with a password", () => {
     expect(await loginWithPassword(`nobody_${run}`, PASSWORD, headers)).toEqual({ ok: false, reason: "wrong" });
   });
 
-  it("refuses a suspended account even with the right password", async () => {
+  it("refuses a suspended account even with the right password, and says why only then", async () => {
     const { email } = await accountWithPassword("suspended", { accountStatus: "suspended" });
-    expect(await loginWithPassword(email, PASSWORD, headers)).toEqual({ ok: false, reason: "wrong" });
+    expect(await loginWithPassword(email, PASSWORD, headers)).toEqual({ ok: false, reason: "suspended" });
+    // A wrong password gives nothing away: nobody can find out who is suspended.
+    expect(await loginWithPassword(email, "not the password", headers)).toEqual({ ok: false, reason: "wrong" });
   });
 
   it("refuses an account that has no password yet", async () => {

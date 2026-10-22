@@ -32,6 +32,8 @@ export const NOTIFICATION_TYPES = [
   "deal_payment_rejected",
   "deal_reported",
   "deal_disputed",
+  "id_check_approved",
+  "id_check_rejected",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -72,6 +74,8 @@ const HEADLINE: Record<Exclude<NotificationType, "message" | "heart">, string> =
   deal_payment_rejected: "Payment was not received",
   deal_reported: "A problem was reported on a reservation",
   deal_disputed: "A reservation needs a look: nobody completed it",
+  id_check_approved: "Your ID check was approved. Your profile now has the ID checked badge",
+  id_check_rejected: "Your ID check was not approved. Open it to see why",
 };
 
 /** What a reservation that had a time says to do about the calendar, once it is cancelled. */
@@ -93,8 +97,9 @@ function opensConversation(type: NotificationType): boolean {
   return type === "message" || type.startsWith("offer_") || type.startsWith("deal_");
 }
 
-/** Where tapping a notification goes. */
+/** Where tapping a notification goes. An ID check result opens the ID check screen. */
 export function notificationHref(n: { type: NotificationType; postId: string | null; conversationId: string | null }): string {
+  if (n.type === "id_check_approved" || n.type === "id_check_rejected") return "/me/verify";
   if (opensConversation(n.type) && n.conversationId) return `/messages/${n.conversationId}`;
   return n.postId ? `/posts/${n.postId}` : "/notifications";
 }

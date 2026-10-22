@@ -6,6 +6,7 @@ import type { Executor } from "@/lib/db";
 export type DealNoticeType = "deal_cancelled" | "deal_proposed" | "deal_scheduled" | "deal_confirmed" | "deal_handover_rejected" | "deal_review_reminder" | "deal_proposal_declined" | "deal_completed" | "deal_reminder" | "deal_confirm_reminder" | "deal_expired" | "deal_paid" | "deal_payment_confirmed" | "deal_payment_requested" | "deal_cash_requested" | "deal_cash_answered" | "deal_cash_given" | "deal_cash_received" | "deal_payment_rejected" | "deal_reported" | "deal_disputed";
 
 export type NotificationSpec =
+  | { type: "id_check_approved" | "id_check_rejected"; recipientId: string; onceKey: string; /** The owner's reason, for a rejection. */ detail?: string | null }
   | { type: "message"; recipientId: string; postId: string | null; conversationId: string }
   | { type: "heart"; recipientId: string; postId: string }
   | { type: "post_expiring" | "post_expired" | "post_hidden" | "post_restored" | "post_removed"; recipientId: string; postId: string; onceKey: string; /** Why, in the admin's words (a removal or restore). */ detail?: string | null }
@@ -43,7 +44,7 @@ export async function recordNotification(db: Executor, spec: NotificationSpec): 
       .values({
         recipientId: spec.recipientId,
         type: spec.type,
-        postId: spec.postId,
+        postId: "postId" in spec ? spec.postId : null,
         conversationId: "conversationId" in spec ? spec.conversationId : null,
         detail: "detail" in spec ? (spec.detail ?? null) : null,
         onceKey: spec.onceKey,

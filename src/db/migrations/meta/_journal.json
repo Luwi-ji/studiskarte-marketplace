@@ -253,6 +253,13 @@
       "when": 1792649138243,
       "tag": "0035_id_verification_expired_decision",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792693048570,
+      "tag": "0036_id_check_notifications",
+      "breakpoints": true
     }
   ]
 }

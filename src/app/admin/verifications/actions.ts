@@ -5,6 +5,7 @@ import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/access";
 import { getIdStore } from "@/lib/images/store";
+import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 import { decideCheck } from "@/lib/verification/service";
 
 type Outcome = { ok: boolean; error?: string };
@@ -19,7 +20,7 @@ export async function decideCheckAction(verificationId: unknown, decision: "appr
     if (!parsed.success) return { ok: false, error: "That could not be found." };
     const text = typeof reason === "string" ? reason.trim() : "";
     if (decision === "reject" && text === "") return { ok: false, error: "Write a reason. The member will read it." };
-    const result = await decideCheck({ adminId: admin.id, verificationId: parsed.data, decision, reason: decision === "reject" ? text : undefined, store: getIdStore() });
+    const result = await decideCheck({ adminId: admin.id, verificationId: parsed.data, decision, reason: decision === "reject" ? text : undefined, store: getIdStore(), alert: sendAlertAfterResponse });
     if (result.ok) refresh();
     return result;
   } catch (error) {
