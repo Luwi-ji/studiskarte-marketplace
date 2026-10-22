@@ -71,6 +71,10 @@ export const student = pgTable(
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     // When the person confirmed they meet the minimum age (src/lib/identity/age.ts; asked together with the terms; null until they do).
     ageConfirmedAt: timestamp("age_confirmed_at", { withTimezone: true }),
+    // The owner looked at a school ID and a photo of the person and approved (src/lib/verification). Both null until then;
+    // cleared on withdrawal. The check lapses at id_check_expires_at.
+    idCheckedAt: timestamp("id_checked_at", { withTimezone: true }),
+    idCheckExpiresAt: timestamp("id_check_expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -874,6 +878,85 @@ export const adminAction = pgTable(
     check("admin_action_reason_length", sql`${t.reason} is null or char_length(btrim(${t.reason})) between 1 and 300`),
     index("admin_action_recent_idx").on(t.createdAt.desc()),
   ],
+);
+
+// One ID check. draft: consent given, pictures being added. pending: waiting for the admin. approved, rejected: decided.
+// withdrawn: the person took their consent back. expired: left pending too long, or an approval older than a year.
+// The pictures live in the private ID bucket and their keys are set to null the moment the check is decided,
+// withdrawn or expired (src/lib/verification/service.ts); what stays is the result, who decided, when and why.
+export const idVerification = pgTable(
+  "id_verification",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => student.id),
+    status: text("status").notNull().default("draft"),
+    // What the person showed: a school ID, a certificate of registration, or another school document.
+    documentKind: text("document_kind").notNull(),
+    // The role the person claimed when they asked (the role the check is for).
+    claimedRole: text("claimed_role").notNull(),
+    documentKey: text("document_key"),
+    holdingKey: text("holding_key"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    decidedBy: text("decided_by").references(() => student.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    // Why it was rejected (shown to the person), or a note on an approval.
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("id_verification_status", sql`${t.status} in ('draft', 'pending', 'approved', 'rejected', 'withdrawn', 'expired')`),
+    check("id_verification_document_kind", sql`${t.documentKind} in ('school_id', 'registration', 'other')`),
+    check("id_verification_reason_length", sql`${t.reason} is null or char_length(btrim(${t.reason})) between 1 and 300`),
+    // Pictures exist only while the check is open.
+    check("id_verification_pictures_only_while_open", sql`${t.status} in ('draft', 'pending') or (${t.documentKey} is null and ${t.holdingKey} is null)`),
+    check("id_verification_pending_has_pictures", sql`${t.status} <> 'pending' or (${t.documentKey} is not null and ${t.holdingKey} is not null and ${t.submittedAt} is not null)`),
+    // Decided means approved or rejected; an approval that later lapses to expired keeps its decision time, an open or withdrawn check has none.
+    check("id_verification_decided", sql`(${t.status} in ('approved', 'rejected') and ${t.decidedAt} is not null) or (${t.status} in ('draft', 'pending', 'withdrawn') and ${t.decidedAt} is null) or ${t.status} = 'expired'`),
+    // One open check per person.
+    uniqueIndex("id_verification_one_open").on(t.studentId).where(sql`${t.status} in ('draft', 'pending')`),
+    index("id_verification_queue_idx").on(t.status, t.submittedAt),
+  ],
+);
+
+// Proof that a person agreed to the ID check, and when they took it back. One row per event, never edited.
+// textVersion names the exact screen text (kept in src/lib/verification/consent.ts); policyVersion is content/legal/VERSION then.
+export const idConsent = pgTable(
+  "id_consent",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => student.id),
+    event: text("event").notNull(),
+    textVersion: text("text_version").notNull(),
+    policyVersion: text("policy_version"),
+    // For a withdrawal: where it was done.
+    channel: text("channel"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("id_consent_event", sql`${t.event} in ('given', 'withdrawn')`),
+    index("id_consent_student_idx").on(t.studentId, t.createdAt),
+  ],
+);
+
+// Every time an admin opened a picture of an ID. Written before the link is handed out.
+export const idImageView = pgTable(
+  "id_image_view",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    verificationId: uuid("verification_id")
+      .notNull()
+      .references(() => idVerification.id),
+    adminId: text("admin_id")
+      .notNull()
+      .references(() => student.id),
+    slot: text("slot").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("id_image_view_slot", sql`${t.slot} in ('document', 'holding')`), index("id_image_view_verification_idx").on(t.verificationId)],
 );
 
 // One student blocking another. Private: the blocked student is never told. Neither

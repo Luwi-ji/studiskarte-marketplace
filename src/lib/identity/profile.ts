@@ -13,6 +13,7 @@ import { NO_SCHOOL_LABEL, type SchoolRole } from "@/lib/identity/roles";
 import { discardImage, storeImage } from "@/lib/images/upload";
 import { currentLegal } from "@/lib/legal/documents";
 import { AGE_REQUIRED } from "@/lib/identity/age";
+import { idCheckIsCurrent } from "@/lib/verification/config";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 
 /** What a student sees about themselves. Never includes the school email. `school` reads "Visitor" when there is no school email. */
@@ -60,6 +61,8 @@ export type PublicProfile = {
   avatarKey: string | null;
   followerCount: number;
   isSelf: boolean;
+  /** The owner checked a school ID and the check has not lapsed. */
+  idChecked: boolean;
   /** Whether the viewer follows this student. */
   isFollowing: boolean;
 };
@@ -80,6 +83,8 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
       schoolName: school.name,
       schoolDomain: school.domain,
       avatarKey: image.key,
+      idCheckedAt: student.idCheckedAt,
+      idCheckExpiresAt: student.idCheckExpiresAt,
     })
     .from(student)
     .leftJoin(school, eq(school.domain, student.schoolDomain))
@@ -101,6 +106,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     avatarKey: row.avatarKey,
     followerCount: followers.n,
     isSelf: row.id === viewerId,
+    idChecked: idCheckIsCurrent(row.idCheckedAt, row.idCheckExpiresAt),
     isFollowing: mine.n > 0,
   };
 }

@@ -29,14 +29,17 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export function createR2Store(): ObjectStore {
-  const bucket = requireEnv("R2_BUCKET");
+/** The bucket and key to use: the photo bucket by default, or the private ID bucket (`createIdStore`). */
+type R2Target = { bucket: string; accessKeyId: string; secretAccessKey: string };
+
+export function createR2Store(target?: R2Target): ObjectStore {
+  const bucket = target?.bucket ?? requireEnv("R2_BUCKET");
   const client = new S3Client({
     region: "auto",
     endpoint: `https://${requireEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
     credentials: {
-      accessKeyId: requireEnv("R2_ACCESS_KEY_ID"),
-      secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY"),
+      accessKeyId: target?.accessKeyId ?? requireEnv("R2_ACCESS_KEY_ID"),
+      secretAccessKey: target?.secretAccessKey ?? requireEnv("R2_SECRET_ACCESS_KEY"),
     },
   });
 
@@ -69,6 +72,25 @@ export function createR2Store(): ObjectStore {
       });
     },
   };
+}
+
+/**
+ * The private bucket for ID pictures, kept apart from listing photos. R2_ID_BUCKET names it; its own key pair
+ * (R2_ID_ACCESS_KEY_ID, R2_ID_SECRET_ACCESS_KEY) is used when set, else the photo key pair must cover it.
+ */
+export function createIdStore(): ObjectStore {
+  return createR2Store({
+    bucket: requireEnv("R2_ID_BUCKET"),
+    accessKeyId: process.env.R2_ID_ACCESS_KEY_ID || requireEnv("R2_ACCESS_KEY_ID"),
+    secretAccessKey: process.env.R2_ID_SECRET_ACCESS_KEY || requireEnv("R2_SECRET_ACCESS_KEY"),
+  });
+}
+
+let idStore: ObjectStore | undefined;
+
+export function getIdStore(): ObjectStore {
+  idStore ??= createIdStore();
+  return idStore;
 }
 
 let store: ObjectStore | undefined;

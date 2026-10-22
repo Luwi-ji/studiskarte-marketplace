@@ -1,0 +1,2 @@
+ALTER TABLE "id_verification" DROP CONSTRAINT "id_verification_decided";--> statement-breakpoint
+ALTER TABLE "id_verification" ADD CONSTRAINT "id_verification_decided" CHECK (("id_verification"."status" in ('approved', 'rejected') and "id_verification"."decided_at" is not null) or ("id_verification"."status" in ('draft', 'pending', 'withdrawn') and "id_verification"."decided_at" is null) or "id_verification"."status" = 'expired');

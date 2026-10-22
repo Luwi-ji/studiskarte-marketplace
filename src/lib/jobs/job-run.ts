@@ -19,6 +19,8 @@ export const JOBS = {
   "review-reminders": { maxAgeMinutes: 36 * 60 },
   // Deletes rate-limit rows no window can look at any more.
   "purge-rate-limits": { maxAgeMinutes: 36 * 60 },
+  // Closes ID checks left open for 7 days (deleting their pictures) and lets lapsed approvals go.
+  "expire-id-checks": { maxAgeMinutes: 36 * 60 },
   // Measures mail, photo storage and database size against the free tiers.
   // Run daily by GitHub Actions (jobs.yml), which fails when it reports warnings.
   health: { maxAgeMinutes: 36 * 60 },

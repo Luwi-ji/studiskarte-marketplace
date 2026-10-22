@@ -13,6 +13,8 @@ Status: **partly built.** Built 2026-10-19 (ADR 0005): roles in the database (st
 - Meet-ups 6:00 AM to 8:00 PM (built 2026-10-18).
 
 ## Verification
+Built 2026-10-22 (off until `R2_ID_BUCKET` is set; see docs/release.md item 13): consent screen as its own step, ID or registration plus a photo holding it, admin review with every view logged, pictures deleted at the decision, withdrawal in one tap, 7-day cleanup, 12-month validity, 3 rejections then stop, the ID also counts as the age check, one open showcase for members without a check. Not built: a notification when the owner decides (the member sees it on /me/verify), the alumni document rules, the privacy policy section.
+
 Upload of ID or COR plus a photo holding it, reviewed by an admin; "verify later" from the profile; status shown in notifications. Built around deletion: private bucket separate from listing photos, admin-only short links, images deleted when a decision is made (keep status, reviewer, date, reason), consent text on the capture screen, limit on resubmissions, expiry after 12 months with re-verification, an alumni path for graduates. Reports and reviews count only from verified students, so sock-puppet visitors cannot hide a listing. The under-18 position must be decided first.
 
 ## Onboarding order

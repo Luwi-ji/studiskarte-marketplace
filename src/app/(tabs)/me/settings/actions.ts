@@ -9,8 +9,9 @@ import { unstable_rethrow } from "next/navigation";
 import { signOut } from "@/app/(public)/sign-in/actions";
 import { deleteAccount } from "@/lib/identity/delete-account";
 import { confirmSchoolEmail, requestSchoolEmailCode } from "@/lib/identity/school-link";
-import { getObjectStore } from "@/lib/images/store";
+import { getIdStore, getObjectStore } from "@/lib/images/store";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
+import { verificationEnabled } from "@/lib/verification/config";
 
 export type FieldState = { value: string; error?: string; saved?: boolean };
 
@@ -76,6 +77,7 @@ export async function deleteAccountAction(confirmHandle: unknown): Promise<{ ok:
       studentId: me.id,
       confirmHandle: typeof confirmHandle === "string" ? confirmHandle.slice(0, 64) : "",
       store: getObjectStore(),
+      idStore: verificationEnabled() ? getIdStore() : undefined,
       alert: sendAlertAfterResponse,
     });
     if (!result.ok) return result;

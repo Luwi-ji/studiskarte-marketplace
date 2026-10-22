@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { IdCheckedBadge } from "@/components/id-checked-badge";
 import { Stars } from "@/components/stars";
 import { requireActiveStudent } from "@/lib/access";
 import { listPostsBy } from "@/lib/discovery/feed";
@@ -84,6 +85,7 @@ async function Profile({
           <p className="max-w-full truncate text-zinc-500">@{profile.handle}</p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <VerifiedBadge />
+            {profile.idChecked ? <IdCheckedBadge /> : null}
             <span className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</span>
           </div>
           <p className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">

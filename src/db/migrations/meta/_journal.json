@@ -239,6 +239,20 @@
       "when": 1792626048284,
       "tag": "0033_admin_action",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792635247152,
+      "tag": "0034_id_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792649138243,
+      "tag": "0035_id_verification_expired_decision",
+      "breakpoints": true
     }
   ]
 }

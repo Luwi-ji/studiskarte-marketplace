@@ -22,6 +22,7 @@ import { getDb } from "@/lib/db";
 import { ACTIVE_STATUSES, syncAvailability } from "@/lib/deals/capacity";
 import { endActiveDeal } from "@/lib/deals/end";
 import type { ObjectStore } from "@/lib/images/store";
+import { deleteChecksOf } from "@/lib/verification/service";
 import { offerKey, recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 
 export type DeleteAccountResult = { ok: true } | { ok: false; error: string };
@@ -57,6 +58,8 @@ export async function deleteAccount(args: {
   studentId: string;
   confirmHandle: string;
   store: ObjectStore;
+  /** The private ID bucket, when ID checks are open: any open check loses its pictures. */
+  idStore?: ObjectStore;
   alert?: AlertSink;
   now?: Date;
 }): Promise<DeleteAccountResult> {
@@ -174,6 +177,12 @@ export async function deleteAccount(args: {
   if (!result.ok) return result;
   for (const notice of told) if (notice?.alert) args.alert?.(notice.id);
   // The account is already gone; a failed file cleanup only leaves an unused file.
+  // Same for ID pictures: the daily expire-id-checks job removes any that this misses.
+  if (args.idStore) {
+    await deleteChecksOf(args.studentId, args.idStore).catch((error) => {
+      console.error("could not remove a deleted account's ID pictures", error);
+    });
+  }
   if (avatarKeys.length > 0) {
     await args.store.delete(avatarKeys).catch((error) => {
       console.error("could not remove a deleted account's profile picture", error);

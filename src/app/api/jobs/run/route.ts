@@ -6,6 +6,9 @@ import { expireOffers } from "@/lib/jobs/expire-offers";
 import { expirePosts } from "@/lib/jobs/expire-posts";
 import { purgePosts } from "@/lib/jobs/purge-posts";
 import { purgeRateLimits } from "@/lib/jobs/purge-rate-limits";
+import { getIdStore } from "@/lib/images/store";
+import { verificationEnabled } from "@/lib/verification/config";
+import { expireChecks } from "@/lib/verification/service";
 import { warnExpiringPosts } from "@/lib/jobs/expiry-warnings";
 import { sendHandoverReminders } from "@/lib/jobs/reminders";
 import { sendReviewReminders } from "@/lib/jobs/review-reminders";
@@ -80,6 +83,13 @@ async function runNamed(name: JobName, warnings: string[]): Promise<string> {
   if (name === "purge-rate-limits") {
     return runJob(name, async () => `removed ${await purgeRateLimits(new Date())} old rate-limit rows`);
   }
+  if (name === "expire-id-checks") {
+    return runJob(name, async () => {
+      if (!verificationEnabled()) return "ID checks are not open";
+      const { closed, lapsed } = await expireChecks(getIdStore());
+      return `closed ${closed} old ID checks, ${lapsed} approvals lapsed`;
+    });
+  }
   if (name === "health") {
     return runJob(name, async () => {
       warnings.push(...healthWarnings(await measureHealth()));
@@ -90,7 +100,7 @@ async function runNamed(name: JobName, warnings: string[]): Promise<string> {
 }
 
 /**
- * ?job=expire-posts,purge-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,review-reminders,purge-rate-limits,cleanup,health (any, comma-separated) | all (default). Also reports jobs that have
+ * ?job=expire-posts,purge-posts,expire-offers,expire-deals,handover-reminders,expiry-warnings,review-reminders,purge-rate-limits,expire-id-checks,cleanup,health (any, comma-separated) | all (default). Also reports jobs that have
  * stopped running, so a dead scheduler shows up in the response, and (when the health job
  * runs) "warnings": a near-full Gmail quota, photo storage or database.
  */

@@ -11,6 +11,8 @@ import { LegalLinks } from "@/components/legal-links";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { hasCalendarToken } from "@/lib/calendar/token";
 import { CalendarLink } from "./calendar-link";
+import { verificationEnabled } from "@/lib/verification/config";
+import { getMyCheck, type MyCheck } from "@/lib/verification/service";
 import { DeleteAccount } from "./delete-account";
 import { AvatarForm, DisplayNameForm, HandleForm, SignOutButton } from "./settings-forms";
 import { SchoolEmailForm } from "./school-email-form";
@@ -18,6 +20,16 @@ import { SchoolEmailForm } from "./school-email-form";
 export const metadata = { title: "Settings · Studiskarte Marketplace" };
 
 const PICTURE_LINK_SECONDS = 5 * 60;
+
+function idCheckState(check: MyCheck): string {
+  if (check.checked) {
+    const until = check.expiresAt?.toLocaleDateString("en-PH", { dateStyle: "long", timeZone: "Asia/Manila" });
+    return until ? `ID checked until ${until}` : "ID checked";
+  }
+  if (check.open?.status === "pending") return "Waiting for the owner";
+  if (!check.open && check.lastRejection) return "Not approved";
+  return "Not checked";
+}
 
 export default function SettingsPage() {
   return (
@@ -43,6 +55,7 @@ async function Settings() {
     ? profile.nextHandleChangeAt.toLocaleDateString("en-PH", { dateStyle: "long", timeZone: "Asia/Manila" })
     : null;
   const calendarActive = await hasCalendarToken(me.id);
+  const idCheck = verificationEnabled() ? await getMyCheck(me.id) : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -86,6 +99,12 @@ async function Settings() {
           <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
         </div>
       )}
+      {idCheck ? (
+        <Link href="/me/verify" className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700">
+          <span className="text-sm font-medium">ID check</span>
+          <span className="text-sm text-zinc-600 dark:text-zinc-400">{idCheckState(idCheck)}</span>
+        </Link>
+      ) : null}
       <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
       <CalendarLink active={calendarActive} />
       <SignOutButton />
