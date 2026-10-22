@@ -7,7 +7,7 @@ import type { ObjectStore } from "@/lib/images/store";
 import { currentLegal } from "@/lib/legal/documents";
 import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
-import { CHECK_VALID_DAYS, type DocumentKind, DOCUMENT_KINDS, idCheckIsCurrent, MAX_REJECTED_CHECKS, OPEN_CHECK_KEEP_DAYS, VIEW_LINK_SECONDS, verificationEnabled } from "@/lib/verification/config";
+import { CHECK_VALID_DAYS, type DocumentKind, DOCUMENT_KINDS, documentKindsFor, idCheckIsCurrent, MAX_REJECTED_CHECKS, OPEN_CHECK_KEEP_DAYS, VIEW_LINK_SECONDS, verificationEnabled } from "@/lib/verification/config";
 import { ID_CONSENT_VERSION } from "@/lib/verification/consent";
 
 const DAY = 86_400_000;
@@ -111,6 +111,7 @@ export async function startCheck(args: { studentId: string; documentKind: unknow
     if (me.role === "visitor" || !me.schoolEmail) return { ok: false, error: NEEDS_SCHOOL_EMAIL };
     if (!me.ageConfirmedAt) return { ok: false, error: NEEDS_AGE };
     if (idCheckIsCurrent(me.checkedAt, me.expiresAt, now)) return { ok: false, error: ALREADY_CHECKED };
+    if (!documentKindsFor(me.role).includes(kind)) return { ok: false, error: "That document does not fit your role. Choose one from the list." };
 
     const rows = await tx.select({ id: idVerification.id, status: idVerification.status }).from(idVerification).where(eq(idVerification.studentId, args.studentId));
     if (rows.filter((r) => r.status === "rejected").length >= MAX_REJECTED_CHECKS) return { ok: false, error: TOO_MANY_REJECTED };

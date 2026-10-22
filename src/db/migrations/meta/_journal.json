@@ -260,6 +260,13 @@
       "when": 1792693048570,
       "tag": "0036_id_check_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792695645519,
+      "tag": "0037_id_check_graduation",
+      "breakpoints": true
     }
   ]
 }

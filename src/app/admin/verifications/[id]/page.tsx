@@ -77,7 +77,7 @@ async function Review({ params }: { params: Promise<{ id: string }> }) {
           <li>The school matches {check.schoolDomain}.</li>
           <li>The role matches the claim: {check.claimedRole}.</li>
           <li>The photo shows the same person holding the same document.</li>
-          <li>The document shows the person is at least {MIN_AGE} years old.</li>
+          {check.claimedRole === "alumni" ? <li>The document shows they graduated from this school.</li> : <li>The document shows the person is at least {MIN_AGE} years old.</li>}
           <li>It is not an ID of someone else.</li>
         </ul>
       </div>

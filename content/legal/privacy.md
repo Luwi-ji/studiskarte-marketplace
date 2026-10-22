@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-23.
+Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-23 (second version).
 
 The app is run by its owner, an individual, not a company. You can reach us at support@studiskarte.com.
 
@@ -53,7 +53,7 @@ Photos, messages and reservations are stored in these services, some outside the
 
 The ID check is optional. It lets you show that you are a real person who studies or works at the school you chose, and that you meet the minimum age of 16, so other members can trust a badge that says "ID checked". Without an ID check you can still browse, message, make offers, reserve, and post Wishlist items. You can have one open Showcase listing at a time until your ID is checked.
 
-- **What we collect.** A picture of your school ID or certificate of registration, and a photo of you holding it. These show information about your education and may show your age, so we treat them with extra care. You may cover your ID number.
+- **What we collect.** A picture of your school ID or certificate of registration, and a photo of you holding it. If you are a graduate, you show proof that you graduated instead: a diploma, a certificate of graduation or an alumni ID, but not a transcript of grades. These show information about your education and may show your age, so we treat them with extra care. You may cover your ID number.
 - **Why.** Only to decide whether to give your account an "ID checked" badge: to check who you are, your role at the school you chose, and that you meet the minimum age. We do not use the pictures for anything else.
 - **Your consent.** We ask for it on its own screen, before you can upload anything, separate from accepting these terms. The screen says what we ask for, why, who sees it, what happens next and how to withdraw. You can say no and use the rest of the app. We keep a record that you agreed: which version of the screen you saw, when, and, if you withdraw, when.
 - **Who sees it.** Only the owner. The pictures are kept in a private storage area, separate from listing photos, and the owner opens them only through links that stop working after a few minutes. Each time a picture is opened it is written down (who, which check, when). We do not share them with anyone, and they do not appear anywhere in the app.

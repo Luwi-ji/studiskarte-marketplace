@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAction } from "@/app/safety/use-action";
 import { preparePhoto } from "@/lib/images/prepare-photo";
-import { DOCUMENT_KINDS, DOCUMENT_LABEL, type DocumentKind } from "@/lib/verification/config";
+import { DOCUMENT_LABEL, type DocumentKind } from "@/lib/verification/config";
 import { ID_CONSENT } from "@/lib/verification/consent";
 import { startCheckAction, submitCheckAction, withdrawConsentAction } from "./actions";
 
@@ -20,9 +20,9 @@ function ErrorLine({ message }: { message: string | null }) {
 }
 
 /** The consent screen. The box starts unticked; nothing is asked or stored until it is ticked and "Continue" is pressed. */
-export function ConsentForm() {
+export function ConsentForm({ kinds }: { kinds: readonly DocumentKind[] }) {
   const step = useAction();
-  const [kind, setKind] = useState<DocumentKind>(DOCUMENT_KINDS[0]);
+  const [kind, setKind] = useState<DocumentKind>(kinds[0]);
   const [agreed, setAgreed] = useState(false);
 
   return (
@@ -46,7 +46,7 @@ export function ConsentForm() {
 
       <fieldset className="flex flex-col gap-1">
         <legend className="text-sm font-medium">Which document will you show?</legend>
-        {DOCUMENT_KINDS.map((value) => (
+        {kinds.map((value) => (
           <label key={value} className="flex min-h-11 items-center gap-3 text-sm">
             <input type="radio" name="documentKind" value={value} checked={kind === value} onChange={() => setKind(value)} className="h-5 w-5" />
             {DOCUMENT_LABEL[value]}

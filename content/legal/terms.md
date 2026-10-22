@@ -1,6 +1,6 @@
 # Terms of Service
 
-By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-23. If you do not agree, do not use the app.
+By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-23 (second version). If you do not agree, do not use the app.
 
 ## What the app is
 
@@ -47,7 +47,11 @@ You keep ownership of what you post. You give us permission to store it, show it
 
 ## Reports and moderation
 
-Members can report listings and people. A listing reported by three different members is hidden at once and goes to the owner for review. The owner may restore it, remove it, or suspend an account. The owner has no team, so reviews can take time.
+Members can report listings and people. A listing reported by three different members is hidden at once and goes to the owner for review. A listing reported for child safety is hidden on the first report. The owner may restore it, remove it, or suspend an account, and writes down why. The owner runs the app alone, but aims to read urgent and child safety reports within 24 hours and other reports within 3 working days.
+
+## If we remove something or suspend you
+
+If we removed your listing or suspended your account and you think we got it wrong, write to support@studiskarte.com from the email address on your account. Say what happened and what you want us to do. We will look at it again and answer within 7 days. If we were wrong we will put the listing back or restore your account. A removal or suspension for child safety reasons is final: see the Child Safety Standards.
 
 ## No warranty and limits of liability
 

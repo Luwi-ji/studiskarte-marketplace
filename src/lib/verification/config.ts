@@ -21,10 +21,16 @@ export function idCheckIsCurrent(checkedAt: Date | null, expiresAt: Date | null,
   return checkedAt !== null && expiresAt !== null && expiresAt.getTime() > now.getTime();
 }
 
-export const DOCUMENT_KINDS = ["school_id", "registration", "other"] as const;
+export const DOCUMENT_KINDS = ["school_id", "registration", "graduation", "other"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 export const DOCUMENT_LABEL: Record<DocumentKind, string> = {
   school_id: "School ID",
   registration: "Certificate of registration",
+  graduation: "Proof that you graduated: diploma, certificate of graduation or alumni ID (not a transcript of grades)",
   other: "Another school document",
 };
+
+/** What a person may show, by the role they have: graduates show proof of graduation, everyone else a school ID or registration. */
+export function documentKindsFor(role: string): readonly DocumentKind[] {
+  return role === "alumni" ? ["graduation", "other"] : ["school_id", "registration", "other"];
+}

@@ -907,7 +907,7 @@ export const idVerification = pgTable(
   },
   (t) => [
     check("id_verification_status", sql`${t.status} in ('draft', 'pending', 'approved', 'rejected', 'withdrawn', 'expired')`),
-    check("id_verification_document_kind", sql`${t.documentKind} in ('school_id', 'registration', 'other')`),
+    check("id_verification_document_kind", sql`${t.documentKind} in ('school_id', 'registration', 'graduation', 'other')`),
     check("id_verification_reason_length", sql`${t.reason} is null or char_length(btrim(${t.reason})) between 1 and 300`),
     // Pictures exist only while the check is open.
     check("id_verification_pictures_only_while_open", sql`${t.status} in ('draft', 'pending') or (${t.documentKey} is null and ${t.holdingKey} is null)`),

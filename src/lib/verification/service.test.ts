@@ -100,6 +100,19 @@ describe("asking for a check", () => {
     expect(await db.select().from(idVerification).where(inArray(idVerification.studentId, people))).toEqual([]);
   });
 
+  it("offers graduates proof of graduation, everyone else a school ID or registration, and refuses a document that does not fit the role", async () => {
+    expect(await startCheck({ studentId: ann, documentKind: "graduation", consented: true })).toMatchObject({ ok: false });
+    expect(await db.select().from(idVerification).where(eq(idVerification.studentId, ann))).toEqual([]);
+    await db.update(student).set({ role: "alumni" }).where(eq(student.id, ann));
+    try {
+      expect(await startCheck({ studentId: ann, documentKind: "school_id", consented: true })).toMatchObject({ ok: false });
+      expect(await startCheck({ studentId: ann, documentKind: "graduation", consented: true })).toMatchObject({ ok: true });
+      expect(await db.select({ kind: idVerification.documentKind, role: idVerification.claimedRole }).from(idVerification).where(eq(idVerification.studentId, ann))).toEqual([{ kind: "graduation", role: "alumni" }]);
+    } finally {
+      await db.update(student).set({ role: "student" }).where(eq(student.id, ann));
+    }
+  });
+
   it("records the consent with the text version, and asking again returns the same draft with no second consent", async () => {
     const first = await startCheck({ studentId: ann, documentKind: "registration", consented: true });
     const again = await startCheck({ studentId: ann, documentKind: "school_id", consented: true });

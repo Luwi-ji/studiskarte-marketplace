@@ -1,0 +1,2 @@
+ALTER TABLE "id_verification" DROP CONSTRAINT "id_verification_document_kind";--> statement-breakpoint
+ALTER TABLE "id_verification" ADD CONSTRAINT "id_verification_document_kind" CHECK ("id_verification"."document_kind" in ('school_id', 'registration', 'graduation', 'other'));

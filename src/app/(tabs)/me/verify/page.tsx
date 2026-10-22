@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { MAX_REJECTED_CHECKS, verificationEnabled } from "@/lib/verification/config";
 import { getMyCheck, type MyCheck } from "@/lib/verification/service";
+import { documentKindsFor } from "@/lib/verification/config";
 import { ConsentForm, UploadStep, WithdrawSection } from "./verify-forms";
 
 export const metadata = { title: "ID check · Studiskarte Marketplace" };
@@ -84,7 +85,7 @@ async function Verify() {
   return (
     <div className="flex flex-col gap-6">
       <Rejection check={check} />
-      <ConsentForm />
+      <ConsentForm kinds={documentKindsFor(me.role)} />
     </div>
   );
 }
