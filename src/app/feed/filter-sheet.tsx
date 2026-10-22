@@ -17,6 +17,8 @@ type Props = {
   /** Query-string values to keep when filters change (the search words and tab). */
   keep: Record<string, string>;
   activeCount: number;
+  /** "icon" is a small icon-only trigger with the count as a badge, for a tight toolbar. */
+  variant?: "button" | "icon";
 };
 
 const FILTER_KEYS = ["kind", "category", "condition", "min", "max", "school", "listed", "sort"];
@@ -32,7 +34,7 @@ const field =
 const legend = "text-sm font-medium";
 
 /** The Filters button and the bottom sheet it opens. Applying changes the page's query string. */
-export function FilterSheet({ action, categories, schools, values, keep, activeCount }: Props) {
+export function FilterSheet({ action, categories, schools, values, keep, activeCount, variant = "button" }: Props) {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -55,16 +57,35 @@ export function FilterSheet({ action, categories, schools, values, keep, activeC
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => dialog.current?.showModal()}
-        className="flex h-11 shrink-0 items-center gap-2 rounded-lg border border-zinc-300 px-3 font-medium dark:border-zinc-700"
-      >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
-          <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />
-        </svg>
-        Filters{activeCount > 0 ? ` (${activeCount})` : ""}
-      </button>
+      {variant === "icon" ? (
+        <button
+          type="button"
+          onClick={() => dialog.current?.showModal()}
+          aria-haspopup="dialog"
+          aria-label={activeCount > 0 ? `Filters, ${activeCount} active` : "Filters"}
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:opacity-80"
+        >
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />
+          </svg>
+          {activeCount > 0 ? (
+            <span aria-hidden className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-white">
+              {activeCount > 9 ? "9+" : activeCount}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => dialog.current?.showModal()}
+          className="flex h-11 shrink-0 items-center gap-2 rounded-lg border border-zinc-300 px-3 font-medium dark:border-zinc-700"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />
+          </svg>
+          Filters{activeCount > 0 ? ` (${activeCount})` : ""}
+        </button>
+      )}
 
       <dialog
         ref={dialog}
