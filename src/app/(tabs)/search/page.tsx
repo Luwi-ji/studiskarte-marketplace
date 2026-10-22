@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
+import { SearchHeader, type SearchNav } from "@/components/search-header";
 import { PostGrid } from "@/components/post-grid";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -9,11 +9,8 @@ import { listFeed } from "@/lib/discovery/feed";
 import { activeFilterCount, firstValues, parseFilters, toSearchParams } from "@/lib/discovery/filters";
 import { filterOptions } from "@/lib/discovery/page-data";
 import { searchPeople, searchSchools } from "@/lib/discovery/search";
-import { listCategories } from "@/lib/posts/categories";
 import { getObjectStore } from "@/lib/images/store";
-import { FilterSheet } from "../../feed/filter-sheet";
 import { MoreCards } from "../../feed/more-cards";
-import { SearchBox } from "../../feed/search-box";
 
 export const metadata = { title: "Search · Studiskarte Marketplace" };
 
@@ -28,14 +25,18 @@ const AVATAR_LINK_SECONDS = 5 * 60;
 
 export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
-    <>
-      <PageHeader title="Search" back="/" />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        <Suspense fallback={<CardGridSkeleton />}>
-          <Search searchParams={searchParams} />
-        </Suspense>
-      </main>
-    </>
+    <Suspense
+      fallback={
+        <>
+          <SearchHeader enter />
+          <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3 transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none">
+            <CardGridSkeleton />
+          </main>
+        </>
+      }
+    >
+      <Search searchParams={searchParams} />
+    </Suspense>
   );
 }
 
@@ -43,23 +44,9 @@ function Hint({ children }: { children: string }) {
   return <p className="px-6 py-12 text-center text-zinc-500">{children}</p>;
 }
 
-/** Before anything is typed: what to type, and one tap to browse a category instead. */
-async function SearchStart() {
-  const categories = await listCategories();
-  return (
-    <div className="flex flex-col gap-3 px-1 pt-2">
-      <p className="text-zinc-600 dark:text-zinc-400">Type a post, a person&apos;s handle or name, or a school. Or browse a category:</p>
-      <ul className="flex flex-wrap gap-2">
-        {categories.map((c) => (
-          <li key={c.id}>
-            <Link href={`/?${toSearchParams({ category: c.id })}`} className="flex h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-medium active:opacity-80 dark:border-zinc-700">
-              {c.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+/** Before anything is typed: what to type. Categories live in the header's menu. */
+function SearchStart() {
+  return <Hint>Search posts, people or schools.</Hint>;
 }
 
 async function Search({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -70,47 +57,56 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
   const q = filters.query ?? "";
   const tab: TabId = TABS.find((t) => t.id === params.tab)?.id ?? "posts";
 
-  return (
-    <div className="flex flex-col gap-4">
-      <SearchBox key={q} initial={q} tab={tab} />
-      <nav aria-label="Search results" className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-900">
-        {TABS.map((t) => (
-          <Link
-            key={t.id}
-            href={`/search?${toSearchParams({ ...(t.id === "posts" ? params : { q }), tab: t.id })}`}
-            aria-current={t.id === tab ? "page" : undefined}
-            className={`flex h-11 items-center justify-center rounded-md text-sm font-medium ${t.id === tab ? "bg-white shadow-sm dark:bg-zinc-700" : "text-zinc-500"}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+  const options = await filterOptions(me.id);
+  const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
 
-      {q === "" ? (
-        <SearchStart />
-      ) : tab === "posts" ? (
-        <PostResults meId={me.id} params={params} q={q} />
-      ) : tab === "people" ? (
-        <PeopleResults meId={me.id} q={q} />
-      ) : (
-        <SchoolResults meId={me.id} q={q} />
-      )}
-    </div>
+  // Choosing a category stays on Search: keep the query and the other filters, show Posts.
+  const categoryHref = (category: string | undefined) => `/search?${toSearchParams({ ...params, q, tab: "posts", category })}`;
+  const chosenCategories = filters.category ?? [];
+  const nav: SearchNav = {
+    tabs: TABS.map((t) => ({
+      id: t.id,
+      label: t.label,
+      href: `/search?${toSearchParams({ ...(t.id === "posts" ? params : { q }), tab: t.id })}`,
+      current: t.id === tab,
+    })),
+    categories: {
+      allHref: categoryHref(undefined),
+      allCurrent: chosenCategories.length === 0,
+      items: options.categories.map((c) => ({ id: c.id, name: c.name, href: categoryHref(c.id), current: chosenCategories.includes(c.id) })),
+    },
+    filters:
+      tab === "posts"
+        ? { categories: options.categories, schools: options.schools, values: params, keep: { q, tab: "posts" }, activeCount: active }
+        : null,
+  };
+
+  return (
+    <>
+      <SearchHeader nav={nav} q={q} tab={tab} />
+      <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
+        {q === "" ? (
+          <SearchStart />
+        ) : tab === "posts" ? (
+          <PostResults meId={me.id} params={params} q={q} />
+        ) : tab === "people" ? (
+          <PeopleResults meId={me.id} q={q} />
+        ) : (
+          <SchoolResults meId={me.id} q={q} />
+        )}
+      </main>
+    </>
   );
 }
 
 async function PostResults({ meId, params, q }: { meId: string; params: Record<string, string>; q: string }) {
   const filters = parseFilters(params);
   if (filters.terms.length === 0) return <Hint>Type at least 2 letters.</Hint>;
-  const [{ items, nextCursor }, options] = await Promise.all([listFeed(meId, { filters }), filterOptions(meId)]);
-  const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
+  const { items, nextCursor } = await listFeed(meId, { filters });
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-zinc-500">Newest first unless you choose another sort.</p>
-        <FilterSheet action="/search" categories={options.categories} schools={options.schools} values={params} keep={{ q, tab: "posts" }} activeCount={active} />
-      </div>
+      <p className="text-sm text-zinc-500">Newest first unless you choose another sort.</p>
       {items.length === 0 ? (
         <Hint>{`No posts found for “${q}”.`}</Hint>
       ) : (
