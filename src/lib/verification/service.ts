@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { and, asc, count, desc, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { idConsent, idImageView, idVerification, student } from "@/db/schema";
 import { type DbTransaction, getDb } from "@/lib/db";
@@ -23,6 +23,14 @@ const TOO_MANY_REJECTED = "Your ID could not be approved after several tries. Wr
 const ALREADY_WAITING = "Your ID check is already waiting for the owner.";
 const NO_OPEN_CHECK = "There is no ID check to add pictures to. Start again.";
 const NEED_BOTH = "Add both pictures first: your ID and the photo of you holding it.";
+const SAME_PICTURE = "The two pictures are the same. The second one must be a photo of you holding your ID.";
+
+/** Keys read `id/<student>/<first 16 hex of the picture's SHA-256>-<uuid>.webp`, so two identical pictures can be told apart from the key alone. */
+function keyHash(key: string | null): string | null {
+  const name = key?.split("/").pop() ?? "";
+  const dash = name.indexOf("-");
+  return dash === 16 ? name.slice(0, 16) : null;
+}
 const UPLOADS_PER_HOUR = { max: 12, windowSeconds: 60 * 60 };
 const REASON_MAX = 300;
 
@@ -128,7 +136,7 @@ export async function addPicture(args: { studentId: string; slot: Slot; bytes: B
 
   const db = getDb();
   const [draft] = await db
-    .select({ id: idVerification.id })
+    .select({ id: idVerification.id, documentKey: idVerification.documentKey, holdingKey: idVerification.holdingKey })
     .from(idVerification)
     .where(and(eq(idVerification.studentId, args.studentId), eq(idVerification.status, "draft")));
   if (!draft) return { ok: false, error: NO_OPEN_CHECK };
@@ -140,7 +148,10 @@ export async function addPicture(args: { studentId: string; slot: Slot; bytes: B
     if (error instanceof InvalidImageError) return { ok: false, error: "Use a JPEG, PNG or WebP photo." };
     throw error;
   }
-  const key = `id/${args.studentId}/${randomUUID()}.webp`;
+  const hash = createHash("sha256").update(main).digest("hex").slice(0, 16);
+  const otherKey = args.slot === "document" ? draft.holdingKey : draft.documentKey;
+  if (keyHash(otherKey) === hash) return { ok: false, error: SAME_PICTURE };
+  const key = `id/${args.studentId}/${hash}-${randomUUID()}.webp`;
   await args.store.put(key, main, "image/webp");
 
   const column = KEY_COLUMN[args.slot];
@@ -161,7 +172,13 @@ export async function addPicture(args: { studentId: string; slot: Slot; bytes: B
 /** Sends a draft with both pictures to the owner. */
 export async function submitCheck(studentId: string, now: Date = new Date()): Promise<Result> {
   if (!verificationEnabled()) return { ok: false, error: NOT_OPEN };
-  const updated = await getDb()
+  const db = getDb();
+  const [draft] = await db
+    .select({ documentKey: idVerification.documentKey, holdingKey: idVerification.holdingKey })
+    .from(idVerification)
+    .where(and(eq(idVerification.studentId, studentId), eq(idVerification.status, "draft")));
+  if (draft && keyHash(draft.documentKey) !== null && keyHash(draft.documentKey) === keyHash(draft.holdingKey)) return { ok: false, error: SAME_PICTURE };
+  const updated = await db
     .update(idVerification)
     .set({ status: "pending", submittedAt: now })
     .where(and(eq(idVerification.studentId, studentId), eq(idVerification.status, "draft"), isNotNull(idVerification.documentKey), isNotNull(idVerification.holdingKey)))

@@ -36,8 +36,10 @@ function memoryStore() {
 }
 
 let picture: Buffer;
+let picture2: Buffer;
 beforeAll(async () => {
   picture = await sharp({ create: { width: 64, height: 48, channels: 3, background: "#336699" } }).png().toBuffer();
+  picture2 = await sharp({ create: { width: 64, height: 48, channels: 3, background: "#993366" } }).png().toBuffer();
   await createTestStudent(ann, { handle: `idca_${run}`, name: "Ann Student" });
   await createTestStudent(visitor, { handle: `idcv_${run}`, visitor: true });
   await createTestStudent(noAge, { handle: `idcn_${run}`, name: "No Age" });
@@ -71,7 +73,7 @@ async function pendingCheck(store: ObjectStore, who = ann): Promise<string> {
   const started = await startCheck({ studentId: who, documentKind: "school_id", consented: true });
   if (!started.ok) throw new Error(started.error);
   for (const slot of ["document", "holding"] as const) {
-    const added = await addPicture({ studentId: who, slot, bytes: picture, store });
+    const added = await addPicture({ studentId: who, slot, bytes: slot === "document" ? picture : picture2, store });
     if (!added.ok) throw new Error(added.error);
   }
   const sent = await submitCheck(who);
@@ -122,11 +124,24 @@ describe("adding pictures and sending", () => {
     expect(objects.has(firstKey)).toBe(false);
     expect(objects.size).toBe(1);
 
-    expect(await addPicture({ studentId: ann, slot: "holding", bytes: picture, store })).toEqual({ ok: true });
+    expect(await addPicture({ studentId: ann, slot: "holding", bytes: picture2, store })).toEqual({ ok: true });
     expect(objects.size).toBe(2);
     expect([...objects.keys()].every((k) => k.startsWith(`id/${ann}/`))).toBe(true);
     expect(await submitCheck(ann)).toEqual({ ok: true });
     expect((await listPendingChecks()).filter((p) => p.studentId === ann)).toMatchObject([{ handle: `idca_${run}`, claimedRole: "student", documentKind: "school_id", earlierRejections: 0 }]);
+  });
+
+  it("refuses the same picture in both slots, in either order, and accepts a different one", async () => {
+    const { store, objects } = memoryStore();
+    await startCheck({ studentId: ann, documentKind: "school_id", consented: true });
+    expect(await addPicture({ studentId: ann, slot: "document", bytes: picture, store })).toEqual({ ok: true });
+    expect(await addPicture({ studentId: ann, slot: "holding", bytes: picture, store })).toMatchObject({ ok: false });
+    expect(objects.size).toBe(1);
+    expect(await submitCheck(ann)).toMatchObject({ ok: false });
+    expect(await addPicture({ studentId: ann, slot: "holding", bytes: picture2, store })).toEqual({ ok: true });
+    // Putting the ID picture back into the selfie's slot is refused the other way round too.
+    expect(await addPicture({ studentId: ann, slot: "document", bytes: picture2, store })).toMatchObject({ ok: false });
+    expect(await submitCheck(ann)).toEqual({ ok: true });
   });
 
   it("refuses bytes that are not a picture, and a person with no open check", async () => {
