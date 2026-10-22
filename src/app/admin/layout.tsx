@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AdminNav } from "./admin-nav";
 
@@ -15,7 +16,10 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
           </Link>
           <p className="min-w-0 flex-1 truncate text-lg font-semibold">Admin</p>
         </div>
-        <AdminNav />
+        {/* usePathname() is read at request time on a page with a dynamic segment, so the tabs wait inside Suspense. */}
+        <Suspense fallback={<div className="h-11" />}>
+          <AdminNav />
+        </Suspense>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-4">{children}</main>
     </>
