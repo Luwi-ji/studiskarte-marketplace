@@ -17,6 +17,10 @@
   --gold: #f5b301;
   /* Secondary text: AA on white here, and lightened in dark mode (below). */
   --zinc-500: #5f6b7e;
+  /* Border of a text field, select or text area: 3:1 against the page (WCAG 1.4.11), where zinc-300 is only 1.5:1. */
+  --field-border: #8592a8;
+  /* Native controls (radios, checkboxes, scrollbars, date pickers) follow the phone's light or dark setting. */
+  color-scheme: light dark;
 }
 
 @theme inline {
@@ -53,6 +57,7 @@
     --background: #0b101a;
     --foreground: #e8edf5;
     --zinc-500: #8c97aa;
+    --field-border: #5d6b83;
     --brand-text: #6aa5ff;
   }
 }
@@ -83,4 +88,14 @@ body {
 input[type="radio"],
 input[type="checkbox"] {
   accent-color: var(--brand);
+}
+
+/*
+ * One border colour for every text field, select and text area, so no form needs its own
+ * zinc-300 / zinc-700 pair. Left unlayered on purpose: it wins over the utility classes.
+ */
+input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="hidden"], [type="submit"], [type="button"]),
+textarea,
+select {
+  border-color: var(--field-border);
 }

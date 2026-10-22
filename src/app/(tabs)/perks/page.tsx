@@ -36,7 +36,7 @@ function Chip({ to, active, children }: { to: string; active: boolean; children:
       href={to}
       replace
       aria-current={active ? "true" : undefined}
-      className={`flex h-9 shrink-0 items-center rounded-full border px-3 text-sm ${active ? "border-transparent bg-brand font-medium text-white" : "border-zinc-300 dark:border-zinc-700"}`}
+      className={`flex h-11 shrink-0 items-center rounded-full border px-4 text-sm ${active ? "border-transparent bg-brand font-medium text-white" : "border-zinc-300 dark:border-zinc-700"}`}
     >
       {children}
     </Link>
@@ -56,7 +56,7 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="px-1 text-sm text-zinc-600 dark:text-zinc-400">Discounts from businesses near campus, for verified students.</p>
+      <p className="px-1 text-sm text-zinc-600 dark:text-zinc-400">Discounts from shops near campus, for members of your school.</p>
 
       {kinds.length > 1 ? (
         <nav aria-label="Kind" className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1">
@@ -84,7 +84,7 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
       ) : null}
 
       {perks.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+        <div className="flex flex-col items-center gap-4 px-6 py-14 text-center">
           <p className="text-zinc-600 dark:text-zinc-400">
             {filtered ? "No perks match these filters." : "No perks near your school yet. Partner shops are being added."}
           </p>
@@ -92,7 +92,11 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
             <Link href="/perks" replace className="flex h-11 items-center rounded-full border border-zinc-300 px-5 text-sm font-medium dark:border-zinc-700">
               Clear filters
             </Link>
-          ) : null}
+          ) : (
+            <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+              Browse the feed
+            </Link>
+          )}
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -105,7 +109,7 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
                 </p>
                 <h2 className="text-base font-semibold leading-snug">{p.title}</h2>
                 <p className="text-sm text-zinc-700 dark:text-zinc-300">{p.terms}</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   {[p.area, limit, p.endsAt ? `Until ${dateFormat.format(p.endsAt)}` : null].filter(Boolean).join(" · ")}
                 </p>
               </li>

@@ -55,7 +55,7 @@ export function SchoolEmailForm() {
             formAction={requestAction}
             formNoValidate
             disabled={confirming || requesting}
-            className="text-sm text-zinc-600 underline disabled:opacity-60 dark:text-zinc-400"
+            className="inline-flex min-h-11 items-center text-sm text-zinc-600 underline disabled:opacity-60 dark:text-zinc-400"
           >
             {requesting ? "Sending…" : "Send a new code"}
           </button>

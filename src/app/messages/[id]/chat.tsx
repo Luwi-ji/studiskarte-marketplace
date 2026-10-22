@@ -35,7 +35,7 @@ function pictureRatio(p: ChatPictureData): number {
 }
 
 const timeFormat = new Intl.DateTimeFormat("en-PH", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" });
-const dayFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
+const dayFormat = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Manila" });
 
 /**
  * The thread and the message box. The page refreshes itself every few seconds
@@ -172,7 +172,7 @@ export function Chat({
                 {m.body ? (
                   <p className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 ${m.mine ? "bg-brand text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>{m.body}</p>
                 ) : null}
-                <span className="px-1 text-[11px] text-zinc-500">{timeFormat.format(when)}</span>
+                <span className="px-1 text-xs text-zinc-500">{timeFormat.format(when)}</span>
               </div>
             </li>
           );

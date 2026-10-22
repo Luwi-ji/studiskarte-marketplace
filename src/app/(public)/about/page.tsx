@@ -35,7 +35,13 @@ export default function AboutPage() {
           <li>Message another member, make an offer, reserve, and agree a time and place for the handover.</li>
           <li>Leave and read reviews after a completed deal, and report or block anyone who misbehaves.</li>
         </ul>
-        <p>The app never handles money. You pay each other in person or in the way the listing says.</p>
+        <p>
+          <strong>The app never handles money.</strong> You pay each other in person or in the way the listing says.{" "}
+          <strong>Do not pay before you and the other member have agreed a time and place for the handover.</strong>
+        </p>
+        <p>
+          We send a code to confirm your school email before it counts. Reviews come only after a real deal, and you can report or block anyone.
+        </p>
       </section>
 
       <section className="flex flex-col gap-2">
@@ -61,7 +67,7 @@ export default function AboutPage() {
         </Link>
         <Link
           href="/sign-up"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-3 text-center text-base font-medium dark:border-zinc-700"
+          className="w-full rounded-lg border border-zinc-400 px-3 py-3 text-center text-base font-medium dark:border-zinc-600"
         >
           Create an account
         </Link>

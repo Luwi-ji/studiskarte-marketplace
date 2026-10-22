@@ -43,7 +43,7 @@ type Props = {
   responderName: string;
   /** "message": the card where the offer was made. "pinned": the reservation's card, placed at its latest update. */
   placement: "message" | "pinned";
-  /** For a "message" card: its reservation has its own card further down, so only the offer text stays here. */
+  /** For a "message" card: its reservation has its own card further down, so only a one-line note stays here. */
   dealPinned?: boolean;
 };
 
@@ -66,7 +66,7 @@ function updatedAgo(iso: string, now = Date.now()): string {
  * (after a confirming tap) or decline a pending offer; the one who made it can
  * withdraw it. Once accepted, its reservation (time and place, payment, cancel,
  * report) is shown as one card that moves down the thread with every update, so it
- * is never buried; the offer's own card then only points to it.
+ * is never buried; the offer's own place in the chat then only holds a one-line note.
  */
 export function OfferCardView({ offer, responderName, placement, dealPinned = false }: Props) {
   const { viewerIsOwner } = offer;
@@ -139,8 +139,12 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
   const reported = status === "accepted" && dealStatus === "disputed";
   const canCancel = status === "accepted" && offer.deal !== null && (dealStatus === "agreed" || dealStatus === "scheduled") && !offer.deal.secured;
   const settled = status !== "pending";
-  // The interactive reservation card is further down the chat, at its latest update: this card only points to it.
+  // The interactive reservation card is further down the chat, at its latest update: this one is only a line saying so.
   const pointer = placement === "message" && dealPinned && status === "accepted" && offer.deal !== null;
+  if (pointer) return <p className="w-full px-1 py-1 text-center text-sm text-zinc-600 dark:text-zinc-400">Reservation accepted. Latest update below.</p>;
+  // The pill says where the reservation stands; the sentence under it only adds what the pill cannot (how many units).
+  const showStatusText = !(placement === "pinned" && offer.deal && dealStatus && !many && !cancelled && !reported);
+  const pill = dealStatus === "disputed" ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200" : dealStatus === "cancelled" ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" : "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200";
   return (
     <div className={`${placement === "pinned" ? "w-full" : "w-[85%]"} rounded-2xl border p-3 ${reported ? "border-amber-500" : status === "accepted" && !cancelled ? "border-green-600" : "border-zinc-300 dark:border-zinc-700"} bg-[var(--background)]`}>
       <p className="text-xs text-zinc-500">{who}</p>
@@ -148,18 +152,17 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
         <ProductCard post={offer.listing.post} thumbUrl={offer.listing.thumbUrl} compact />
       </div>
       <p className="text-lg font-semibold">{title}</p>
-      <p className={`text-sm ${(settled && status !== "accepted") || cancelled || pointer ? "text-zinc-500" : ""}`}>
-        {pointer
-          ? "This reservation moves down the chat with every update. See its latest card below."
-          : cancelled
-            ? "Cancelled. The units went back to the post."
-            : reported
-              ? "Reservation reported."
-              : (statusText[status] ?? "")}
-      </p>
       {placement === "pinned" && offer.deal && dealStatus ? (
-        <p className="text-xs text-zinc-500">
-          <span className="font-medium">{DEAL_LABEL[dealStatus] ?? dealStatus}</span> · Updated <span suppressHydrationWarning>{updatedAgo(offer.deal.activityAt)}</span>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+          <span className={`rounded-full px-2.5 py-1 text-sm font-medium ${pill}`}>{DEAL_LABEL[dealStatus] ?? dealStatus}</span>
+          <span>
+            Updated <span suppressHydrationWarning>{updatedAgo(offer.deal.activityAt)}</span>
+          </span>
+        </p>
+      ) : null}
+      {showStatusText ? (
+        <p className={`text-sm ${(settled && status !== "accepted") || cancelled ? "text-zinc-500" : ""}`}>
+          {cancelled ? "Cancelled. The units went back to the post." : reported ? "Reservation reported." : (statusText[status] ?? "")}
         </p>
       ) : null}
 
@@ -196,12 +199,12 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
         </button>
       ) : null}
 
-      {status === "accepted" && offer.deal && !cancelled && !pointer ? <HandoverPanel deal={offer.deal} viewerIsOwner={viewerIsOwner} otherName={responderName} /> : null}
+      {status === "accepted" && offer.deal && !cancelled ? <HandoverPanel deal={offer.deal} viewerIsOwner={viewerIsOwner} otherName={responderName} /> : null}
 
       {/* A cancelled or reported reservation that had a time: the calendar says to remove it. */}
-      {!pointer && (cancelled || reported) && offer.deal?.handover ? <CalendarActions deal={{ ...offer.deal, status: cancelled ? "cancelled" : offer.deal.status }} /> : null}
+      {(cancelled || reported) && offer.deal?.handover ? <CalendarActions deal={{ ...offer.deal, status: cancelled ? "cancelled" : offer.deal.status }} /> : null}
 
-      {canCancel && !cancelled && !pointer ? (
+      {canCancel && !cancelled ? (
         confirmingCancel ? (
           <div className="mt-3 flex flex-col gap-2">
             <p className="text-sm">Cancel this reservation? {viewerIsOwner ? "The units go back to your post." : "They are told."}</p>
@@ -215,9 +218,11 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
             </div>
           </div>
         ) : (
-          <button type="button" disabled={busy !== null} onClick={() => setConfirmingCancel(true)} className="mt-3 h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-            Cancel reservation
-          </button>
+          <div className="mt-3 border-t border-zinc-200 pt-1 dark:border-zinc-800">
+            <button type="button" disabled={busy !== null} onClick={() => setConfirmingCancel(true)} className="flex h-11 w-full items-center justify-center text-sm font-medium text-red-600 disabled:opacity-60 dark:text-red-400">
+              Cancel reservation
+            </button>
+          </div>
         )
       ) : null}
 

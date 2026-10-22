@@ -9,7 +9,7 @@ const KIND_LABEL = { showcase: "Showcase", wishlist: "Wishlist" } as const;
 
 const COPY: Record<HandoverKind, { title: string; empty: string }> = {
   sold: { title: "Sold", empty: "Nothing sold yet." },
-  granted: { title: "Granted", empty: "Nothing given away yet." },
+  granted: { title: "Given free", empty: "Nothing given away yet." },
   bought: { title: "Bought", empty: "Nothing bought yet." },
 };
 

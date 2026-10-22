@@ -27,6 +27,7 @@ function Status({ state }: { state: FieldState }) {
 
 export function DisplayNameForm({ current }: { current: string }) {
   const [state, action, pending] = useActionState<FieldState, FormData>(saveDisplayName, { value: current });
+  const [typed, setTyped] = useState(current);
   return (
     <form action={action} className="flex flex-col gap-2">
       <label htmlFor="displayName" className="text-sm font-medium">
@@ -36,12 +37,13 @@ export function DisplayNameForm({ current }: { current: string }) {
         <input
           id="displayName"
           name="displayName"
-          defaultValue={state.value}
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
           required
           maxLength={DISPLAY_NAME_MAX * 4}
           className={input}
         />
-        <button type="submit" disabled={pending} className={button}>
+        <button type="submit" disabled={pending || typed.trim() === state.value.trim()} className={button}>
           Save
         </button>
       </div>
@@ -52,6 +54,8 @@ export function DisplayNameForm({ current }: { current: string }) {
 
 export function HandleForm({ current, nextChangeOn }: { current: string; nextChangeOn: string | null }) {
   const [state, action, pending] = useActionState<FieldState, FormData>(saveHandle, { value: current });
+  const [typed, setTyped] = useState(current);
+  const unchanged = typed.trim().replace(/^@/, "").toLowerCase() === state.value;
   return (
     <form action={action} className="flex flex-col gap-2">
       <label htmlFor="handle" className="text-sm font-medium">
@@ -62,7 +66,8 @@ export function HandleForm({ current, nextChangeOn }: { current: string; nextCha
         <input
           id="handle"
           name="handle"
-          defaultValue={state.value}
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
           required
           autoCapitalize="none"
           autoCorrect="off"
@@ -71,11 +76,11 @@ export function HandleForm({ current, nextChangeOn }: { current: string; nextCha
           disabled={nextChangeOn !== null && !state.saved}
           className={`${input} disabled:opacity-60`}
         />
-        <button type="submit" disabled={pending || (nextChangeOn !== null && !state.saved)} className={button}>
+        <button type="submit" disabled={pending || unchanged || (nextChangeOn !== null && !state.saved)} className={button}>
           Save
         </button>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
         {nextChangeOn
           ? `You can change your handle again on ${nextChangeOn}.`
           : "You can change your handle once every 30 days."}
@@ -85,7 +90,17 @@ export function HandleForm({ current, nextChangeOn }: { current: string; nextCha
   );
 }
 
-export function AvatarForm({ pictureUrl }: { pictureUrl: string | null }) {
+/** Up to two capital letters for a picture-less avatar: the first letters of the first two words. */
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => Array.from(word)[0].toUpperCase())
+    .join("");
+}
+
+export function AvatarForm({ pictureUrl, name }: { pictureUrl: string | null; name: string }) {
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -130,10 +145,12 @@ export function AvatarForm({ pictureUrl }: { pictureUrl: string | null }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={pictureUrl} alt="Your profile picture" className="h-20 w-20 rounded-full object-cover" />
       ) : (
-        <div className="h-20 w-20 rounded-full bg-zinc-200 dark:bg-zinc-800" aria-label="No profile picture" />
+        <div role="img" aria-label="No profile picture" className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-brand/15 text-2xl font-semibold text-brand-text">
+          <span aria-hidden>{initials(name)}</span>
+        </div>
       )}
       <div className="flex flex-col gap-1">
-        <label className="flex h-11 cursor-pointer items-center rounded-lg border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700">
+        <label className="flex h-11 cursor-pointer items-center rounded-lg border border-zinc-400 px-4 text-sm font-medium dark:border-zinc-600">
           {busy ? "Uploading…" : pictureUrl ? "Change picture" : "Add a picture"}
           <input
             type="file"
@@ -188,7 +205,7 @@ export function SignOutButton() {
           window.location.assign("/sign-in");
         }
       }}
-      className="flex h-12 w-full items-center justify-center rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700"
+      className="flex h-12 w-full items-center justify-center rounded-lg border border-zinc-400 font-medium disabled:opacity-60 dark:border-zinc-600"
     >
       {busy ? "Signing out…" : "Sign out"}
     </button>

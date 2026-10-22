@@ -1,8 +1,10 @@
 import { and, count, desc, eq, gt, inArray, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { conversation, conversationListing, deal, dealReport, image, message, messageImage, offer, post, postPhoto, review, student } from "@/db/schema";
+import { conversation, conversationListing, deal, dealReport, image, message, messageImage, offer, post, postPhoto, review, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { transactionLabel } from "@/lib/deals/rules";
+import { getReputation, type Reputation } from "@/lib/deals/stats";
+import { NO_SCHOOL_LABEL } from "@/lib/identity/roles";
 import { loadAvailability } from "@/lib/posts/availability";
 import type { Availability } from "@/lib/posts/schema";
 import { asMethod, type HandoverMethod } from "@/lib/deals/handover";
@@ -125,6 +127,8 @@ export type ConversationView = {
   id: string;
   /** The other person, with their student id (for blocking and reporting them). */
   other: Person & { id: string };
+  /** What the thread header says about them: school, stars, units sold, whether a school email was checked. */
+  profile: { school: string; schoolEmailChecked: boolean; rating: Reputation["rating"]; sold: number };
   messages: ChatMessage[];
   /** Every listing the two have dealt about, the one with the newest message first. */
   listings: ThreadListing[];
@@ -416,6 +420,24 @@ function reviewsOf(rows: ReviewRow[], viewerId: string): NonNullable<DealCard["r
   return { mine: pick(rows.find((r) => r.reviewerId === viewerId)), theirs: pick(rows.find((r) => r.reviewerId !== viewerId)) };
 }
 
+/** The other person's school, stars and units sold, for the thread header. */
+async function otherProfile(studentId: string): Promise<ConversationView["profile"]> {
+  const [[row], reputation] = await Promise.all([
+    getDb()
+      .select({ schoolName: school.name, schoolDomain: student.schoolDomain })
+      .from(student)
+      .leftJoin(school, eq(school.domain, student.schoolDomain))
+      .where(eq(student.id, studentId)),
+    getReputation(studentId),
+  ]);
+  return {
+    school: row?.schoolName ?? row?.schoolDomain ?? NO_SCHOOL_LABEL,
+    schoolEmailChecked: row?.schoolDomain != null,
+    rating: reputation.rating,
+    sold: reputation.sold,
+  };
+}
+
 /**
  * One conversation with its latest messages, or null unless the viewer is one
  * of its two participants. Picture keys are only ever returned here, so only a
@@ -552,7 +574,7 @@ export async function getConversation(viewerId: string, conversationId: string):
   pinned.sort((a, b) => a.deal.activityAt.getTime() - b.deal.activityAt.getTime());
 
   const { other, otherId, readUpTo } = split(row, viewerId);
-  const [replyTime, blocked] = await Promise.all([getReplyTime(otherId), isBlockedEitherWay(viewerId, otherId)]);
+  const [replyTime, blocked, profile] = await Promise.all([getReplyTime(otherId), isBlockedEitherWay(viewerId, otherId), otherProfile(otherId)]);
   return {
     id: row.id,
     other: { ...other, id: otherId },
@@ -573,6 +595,7 @@ export async function getConversation(viewerId: string, conversationId: string):
     readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus, blocked }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
     replyTime,
+    profile,
   };
 }
 

@@ -1,0 +1,56 @@
+# Audit: account and legal screens
+
+Screens: settings, verify (ID check consent), perks, sign in, sign up, about, terms, child safety. Light and dark, 360 px, from the full-page captures. Rules: `docs/design/principles.md` (P1 to P24) and `docs/design/brand.md`. Legal pages are judged on readability only, not wording. Perks was captured with no perks (empty state only); perk card findings come from the code and are marked as such.
+
+## Findings
+
+### S2. Legal pages (terms, child safety, privacy, guidelines): dead end in the installed app
+Both modes. `/legal/[doc]` has no header and no back link. The only exits are four underlined text links at the very bottom of a page that is about 4,300 px (terms) or 7,000 px (child safety) tall. Settings and About link here in the same tab, and an installed app has no browser back button, which is the reason `PageHeader` has a 44 px back target (P20). Fix: render `<PageHeader title={LEGAL_TITLES[doc]} back="/me/settings" />` (or a Back link that goes to `/about` when signed out) and drop the page `h1`. File: `src/app/(public)/legal/[doc]/page.tsx:22-24`.
+
+### S2. Settings: the screen has no clear order and "Create calendar link" is the loudest control
+Both modes. Reading top to bottom: five equal outline buttons (My profile, Hearted, Notifications, Transactions, Blocked students, with Blocked alone on a third row), then avatar, name, handle, school, ID check, alerts, calendar, sign out, legal links, delete. There are no section headings, and the page title says "Me" while the URL and tab title say Settings. Buttons come in four styles: blue Save x2 (always enabled, even with nothing changed), near-black "Create calendar link" (inverts to a bright white slab in dark mode, the highest-contrast element on the page, for a rarely used feature), outline Sign out, outline Delete. P20 says the primary action is largest and others recede. Fix: group into "Your activity" (links as plain rows with a chevron, not buttons), "Profile", "Notifications and calendar", "Account"; make the calendar button an outline `BUTTON`, and enable Save only when the field changed. Files: `src/app/(tabs)/me/settings/page.tsx:37,68-111`; `calendar-link.tsx:106` (`PRIMARY`).
+
+### S2. Verify (ID check): Continue is a ghost until the box is ticked, so the two buttons do not look equal
+Both modes. Shape and size match (both `BUTTON`, h-11, same border), so the rule is met on paper. But before ticking, Continue is `disabled:opacity-50` on an already light border and reads as a missing button, while "Not now" looks like the main action (light: Continue text about 2.4:1 against white). Nothing says why Continue is off. "Continue" also does not say it leads to uploading ID pictures. Fix: keep both at full opacity, let Continue stay clickable and, when the box is unticked, show "Tick the box above to continue" under it (`role="alert"`); relabel to "Continue to upload" (P23: the next step must be clear). Files: `src/app/(tabs)/me/verify/verify-forms.tsx:11,62-69`; copy in `src/lib/verification/consent.ts:21`.
+
+### S2. Verify: the notice is complete but the page is a 14 px wall, and its key promise is the fourth block
+Both modes. P23 asks for purpose, who sees it, how long, how to withdraw on the capture screen, and all are there. They are six text-sm blocks plus a controller paragraph in grey (zinc-600) before the first control, so the checkbox sits about 1,150 px down. The promise a student cares about ("pictures are deleted as soon as the owner decides") is under "What happens next", fourth. "The owner" is used five times and only named in the grey footer paragraph; "alumnus" reads stiff. The page also shows the title twice ("ID check" in the header, "Check your ID (optional)" in the body). Fix: add a 3-line summary at the top ("Only the owner sees your pictures. They are deleted when decided. Optional, and you can withdraw in Settings."), keep the six blocks below it, say "the Studiskarte owner, Lowel-Jay Rubino" once, drop the duplicate h2. Files: `src/lib/verification/consent.ts:10-19`; `verify-forms.tsx:30`.
+
+### S2. Dark mode, verify and sign-up: native radios and checkbox render as white blobs
+Dark only. On the verify screen the two unselected radios and the unticked consent box are solid white discs and a white square on `#0b101a`, the brightest things on the page. `globals.css` sets `accent-color` for checkboxes only and no `color-scheme: dark`, so form controls use light-theme defaults. Fix: add `color-scheme: light dark` to `:root` and extend `accent-color: var(--brand)` to `input[type="radio"]`. File: `src/app/globals.css:51-55,84-86`.
+
+### S2. Sign in and sign up: text links are about 20 px tall
+Both modes. "Forgot password?", "Create an account" (sign in), "Log in" (sign up) and "Send a new code" are inline `text-sm underline` links with no minimum height, so each is a ~20 px target for the two most important recovery paths (P20). The legal links under them are already `min-h-11` and look fine. Fix: give `linkClass` `inline-flex min-h-11 items-center`, and wrap the "New here?" and "Already have an account?" links the same way. Files: `src/app/(public)/auth-styles.ts:8`; `sign-in/sign-in-form.tsx:36,48-53`; `sign-up/sign-up-form.tsx:53,93-98`.
+
+### S2. About: the money line has no warning
+Both modes. "The app never handles money. You pay each other in person or in the way the listing says." is the only payment statement on the public front door, and it is a plain paragraph between two lists. It never says do not pay before the handover is agreed, the scam P16 and brand.md ("safety copy leads with it") say to lead with. The Terms page bolds the same first sentence, so About is also inconsistent. Fix: bold the first sentence and add: "Do not pay before you and the other member have agreed the handover." Also add one trust line (school email checked, reviews after real deals, report and block) so About carries P1 to P3 as well as the Google data note. File: `src/app/(public)/about/page.tsx:38`.
+
+### S2. Legal readability (terms, child safety): no rhythm, no way to jump, duplicated title
+Both modes. (1) Page `h1` and the document's own `# Title` both print: "Terms of Service" twice, "Child Safety Standards" twice, one under the other. (2) Headings are `text-lg` semibold, 18 px against 16 px body, with `mt-2` above and `gap-3` between blocks, so section breaks barely read in a 7,000 px page; level 1 and 2 are hard to tell apart. (3) Dates are written 2026-10-23, breaking the voice rule (Oct 23, 2026), and "2026-10-22" wraps mid-date as "2026-10-" / "22" on child safety. (4) "Version 2026-10-23-b" is 12 px zinc-500, fine for contrast (5.4:1) but it is the only metadata. (5) Footer links are about 20 px tall (`underline`, no `min-h-11`). Good: `max-w-prose`, 16 px, comfortable leading, contrast fine in both modes. Fix: skip the first `#` heading in `LegalText` (or the page `h1`), give headings `mt-6` and `text-xl` (level 2) and `text-lg` (level 3), add `whitespace-nowrap` or write dates "Oct 23, 2026" in the source text, add a short "On this page" list to child safety (7,000 px), use `min-h-11` on the footer nav. Files: `src/components/legal-text.tsx:22-30`; `src/app/(public)/legal/[doc]/page.tsx:23-26`.
+
+### S3. Settings: alerts toggle is 32 px high, the off state is faint, and its text is smaller than the calendar text
+Both modes. The switch is `h-8 w-14` (32 px high; only the row is 44 px), and the off track (zinc-300 on white, a pale blue-grey) is about 1.5:1 against the page, so it can read as disabled in light mode. The alerts description is `text-xs` 12 px while the calendar description below it is `text-sm` 14 px, in a block of the same weight. Fix: make the button `h-11` with the track drawn inside, use `bg-zinc-400` for off, and raise the description to `text-sm`. File: `src/components/alerts-toggle.tsx:107,119`.
+
+### S3. Settings: ID check row and the school badge state
+Both modes. The "ID check / Not checked" row is outlined like a link but has no chevron and no benefit line, so it reads as a status field. P3 asks for the ladder to show the fact: nothing here says "School email checked" (only the school name under a role label). Fix: add a chevron and a one-line subtitle ("Optional. Adds an ID checked badge."), and show "School email checked" as the line above. File: `src/app/(tabs)/me/settings/page.tsx:96-107`.
+
+### S3. Settings: empty avatar is a blank grey disc
+Both modes. 80 px plain circle, `aria-label` only, next to "Add a picture". It looks like a failed image. Fix: show the initials of the display name on the tinted background (the profile is optional, P2). File: `src/app/(tabs)/me/settings/settings-forms.tsx:133`.
+
+### S3. Sign up: loses the brand and the first label does not say school
+Both modes. Sign in shows the logo tile and tagline; sign up starts with a blank top third (`justify-center`) and a plain heading, so two screens in one flow look like two products. The only label is "Email" with a `you@school.edu.ph` placeholder that is about 2.5:1 in light (zinc-400); when visitors are off the radio group is hidden, so the school path is implied only by the placeholder. Fix: reuse the sign-in header, label "School email" (and "Email" when the visitor option shows), keep the helper under the field. Files: `src/app/(public)/sign-up/page.tsx:13-19`; `sign-up-form.tsx:76-86`.
+
+### S3. Perks: thin empty state, 36 px chips, "verified" used loosely
+Both modes. The empty state is two centred lines in the top quarter of a blank screen with no next step; brand.md wants one button ("Browse the feed"). The intro says "for verified students" but brand.md says each badge states what was checked, and nothing says which check unlocks perks. From code, not visible yet: filter chips are `h-9` (36 px, under 44) and a perk card has no line on how to claim it. Fix: add a "Browse the feed" button and a line "Perks are for students with a checked school email."; make chips `h-11`; add "Show this screen at the shop" (or the real claim step) to the card. File: `src/app/(tabs)/perks/page.tsx:39,59,86-96`.
+
+### S3. Child safety: the emergency line is the last bullet of "In short"
+Both modes. "If a child is in danger now, call 911." has the same weight as "Zero tolerance." and sits fifth in a list; the reporting email is split across lines under the floating dev badge. Fix: pull it out as a bordered callout above "In short". Source text in the legal document set, rendered by `src/components/legal-text.tsx`.
+
+## What already works well
+
+- Sign in: logo, one blue primary button, Google as a clear second option, 16 px inputs, strong focus ring in both modes. Do not change this layout.
+- About and sign in/up use `max-w-prose` / `max-w-sm`, 16 px body and a consistent blue/outline button pair; nothing breaks at 360 px.
+- Legal pages keep contrast high in dark mode (zinc-200 on `#0b101a`), with a readable line length.
+- Settings keeps Delete my account away from Sign out (legal links sit between them) and uses a red outline that stays visible in dark.
+- Verify: consent unticked by default, radio rows and checkbox row are 44 px or more, and "Not now" is the same size and style as Continue.
+- The ID check notice covers purpose, who sees the pictures, deletion and how to withdraw (P23); the copy is plain English.

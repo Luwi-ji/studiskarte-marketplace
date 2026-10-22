@@ -34,7 +34,14 @@ async function Transactions() {
   const me = await requireActiveStudent();
   const items = await listTransactions(me.id);
   if (items.length === 0) {
-    return <p className="px-6 py-16 text-center text-zinc-500">No transactions yet. An offer or a reservation, made or received, shows up here with what to do next.</p>;
+    return (
+      <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
+        <p className="text-zinc-600 dark:text-zinc-400">No transactions yet. An offer or a reservation, made or received, shows up here with what to do next.</p>
+        <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+          Browse the feed
+        </Link>
+      </div>
+    );
   }
   const store = getObjectStore();
   const urls = new Map(await Promise.all(items.map(async (t): Promise<[string, string]> => [t.id, await store.signedUrl(t.thumbKey, LINK_SECONDS)])));
@@ -71,7 +78,7 @@ function Row({ item, thumbUrl }: { item: Transaction; thumbUrl: string }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={thumbUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{item.title}</p>
+        <p className="line-clamp-2 break-words font-medium leading-snug">{item.title}</p>
         <p className="truncate text-xs text-zinc-500">
           {item.role === "selling" ? "Selling to" : "Buying from"} {item.otherName} · {price}
         </p>

@@ -3,9 +3,10 @@ import Link from "next/link";
 import { NotificationBell } from "@/components/notification-bell";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
+import { CardGridSkeleton } from "@/components/skeletons";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
-import { activeFilterCount, firstValues, parseFilters } from "@/lib/discovery/filters";
+import { activeFilterCount, firstValues, parseFilters, toSearchParams } from "@/lib/discovery/filters";
 import { filterOptions } from "@/lib/discovery/page-data";
 import { FilterSheet } from "../feed/filter-sheet";
 import { MoreCards } from "../feed/more-cards";
@@ -15,13 +16,17 @@ export default function Home({ searchParams }: PageProps<"/">) {
     <>
       <PageHeader title="Studiskarte" logo action={<NotificationBell />} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+        <Suspense fallback={<CardGridSkeleton />}>
           <Feed searchParams={searchParams} />
         </Suspense>
       </main>
     </>
   );
 }
+
+const chipBase = "flex h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium active:opacity-80";
+const chipOn = `${chipBase} border-brand bg-brand/10 text-brand-text`;
+const chipOff = `${chipBase} border-zinc-300 dark:border-zinc-700`;
 
 async function Feed({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireActiveStudent();
@@ -30,6 +35,16 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
   const filters = parseFilters(raw);
   const [{ items, nextCursor }, options] = await Promise.all([listFeed(me.id, { filters }), filterOptions(me.id)]);
   const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
+
+  // Which school the feed shows, and which kind of post: one tap changes either, and the Filters button counts them.
+  const hrefWith = (change: Record<string, string | undefined>) => {
+    const qs = toSearchParams({ ...params, ...change });
+    return qs ? `/?${qs}` : "/";
+  };
+  const chosenSchools = filters.school ?? [];
+  const mine = me.schoolDomain !== null && chosenSchools.length === 1 && chosenSchools[0] === me.schoolDomain;
+  const otherSchools = chosenSchools.length > 0 && !mine;
+  const otherLabel = chosenSchools.length === 1 ? (options.schools.find((s) => s.id === chosenSchools[0])?.name ?? chosenSchools[0]) : `${chosenSchools.length} schools`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -46,6 +61,31 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
         </Link>
         <FilterSheet action="/" categories={options.categories} schools={options.schools} values={params} keep={{}} activeCount={active} />
       </div>
+
+      <nav aria-label="Show posts from" className="-mx-3 flex gap-2 overflow-x-auto px-3">
+        {me.schoolDomain ? (
+          <Link href={hrefWith({ school: me.schoolDomain })} aria-current={mine ? "true" : undefined} className={mine ? chipOn : chipOff}>
+            My school
+          </Link>
+        ) : null}
+        <Link href={hrefWith({ school: undefined })} aria-current={chosenSchools.length === 0 ? "true" : undefined} className={chosenSchools.length === 0 ? chipOn : chipOff}>
+          All schools
+        </Link>
+        {otherSchools ? (
+          <Link href={hrefWith({ school: undefined })} aria-current="true" className={`${chipOn} max-w-56`}>
+            <span className="truncate">{otherLabel}</span>
+            <span aria-hidden className="ml-2">×</span>
+            <span className="sr-only">, show all schools</span>
+          </Link>
+        ) : null}
+        <span aria-hidden className="my-2 w-px shrink-0 bg-zinc-200 dark:bg-zinc-800" />
+        <Link href={hrefWith({ kind: filters.kind === "showcase" ? undefined : "showcase" })} aria-current={filters.kind === "showcase" ? "true" : undefined} className={filters.kind === "showcase" ? chipOn : chipOff}>
+          Showcase
+        </Link>
+        <Link href={hrefWith({ kind: filters.kind === "wishlist" ? undefined : "wishlist" })} aria-current={filters.kind === "wishlist" ? "true" : undefined} className={filters.kind === "wishlist" ? chipOn : chipOff}>
+          Wishlist
+        </Link>
+      </nav>
 
       {items.length === 0 ? (
         active > 0 ? (

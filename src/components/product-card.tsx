@@ -16,7 +16,7 @@ export function ProductCard({ post, thumbUrl, state = null, compact = false }: {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={thumbUrl} alt="" className={`shrink-0 rounded-lg object-cover ${compact ? "h-11 w-11" : "h-14 w-14"}`} />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{post.title}</p>
+        <p className="line-clamp-2 break-words font-medium leading-snug">{post.title}</p>
         <p className={`text-zinc-600 dark:text-zinc-400 ${compact ? "truncate text-xs" : "text-sm"}`}>
           {formatPrice(post.priceKind, post.priceAmount)}
           {post.status !== "open" ? ` · ${STATUS_LABEL[post.status] ?? post.status}` : ""}

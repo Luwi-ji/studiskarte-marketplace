@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { PASSWORD_MIN } from "@/lib/identity/password-rules";
-import { buttonClass, inputClass, linkClass } from "../auth-styles";
+import { buttonClass, inlineLinkClass, inputClass, linkClass } from "../auth-styles";
 import { requestReset, resetPassword, type ResetState } from "./actions";
 
 export function ResetForm() {
@@ -70,7 +70,7 @@ export function ResetForm() {
         </button>
       </form>
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
-        <Link href="/sign-in" className="underline">
+        <Link href="/sign-in" className={inlineLinkClass}>
           Back to log in
         </Link>
       </p>

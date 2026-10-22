@@ -76,7 +76,7 @@ export function CalendarLink({ active }: { active: boolean }) {
 
   return (
     <div id="calendar" className="flex scroll-mt-16 flex-col gap-2">
-      <h2 className="text-sm font-medium">Calendar</h2>
+      <h3 className="text-sm font-medium">Calendar</h3>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         Add your scheduled handovers to Google or iPhone Calendar, as &ldquo;Studiskarte transactions&rdquo;. Changes and cancellations update by themselves (Google Calendar can take several hours). Only you can use the link.
       </p>
@@ -103,7 +103,7 @@ export function CalendarLink({ active }: { active: boolean }) {
       ) : !active ? (
         <>
           {errorFor("create")}
-          <button type="button" disabled={busy} onClick={() => make("create")} className={PRIMARY}>
+          <button type="button" disabled={busy} onClick={() => make("create")} className={BUTTON}>
             Create calendar link
           </button>
         </>

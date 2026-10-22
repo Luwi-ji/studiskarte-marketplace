@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
+import { NewPill } from "@/components/seller-trust";
+import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { IdCheckedBadge } from "@/components/id-checked-badge";
 import { Stars } from "@/components/stars";
@@ -33,7 +35,7 @@ export default function ProfilePage({ params, searchParams }: PageProps<"/u/[han
     <>
       <PageHeader title="Profile" back="/" />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+        <Suspense fallback={<CardGridSkeleton />}>
           <Profile params={params} searchParams={searchParams} />
         </Suspense>
       </main>
@@ -89,16 +91,31 @@ async function Profile({
             <span className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</span>
           </div>
           <p className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
-            <Link href={`${base}/reviews`} className="inline-flex min-h-11 items-center" aria-label={rep.rating ? `Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews` : "Reviews: none yet"}>
-              <Stars average={rep.rating?.average ?? null} count={rep.rating?.count ?? 0} />
-            </Link>
-            <Link href={`${base}/sold`} className="inline-flex min-h-11 items-center underline">
-              Sold {rep.sold}
-            </Link>
-            <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
-              Granted {rep.granted}
-            </Link>
-            {profile.isSelf ? (
+            {rep.rating ? (
+              <Link href={`${base}/reviews`} className="inline-flex min-h-11 items-center" aria-label={`Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews`}>
+                <Stars average={rep.rating.average} count={rep.rating.count} />
+              </Link>
+            ) : rep.sold === 0 && rep.granted === 0 ? (
+              <span className="inline-flex min-h-11 items-center">
+                <NewPill />
+              </span>
+            ) : (
+              <span className="inline-flex min-h-11 items-center">
+                <Stars average={null} count={0} />
+              </span>
+            )}
+            {/* A count of zero would be a link to an empty list, so it is left out. */}
+            {rep.sold > 0 ? (
+              <Link href={`${base}/sold`} className="inline-flex min-h-11 items-center underline">
+                Sold {rep.sold}
+              </Link>
+            ) : null}
+            {rep.granted > 0 ? (
+              <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
+                Given free {rep.granted}
+              </Link>
+            ) : null}
+            {profile.isSelf && rep.bought > 0 ? (
               <Link href={`${base}/bought`} className="inline-flex min-h-11 items-center underline">
                 Bought {rep.bought}
               </Link>
@@ -120,10 +137,6 @@ async function Profile({
         ) : (
           <>
             <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount} />
-            <div className="flex w-full flex-col gap-2">
-              <ReportControl target={{ kind: "student", handle: profile.handle }} label="Report this student" className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700" />
-              <BlockButton handle={profile.handle} className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium disabled:opacity-60 dark:border-zinc-700" />
-            </div>
           </>
         )}
       </section>
@@ -163,6 +176,16 @@ async function Profile({
           <PostGrid items={shownOthers} />
         )}
       </section>
+
+      {profile.isSelf ? null : (
+        <details className="mx-auto w-full max-w-md border-t border-zinc-200 dark:border-zinc-800">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-center text-sm text-zinc-500">Report or block @{profile.handle}</summary>
+          <div className="flex flex-col gap-1 pb-4">
+            <ReportControl target={{ kind: "student", handle: profile.handle }} label="Report this student" className="h-11 w-full text-sm font-medium underline" />
+            <BlockButton handle={profile.handle} className="h-11 w-full text-sm font-medium text-red-600 underline disabled:opacity-60" />
+          </div>
+        </details>
+      )}
     </div>
   );
 }

@@ -12,6 +12,8 @@ export type FeedItem = {
   title: string;
   priceKind: string;
   priceAmount: number | null;
+  /** "open" or "reserved": the only states others can see. */
+  status: string;
   listedAt: Date;
   /** Null only for posts made before the owner finished sign-up. */
   ownerHandle: string | null;
@@ -36,6 +38,7 @@ function visibleCards<E extends Record<string, SQL>>(extra: E) {
       title: post.title,
       priceKind: post.priceKind,
       priceAmount: post.priceAmount,
+      status: post.status,
       listedAt: post.listedAt,
       ownerHandle: student.handle,
       school: sql<string>`coalesce(${school.name}, ${school.domain}, ${NO_SCHOOL_LABEL})`,
@@ -134,6 +137,7 @@ export async function listFeed(
   const items: FeedItem[] = page.map((row) => ({
     id: row.id,
     kind: row.kind,
+    status: row.status,
     title: row.title,
     priceKind: row.priceKind,
     priceAmount: row.priceAmount,

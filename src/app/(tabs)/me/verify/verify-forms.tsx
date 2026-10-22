@@ -9,7 +9,12 @@ import { ID_CONSENT } from "@/lib/verification/consent";
 import { startCheckAction, submitCheckAction, withdrawConsentAction } from "./actions";
 
 const BUTTON = "flex h-11 w-full items-center justify-center rounded-lg border border-zinc-400 text-sm font-medium disabled:opacity-50 dark:border-zinc-600";
-const PRIMARY = "flex h-12 w-full items-center justify-center rounded-lg bg-zinc-900 font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900";
+const PRIMARY = "flex h-12 w-full items-center justify-center rounded-lg bg-brand font-medium text-white disabled:opacity-50";
+// Continue and Not now on the consent screen: same size and weight. Disabled is a flat grey button, never a faint outline.
+const CONSENT_BUTTON =
+  "flex h-12 w-full items-center justify-center rounded-lg border-2 border-zinc-500 text-base font-medium disabled:border-zinc-300 disabled:bg-zinc-100 disabled:text-zinc-600 dark:border-zinc-400 dark:disabled:border-zinc-700 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-400";
+// The promises a person most needs, in this order: deletion first. Anything else in the notice follows in its own order.
+const KEY_POINTS = ["What happens next", "Who sees them", "You can change your mind"];
 
 function ErrorLine({ message }: { message: string | null }) {
   return message ? (
@@ -25,19 +30,30 @@ export function ConsentForm({ kinds }: { kinds: readonly DocumentKind[] }) {
   const [kind, setKind] = useState<DocumentKind>(kinds[0]);
   const [agreed, setAgreed] = useState(false);
 
+  const keyPoints = KEY_POINTS.flatMap((label) => ID_CONSENT.points.filter((point) => point.label === label));
+  const otherPoints = ID_CONSENT.points.filter((point) => !KEY_POINTS.includes(point.label));
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <h2 className="text-lg font-semibold">{ID_CONSENT.title}</h2>
       <p className="text-zinc-700 dark:text-zinc-300">{ID_CONSENT.intro}</p>
-      <dl className="flex flex-col gap-3 text-sm">
-        {ID_CONSENT.points.map((point) => (
+      <dl className="flex flex-col gap-4 rounded-xl border border-brand bg-zinc-50 p-4 dark:bg-zinc-900">
+        {keyPoints.map((point) => (
           <div key={point.label}>
-            <dt className="font-medium">{point.label}</dt>
+            <dt className="font-semibold">{point.label}</dt>
+            <dd className="text-zinc-800 dark:text-zinc-200">{point.text}</dd>
+          </div>
+        ))}
+      </dl>
+      <dl className="flex flex-col gap-4 text-sm">
+        {otherPoints.map((point) => (
+          <div key={point.label}>
+            <dt className="font-semibold">{point.label}</dt>
             <dd className="text-zinc-700 dark:text-zinc-300">{point.text}</dd>
           </div>
         ))}
       </dl>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">{ID_CONSENT.controller}</p>
+      <p className="text-sm text-zinc-700 dark:text-zinc-300">{ID_CONSENT.controller}</p>
       <p className="text-sm">
         <Link href="/legal/privacy" className="inline-flex min-h-11 items-center underline">
           Read the Privacy Policy
@@ -59,13 +75,24 @@ export function ConsentForm({ kinds }: { kinds: readonly DocumentKind[] }) {
         <span>{ID_CONSENT.checkbox}</span>
       </label>
 
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" disabled={!agreed || step.busy} className={BUTTON} onClick={() => void step.run(() => startCheckAction(kind, agreed))}>
-          {ID_CONSENT.agree}
-        </button>
-        <Link href="/me/settings" className={BUTTON}>
-          {ID_CONSENT.decline}
-        </Link>
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={!agreed || step.busy}
+            aria-describedby="consent-next"
+            className={CONSENT_BUTTON}
+            onClick={() => void step.run(() => startCheckAction(kind, agreed))}
+          >
+            {ID_CONSENT.agree}
+          </button>
+          <Link href="/me/settings" className={CONSENT_BUTTON}>
+            {ID_CONSENT.decline}
+          </Link>
+        </div>
+        <p id="consent-next" className="text-sm text-zinc-600 dark:text-zinc-400">
+          {agreed ? "Next you add two pictures." : "Tick the box above to continue."}
+        </p>
       </div>
       <ErrorLine message={step.error} />
     </div>

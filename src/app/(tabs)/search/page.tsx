@@ -2,12 +2,14 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
+import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
 import { activeFilterCount, firstValues, parseFilters, toSearchParams } from "@/lib/discovery/filters";
 import { filterOptions } from "@/lib/discovery/page-data";
 import { searchPeople, searchSchools } from "@/lib/discovery/search";
+import { listCategories } from "@/lib/posts/categories";
 import { getObjectStore } from "@/lib/images/store";
 import { FilterSheet } from "../../feed/filter-sheet";
 import { MoreCards } from "../../feed/more-cards";
@@ -29,7 +31,7 @@ export default function SearchPage({ searchParams }: PageProps<"/search">) {
     <>
       <PageHeader title="Search" back="/" />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+        <Suspense fallback={<CardGridSkeleton />}>
           <Search searchParams={searchParams} />
         </Suspense>
       </main>
@@ -39,6 +41,25 @@ export default function SearchPage({ searchParams }: PageProps<"/search">) {
 
 function Hint({ children }: { children: string }) {
   return <p className="px-6 py-12 text-center text-zinc-500">{children}</p>;
+}
+
+/** Before anything is typed: what to type, and one tap to browse a category instead. */
+async function SearchStart() {
+  const categories = await listCategories();
+  return (
+    <div className="flex flex-col gap-3 px-1 pt-2">
+      <p className="text-zinc-600 dark:text-zinc-400">Type a post, a person&apos;s handle or name, or a school. Or browse a category:</p>
+      <ul className="flex flex-wrap gap-2">
+        {categories.map((c) => (
+          <li key={c.id}>
+            <Link href={`/?${toSearchParams({ category: c.id })}`} className="flex h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-medium active:opacity-80 dark:border-zinc-700">
+              {c.name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 async function Search({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -58,7 +79,7 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
             key={t.id}
             href={`/search?${toSearchParams({ ...(t.id === "posts" ? params : { q }), tab: t.id })}`}
             aria-current={t.id === tab ? "page" : undefined}
-            className={`flex h-11 items-center justify-center rounded-md text-sm font-medium ${t.id === tab ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-500"}`}
+            className={`flex h-11 items-center justify-center rounded-md text-sm font-medium ${t.id === tab ? "bg-white shadow-sm dark:bg-zinc-700" : "text-zinc-500"}`}
           >
             {t.label}
           </Link>
@@ -66,7 +87,7 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
       </nav>
 
       {q === "" ? (
-        <Hint>Search for a post, a person by handle or name, or a school.</Hint>
+        <SearchStart />
       ) : tab === "posts" ? (
         <PostResults meId={me.id} params={params} q={q} />
       ) : tab === "people" ? (
@@ -126,9 +147,8 @@ async function PeopleResults({ meId, q }: { meId: string; q: string }) {
                 <span className="truncate font-medium">{person.displayName || `@${person.handle}`}</span>
                 <VerifiedBadge />
               </p>
-              <p className="truncate text-sm text-zinc-500">
-                @{person.handle} · {person.school}
-              </p>
+              <p className="truncate text-sm text-zinc-500">@{person.handle}</p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">{person.school}</p>
             </div>
           </Link>
         </li>

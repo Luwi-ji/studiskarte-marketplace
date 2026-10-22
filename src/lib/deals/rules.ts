@@ -98,7 +98,7 @@ export function offerOptions(args: {
 
 /** Button wording. For a Wishlist post the responder is offering to supply the item. */
 export function offerLabels(postKind: string): { offer: string; reserve: string } {
-  return postKind === "wishlist" ? { offer: "Offer a price", reserve: "Supply it" } : { offer: "Make offer", reserve: "Reserve" };
+  return postKind === "wishlist" ? { offer: "Offer a price", reserve: "I have this" } : { offer: "Make offer", reserve: "Reserve" };
 }
 
 const OFFER_STATE: Record<string, string> = {

@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
+import { Stars } from "@/components/stars";
+import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
@@ -12,6 +14,7 @@ import { Chat, type ChatMessageData } from "./chat";
 import type { OfferCardData } from "./offer-card";
 import { ErrorBanner } from "./error-banner";
 import { Transactions, type ListingCardData } from "./transactions";
+import { ThreadMenu } from "./thread-menu";
 
 export const metadata = { title: "Messages · Studiskarte Marketplace" };
 
@@ -77,24 +80,44 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
   );
   const name = view.other.displayName || (view.other.handle ? `@${view.other.handle}` : "Student");
 
+  const { profile } = view;
+  const handle = view.other.handle;
+
   return (
     <div className="flex min-h-dvh flex-col">
-      <PageHeader title={name} back="/messages" />
+      <PageHeader
+        title={name}
+        back="/messages"
+        action={
+          handle ? (
+            <ThreadMenu
+              name={name}
+              report={<ReportControl target={{ kind: "student", handle }} label="Report this student" className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700" />}
+              block={<BlockButton handle={handle} className="h-11 w-full rounded-lg border border-red-300 text-sm font-medium text-red-600 disabled:opacity-60 dark:border-red-900" />}
+            />
+          ) : null
+        }
+      />
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col">
-        {/* Stays under the header while the thread scrolls, so the transactions are always one tap away. */}
-        <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 dark:border-zinc-800">
-          {view.replyTime ? <p className="pb-1 text-xs text-zinc-500">Typically replies {REPLY_LABEL[view.replyTime]}</p> : null}
+        {/* Stays under the header while the thread scrolls: who this is, and the items one tap away. */}
+        <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 flex items-center gap-2 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 dark:border-zinc-800">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+            {handle ? (
+              <>
+                <p className="flex flex-wrap items-center gap-x-2">
+                  <span>{profile.school}</span>
+                  {profile.rating ? <Stars average={profile.rating.average} count={profile.rating.count} /> : <span className="font-medium text-brand-text">New</span>}
+                  {profile.sold > 0 ? <span>{profile.sold} sold</span> : null}
+                </p>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {profile.schoolEmailChecked ? <VerifiedBadge /> : null}
+                  {view.replyTime ? <span>Replies {REPLY_LABEL[view.replyTime]}</span> : null}
+                </p>
+              </>
+            ) : null}
+          </div>
           <Transactions listings={view.listings.map(withThumb)} />
         </div>
-        {view.other.handle ? (
-          <details className="border-b border-zinc-200 px-3 dark:border-zinc-800">
-            <summary className="flex h-11 cursor-pointer items-center text-xs text-zinc-500">Block or report {name}</summary>
-            <div className="flex flex-col gap-2 pb-3">
-              <ReportControl target={{ kind: "student", handle: view.other.handle }} label="Report this student" className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700" />
-              <BlockButton handle={view.other.handle} className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium disabled:opacity-60 dark:border-zinc-700" />
-            </div>
-          </details>
-        ) : null}
         <ErrorBanner />
         <Chat conversationId={view.id} messages={messages} pinned={view.pinned.map(offerData)} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
       </main>

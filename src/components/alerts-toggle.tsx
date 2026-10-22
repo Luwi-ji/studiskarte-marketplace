@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { checkAlertsAction, removeAlertsAction, saveAlertsAction } from "@/app/notifications/actions";
 import { currentSubscription, deviceSupport, keyToBytes, type DeviceSupport } from "@/lib/notifications/push/device";
 
@@ -95,18 +94,18 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
   if (banner && (status === "checking" || on)) return null;
 
   return (
-    <section className={banner ? "mx-3 mt-3 flex flex-col gap-2 rounded-xl border border-brand bg-zinc-50 p-3 dark:bg-zinc-900" : "flex flex-col gap-2"}>
+    <section className={banner ? "mx-3 mt-3 flex flex-col gap-2 rounded-xl border border-brand bg-zinc-50 px-3 py-1 dark:bg-zinc-900" : "flex flex-col gap-2"}>
       <div className="flex min-h-11 items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className={banner ? "font-semibold" : "text-sm font-medium"}>{banner ? "Alerts are off on this device" : "Alerts on this device"}</p>
           {banner ? (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Turn them on to get a phone alert for handover reminders, proposed times and places, and payments, even when the app is closed. Until then you only see them here.
-            </p>
+            <p className="text-sm font-medium">Get a phone alert for handover times and payments.</p>
           ) : (
-            <p className="text-xs text-zinc-500">
-              A short phone alert for messages, reservations, handover reminders and payments. It shows the post&apos;s title and, for a handover, its time and place, never what a message says.
-            </p>
+            <>
+              <p className="text-sm font-medium">Alerts on this device</p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                A short phone alert for messages, reservations, handover reminders and payments. It shows the post&apos;s title and, for a handover, its time and place, never what a message says.
+              </p>
+            </>
           )}
         </div>
         <button
@@ -116,9 +115,10 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
           aria-label="Alerts on this device"
           disabled={!canToggle || busy}
           onClick={on ? turnOff : turnOn}
-          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? "bg-brand" : "bg-zinc-300 dark:bg-zinc-700"}`}
+          className="relative flex h-11 w-14 shrink-0 items-center disabled:opacity-40"
         >
-          <span className={`absolute top-1 h-6 w-6 rounded-full bg-white transition-all ${on ? "left-7" : "left-1"}`} />
+          <span className={`block h-8 w-14 rounded-full transition-colors ${on ? "bg-brand" : "bg-[var(--field-border)]"}`} />
+          <span className={`absolute left-0 top-2.5 h-6 w-6 rounded-full bg-white transition-transform ${on ? "translate-x-7" : "translate-x-1"}`} />
         </button>
       </div>
       {status === "install_needed" ? (
@@ -132,15 +132,10 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
           <p className="mt-1 text-xs text-zinc-500">Until then, everything still shows in the app.</p>
         </div>
       ) : null}
-      {MESSAGE[status] ? <p className={banner ? "text-sm text-zinc-600 dark:text-zinc-400" : "text-xs text-zinc-500"}>{MESSAGE[status]}</p> : null}
+      {MESSAGE[status] ? <p className="pb-2 text-sm text-zinc-600 dark:text-zinc-400">{MESSAGE[status]}</p> : null}
       {error ? (
         <p role="alert" className="text-sm text-red-600">
           {error}
-        </p>
-      ) : null}
-      {banner ? (
-        <p className="text-xs text-zinc-500">
-          You can change this any time: <Link href="/me/settings" className="font-medium text-brand-text underline">Me &gt; Settings &gt; Alerts on this device</Link>
         </p>
       ) : null}
     </section>

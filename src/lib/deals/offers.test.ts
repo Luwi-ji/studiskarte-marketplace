@@ -131,7 +131,7 @@ describe("what an offer may be", () => {
 
   it("words the buttons for what the responder is doing", () => {
     expect(offerLabels("showcase")).toEqual({ offer: "Make offer", reserve: "Reserve" });
-    expect(offerLabels("wishlist")).toEqual({ offer: "Offer a price", reserve: "Supply it" });
+    expect(offerLabels("wishlist")).toEqual({ offer: "Offer a price", reserve: "I have this" });
   });
 });
 

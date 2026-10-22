@@ -90,15 +90,15 @@ export function PaymentSteps({ deal, otherName }: Props) {
 
   const header = (
     <div>
-      <p className="text-xs text-zinc-500">Payment · {total} in all</p>
-      <p className="text-sm">Takes: {payment.modes.map((m) => PAYMENT_LABEL[m]).join(", ")}</p>
+      <p className="text-sm font-medium">Payment: {total} in all</p>
+      <p className="text-sm">Ways to pay: {payment.modes.map((m) => PAYMENT_LABEL[m]).join(", ")}</p>
       {payment.note ? <p className="text-sm text-zinc-600 dark:text-zinc-400">{payment.note}</p> : null}
     </div>
   );
 
   let body: React.ReactNode;
   if (deal.status === "agreed") {
-    body = <p className="text-sm text-zinc-600 dark:text-zinc-400">Agree a time and place first. Then the slot is secured by payment.</p>;
+    body = <p className="text-sm text-zinc-600 dark:text-zinc-400">Paying, or agreeing to pay cash in person, locks the reservation: after that it can&apos;t be cancelled.</p>;
   } else if (payment.stage === "confirmed") {
     body = <p className="text-sm font-medium text-green-600">Payment confirmed{paidLabel ? ` (${paidLabel})` : ""}. The slot is secured.</p>;
   } else if (payment.stage === "cash_received") {
@@ -144,6 +144,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
         <p className="text-sm">
           {who} says they paid{paidLabel ? ` by ${paidLabel}` : ""}. Confirm when you have it.
         </p>
+        <p className="text-sm font-medium">Check your GCash or bank transactions, not a screenshot.</p>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("reject", () => rejectPaymentAction(deal.id))}>
             {step.busy === "reject" ? "Saving…" : "Not received"}
@@ -176,7 +177,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
       <>
         {payment.stage === "asked" ? (
           <p className="text-sm">
-            {who} asks you to pay{askLabel ? ` by ${askLabel}` : ""}. Paying secures the slot: after that it can&apos;t be cancelled.
+            {who} asks you to pay{askLabel ? ` by ${askLabel}` : ""}. Once you pay, the reservation can&apos;t be cancelled.
           </p>
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">

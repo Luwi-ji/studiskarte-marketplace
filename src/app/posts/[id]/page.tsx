@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { HeartButton } from "@/components/heart-button";
 import { PageHeader } from "@/components/page-header";
-import { Stars } from "@/components/stars";
+import { SellerTrust } from "@/components/seller-trust";
+import { PostSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
@@ -23,13 +24,20 @@ import { ReportControl } from "@/app/safety/report-control";
 export const metadata = { title: "Post · Studiskarte Marketplace" };
 
 const PHOTO_LINK_SECONDS = 30 * 60;
-const dateFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
+const dayFormat = new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", timeZone: "Asia/Manila" });
+const dayYearFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
+const yearFormat = new Intl.DateTimeFormat("en-PH", { year: "numeric", timeZone: "Asia/Manila" });
+
+/** "Oct 17", with the year only when it is not this year: "Oct 17, 2027". */
+function formatDay(date: Date): string {
+  return yearFormat.format(date) === yearFormat.format(new Date()) ? dayFormat.format(date) : dayYearFormat.format(date);
+}
 
 export default function PostPage({ params }: PageProps<"/posts/[id]">) {
   return (
     <>
       <PageHeader title="Post" back="/" />
-      <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<PostSkeleton />}>
         <Post params={params} />
       </Suspense>
     </>
@@ -68,6 +76,28 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active", unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken), hasActiveDeal: detail.hasReservation, hasPendingOffer: detail.myTransaction?.state === "pending" });
   const howMany = quantityLine(detail.kind, detail.quantity, detail.unitsTaken);
   const labels = offerLabels(detail.kind);
+  // The seller is the first thing a stranger weighs, so the card sits under the price, not at the bottom.
+  const sellerWho = (
+    <>
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+      ) : (
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-lg font-semibold dark:bg-zinc-800" aria-hidden>
+          {(detail.seller.displayName || detail.seller.handle || "?").slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2">
+          <span className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</span>
+          <VerifiedBadge />
+        </p>
+        {detail.seller.handle ? <p className="truncate text-sm text-zinc-500">@{detail.seller.handle}</p> : null}
+        {/* The whole school name, on its own line: it is what tells one school from another. */}
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{detail.seller.school}</p>
+      </div>
+    </>
+  );
 
   return (
     <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner || canMessage ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
@@ -80,7 +110,15 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             {expiryNotice(detail.expiresAt).text}. Then it leaves the feed, and you can relist it from My posts.
           </p>
         ) : null}
-        {detail.status !== "open" ? (
+        {detail.myTransaction?.state === "accepted" ? (
+          <p className="mt-4 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            {wishlist ? "You are supplying this. Next: agree a time and place for the handover in your messages." : "You reserved this. Next: agree a time and place for the handover in your messages. Do not pay before you and the seller have agreed them."}
+          </p>
+        ) : detail.status === "reserved" && !detail.isOwner ? (
+          <p className="mt-4 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Reserved. Someone else has a deal on this, but you can still message {wishlist ? "the poster" : "the seller"}.
+          </p>
+        ) : detail.status !== "open" ? (
           <p className="mt-4 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             {STATUS_LABEL[detail.status] ?? detail.status}
             {detail.status === "reserved" ? " – someone has a deal on this." : ""}
@@ -113,6 +151,22 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           </div>
         </div>
 
+        <section className="flex flex-col gap-1 border-t border-zinc-200 py-4 dark:border-zinc-800">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{wishlist ? "Posted by" : "Seller"}</h2>
+          {/* A profile needs a handle; posts from before sign-up was finished have none. */}
+          {detail.seller.handle ? (
+            <Link href={`/u/${detail.seller.handle}`} className="flex min-h-12 items-center gap-3 active:opacity-80">
+              {sellerWho}
+              <span aria-hidden className="text-xl text-zinc-400">›</span>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3">{sellerWho}</div>
+          )}
+          <div className="pl-15">
+            <SellerTrust handle={detail.seller.handle} rating={detail.seller.rating} sold={detail.seller.sold} replies={detail.seller.replies} />
+          </div>
+        </section>
+
         <Section title="Description">
           <p className="whitespace-pre-line leading-relaxed">{detail.description}</p>
         </Section>
@@ -144,7 +198,9 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
         {detail.paymentModes.length > 0 ? (
           <Section title={wishlist ? "How they will pay" : "Payment"}>
             <p>{detail.paymentModes.map((mode) => PAYMENT_LABEL[mode]).join(", ")}</p>
-            <p className="text-xs text-zinc-500">The app never handles the money. You pay each other directly.</p>
+            <p className="border-l-4 border-amber-500 pl-3 text-sm">
+              <span className="font-medium">Do not pay before you and the other person have agreed a time and place for the handover.</span> The app never handles the money: you pay each other directly.
+            </p>
           </Section>
         ) : null}
 
@@ -163,59 +219,14 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           <p className="text-xs text-zinc-500">Philippine time.</p>
         </Section>
 
-        <Section title={wishlist ? "Posted by" : "Seller"}>
-          {/* A profile needs a handle; posts from before sign-up was finished have none. */}
-          {(() => {
-            const who = (
-              <>
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-lg font-semibold dark:bg-zinc-800" aria-hidden>
-                    {(detail.seller.displayName || detail.seller.handle || "?").slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2">
-                    <span className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</span>
-                    <VerifiedBadge />
-                  </p>
-                  <p className="truncate text-sm text-zinc-500">
-                    {detail.seller.handle ? `@${detail.seller.handle} · ` : ""}
-                    {detail.seller.school}
-                  </p>
-                </div>
-              </>
-            );
-            return detail.seller.handle ? (
-              <Link href={`/u/${detail.seller.handle}`} className="flex min-h-12 items-center gap-3 active:opacity-80">
-                {who}
-                <span aria-hidden className="text-xl text-zinc-400">›</span>
-              </Link>
-            ) : (
-              <div className="flex items-center gap-3">{who}</div>
-            );
-          })()}
-          {detail.seller.handle ? (
-            <Link href={`/u/${detail.seller.handle}/reviews`} className="flex min-h-11 items-center active:opacity-80">
-              <Stars average={detail.seller.rating?.average ?? null} count={detail.seller.rating?.count ?? 0} />
-            </Link>
-          ) : null}
-        </Section>
-
         <p className="border-t border-zinc-200 py-4 text-xs text-zinc-500 dark:border-zinc-800">
-          Listed {dateFormat.format(detail.listedAt)}
-          {detail.status === "open" ? ` · Expires ${dateFormat.format(detail.expiresAt)}` : ""}
+          Listed {formatDay(detail.listedAt)}
+          {detail.status === "open" ? ` · Expires ${formatDay(detail.expiresAt)}` : ""}
           {detail.viewCount !== null ? ` · ${detail.viewCount} ${detail.viewCount === 1 ? "view" : "views"}` : ""}
           {detail.heartCount !== null ? ` · ${detail.heartCount} ${detail.heartCount === 1 ? "heart" : "hearts"}` : ""}
           {detail.pendingOffers ? ` · ${detail.pendingOffers} ${detail.pendingOffers === 1 ? "offer" : "offers"} waiting` : ""}
         </p>
-        {detail.isOwner ? null : (
-          <div className="pb-24">
-            <ReportControl target={{ kind: "post", postId: detail.id }} label="Report this post" />
-          </div>
-        )}
+        {detail.isOwner ? null : <ReportControl target={{ kind: "post", postId: detail.id }} label="Report this post" />}
       </div>
 
       {canMessage ? (
@@ -226,16 +237,17 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
             <BuyerShortcuts transaction={detail.myTransaction} />
           ) : (
             <div className="mx-auto flex max-w-md gap-2">
-              <Link href={`/messages/new?post=${detail.id}`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.offer || options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
+              {/* Message is the first step with a stranger, so it is the big blue button; offering and reserving come after talking. */}
+              <Link href={`/messages/new?post=${detail.id}`} className="flex h-12 flex-[2] items-center justify-center rounded-lg bg-brand font-medium text-white">
                 Message
               </Link>
               {options.offer ? (
-                <Link href={`/offers/new?post=${detail.id}&type=offer`} className={`flex h-12 flex-1 items-center justify-center rounded-lg font-medium ${options.reserve ? "border border-zinc-300 dark:border-zinc-700" : "bg-brand text-white"}`}>
+                <Link href={`/offers/new?post=${detail.id}&type=offer`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
                   {labels.offer}
                 </Link>
               ) : null}
               {options.reserve ? (
-                <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center rounded-lg bg-brand font-medium text-white">
+                <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
                   {labels.reserve}
                 </Link>
               ) : null}

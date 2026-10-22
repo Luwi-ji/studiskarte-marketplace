@@ -6,6 +6,7 @@ import { NO_SCHOOL_LABEL } from "@/lib/identity/roles";
 import { loadAvailability } from "@/lib/posts/availability";
 import { unitsTaken } from "@/lib/deals/capacity";
 import { getReputation } from "@/lib/deals/stats";
+import { getReplyTime, type ReplyBucket } from "@/lib/messaging/response-time";
 import { countPendingOffers, editLockReason, findMyTransaction, hasActiveReservation, type MyTransaction } from "@/lib/deals/count";
 import { countViews } from "@/lib/posts/views";
 import { countHearts, hasHearted } from "@/lib/social/heart";
@@ -53,7 +54,17 @@ export type PostDetail = {
   pendingOffers: number | null;
   /** Whether the viewer hearted it. Always false for the owner. */
   hearted: boolean;
-  seller: { handle: string | null; displayName: string; school: string; avatarThumbKey: string | null; rating: { average: number; count: number } | null };
+  seller: {
+    handle: string | null;
+    displayName: string;
+    school: string;
+    avatarThumbKey: string | null;
+    rating: { average: number; count: number } | null;
+    /** Units handed over for a price. */
+    sold: number;
+    /** How fast they usually answer a first message; null when there is too little to say. */
+    replies: ReplyBucket | null;
+  };
   photos: { key: string; width: number; height: number; caption: string | null }[];
   availability: Availability[];
 };
@@ -112,7 +123,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
     );
   if (!row) return null;
 
-  const [photos, availability, reputation] = await Promise.all([
+  const [photos, availability, reputation, replies] = await Promise.all([
     db
       .select({ key: image.key, width: image.width, height: image.height, caption: postPhoto.caption })
       .from(postPhoto)
@@ -121,6 +132,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       .orderBy(postPhoto.position),
     loadAvailability(postId),
     getReputation(row.ownerId),
+    getReplyTime(row.ownerId),
   ]);
 
   return {
@@ -157,6 +169,8 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
       avatarThumbKey: row.avatarThumbKey,
       rating: reputation.rating,
+      sold: reputation.sold,
+      replies,
     },
     photos,
     availability,

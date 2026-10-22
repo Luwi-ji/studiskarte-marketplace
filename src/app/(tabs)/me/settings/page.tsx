@@ -23,7 +23,7 @@ const PICTURE_LINK_SECONDS = 5 * 60;
 
 function idCheckState(check: MyCheck): string {
   if (check.checked) {
-    const until = check.expiresAt?.toLocaleDateString("en-PH", { dateStyle: "long", timeZone: "Asia/Manila" });
+    const until = check.expiresAt?.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
     return until ? `ID checked until ${until}` : "ID checked";
   }
   if (check.open?.status === "pending") return "Waiting for the owner";
@@ -31,10 +31,21 @@ function idCheckState(check: MyCheck): string {
   return "Not checked";
 }
 
+const ROW = "flex min-h-12 items-center justify-between gap-3 px-1 py-2";
+const SECTION_TITLE = "text-lg font-semibold";
+
+function Chevron() {
+  return (
+    <span aria-hidden className="text-xl text-zinc-500">
+      ›
+    </span>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <>
-      <PageHeader title="Me" />
+      <PageHeader title="Settings" />
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-4">
         <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
           <Settings />
@@ -52,64 +63,73 @@ async function Settings() {
     ? await getObjectStore().signedUrl(profile.avatarKey, PICTURE_LINK_SECONDS)
     : null;
   const nextChangeOn = profile.nextHandleChangeAt
-    ? profile.nextHandleChangeAt.toLocaleDateString("en-PH", { dateStyle: "long", timeZone: "Asia/Manila" })
+    ? profile.nextHandleChangeAt.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" })
     : null;
   const calendarActive = await hasCalendarToken(me.id);
   const idCheck = verificationEnabled() ? await getMyCheck(me.id) : null;
 
+  const activity = [
+    { href: `/u/${profile.handle}`, label: "My profile" },
+    { href: "/me/hearts", label: "Hearted" },
+    { href: "/notifications", label: "Notifications" },
+    { href: "/me/transactions", label: "Transactions" },
+    { href: "/me/blocked", label: "Blocked students" },
+    ...(me.isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+  ];
+
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-1">
-        <p className="text-lg font-semibold">{profile.displayName}</p>
-        <p className="text-sm text-zinc-500">
-          @{profile.handle} · {profile.school}
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Link href={`/u/${profile.handle}`} className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-          My profile
-        </Link>
-        <Link href="/me/hearts" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-          Hearted
-        </Link>
-        <Link href="/notifications" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-          Notifications
-        </Link>
-        <Link href="/me/transactions" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-          Transactions
-        </Link>
-        <Link href="/me/blocked" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-          Blocked students
-        </Link>
-        {me.isAdmin ? (
-          <Link href="/admin" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700">
-            Admin
+    <div className="flex flex-col gap-10">
+      <section className="flex flex-col gap-5">
+        <h2 className={SECTION_TITLE}>Profile</h2>
+        <AvatarForm pictureUrl={pictureUrl} name={profile.displayName} />
+        <DisplayNameForm current={profile.displayName} />
+        <HandleForm current={profile.handle} nextChangeOn={nextChangeOn} />
+        {me.role === "visitor" ? (
+          <SchoolEmailForm />
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium">School email checked</span>
+            <p className="text-zinc-700 dark:text-zinc-300">
+              {ROLE_LABEL[me.role]} · {profile.school}
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Set from your school email, which is never shown to others.</p>
+          </div>
+        )}
+        {idCheck ? (
+          <Link href="/me/verify" className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700">
+            <span className="flex flex-col">
+              <span className="text-sm font-medium">ID check</span>
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{idCheckState(idCheck)}</span>
+              {idCheck.checked ? null : <span className="text-sm text-zinc-600 dark:text-zinc-400">Optional. Adds an ID checked badge.</span>}
+            </span>
+            <Chevron />
           </Link>
         ) : null}
-      </div>
-      <AvatarForm pictureUrl={pictureUrl} />
-      <DisplayNameForm current={profile.displayName} />
-      <HandleForm current={profile.handle} nextChangeOn={nextChangeOn} />
-      {me.role === "visitor" ? (
-        <SchoolEmailForm />
-      ) : (
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium">{ROLE_LABEL[me.role]}</span>
-          <p className="text-zinc-700 dark:text-zinc-300">{profile.school}</p>
-          <p className="text-xs text-zinc-500">Set from your school email, which is never shown to others.</p>
-        </div>
-      )}
-      {idCheck ? (
-        <Link href="/me/verify" className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700">
-          <span className="text-sm font-medium">ID check</span>
-          <span className="text-sm text-zinc-600 dark:text-zinc-400">{idCheckState(idCheck)}</span>
-        </Link>
-      ) : null}
-      <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
-      <CalendarLink active={calendarActive} />
-      <SignOutButton />
-      <LegalLinks />
-      {me.isAdmin ? null : <DeleteAccount handle={profile.handle} />}
+      </section>
+      <section className="flex flex-col gap-5">
+        <h2 className={SECTION_TITLE}>Alerts and calendar</h2>
+        <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />
+        <CalendarLink active={calendarActive} />
+      </section>
+      <section className="flex flex-col gap-2">
+        <h2 className={SECTION_TITLE}>Your activity</h2>
+        <ul className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          {activity.map((row) => (
+            <li key={row.href}>
+              <Link href={row.href} className={ROW}>
+                {row.label}
+                <Chevron />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="flex flex-col gap-5">
+        <h2 className={SECTION_TITLE}>Account</h2>
+        <SignOutButton />
+        <LegalLinks />
+        {me.isAdmin ? null : <DeleteAccount handle={profile.handle} />}
+      </section>
     </div>
   );
 }

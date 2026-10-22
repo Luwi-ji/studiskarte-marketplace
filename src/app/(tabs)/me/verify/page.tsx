@@ -44,7 +44,7 @@ async function Verify() {
   if (!check.enabled) notFound();
 
   if (check.checked) {
-    const until = check.expiresAt?.toLocaleDateString("en-PH", { dateStyle: "long", timeZone: "Asia/Manila" });
+    const until = check.expiresAt?.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
     return (
       <div className="flex flex-col gap-6">
         <p className="text-lg font-semibold">ID checked{until ? ` until ${until}` : ""}</p>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { buttonClass, inputClass, linkClass } from "../auth-styles";
+import { buttonClass, inlineLinkClass, inputClass, linkClass } from "../auth-styles";
 import { requestCode, verifyCode, type Mode, type SignUpState } from "./actions";
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
@@ -73,7 +73,7 @@ export function SignUpForm({ visitors }: { visitors: boolean }) {
           ))}
         </fieldset>
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Email</span>
+          <span className="text-sm font-medium">{visitors ? "Email" : "School email"}</span>
           <input
             name="email"
             type="email"
@@ -82,8 +82,9 @@ export function SignUpForm({ visitors }: { visitors: boolean }) {
             placeholder="you@school.edu.ph"
             required
             autoFocus
-            className={inputClass}
+            className={`${inputClass} placeholder:text-zinc-500`}
           />
+          {visitors ? null : <span className="text-sm text-zinc-600 dark:text-zinc-400">Use the email your school gave you.</span>}
         </label>
         {requested.error ? <p role="alert" className="text-sm text-red-600">{requested.error}</p> : null}
         <button type="submit" disabled={requesting} className={buttonClass}>
@@ -92,7 +93,7 @@ export function SignUpForm({ visitors }: { visitors: boolean }) {
       </form>
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
         Already have an account?{" "}
-        <Link href="/sign-in" className="underline">
+        <Link href="/sign-in" className={inlineLinkClass}>
           Log in
         </Link>
       </p>

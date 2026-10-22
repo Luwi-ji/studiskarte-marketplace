@@ -44,6 +44,7 @@ function waitingFor(payment: NonNullable<DealCardData["payment"]>): string {
 }
 
 const button = "h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700";
+const primary = "h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60";
 const field = "h-11 w-full rounded-lg border border-zinc-300 bg-transparent px-3 dark:border-zinc-700";
 
 /**
@@ -122,75 +123,11 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   if (deal.status === "disputed") return <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-800"><ReportBox deal={deal} otherName={otherName} /></div>;
   if (deal.status !== "agreed" && deal.status !== "scheduled") return null;
 
-  return (
-    <div className="mt-3 flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
-      {deal.handover ? (
-        <div>
-          <p className="text-xs text-zinc-500">Handover agreed</p>
-          <p className="font-medium">
-            {METHOD_LABEL[deal.handover.method]} · {when(deal.handover.at)}
-          </p>
-          <p className="text-sm">{deal.handover.place}</p>
-          <CalendarActions deal={deal} />
-        </div>
-      ) : (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">No time and place yet. If none is agreed within 7 days, the reservation is cancelled.</p>
-      )}
-
-      {deal.proposal ? (
-        <div className="rounded-lg bg-zinc-100 p-2 dark:bg-zinc-800">
-          <p className="text-xs text-zinc-500">{deal.proposal.byMe ? "You proposed" : `${viewerIsOwner ? otherName : "The owner"} proposed`}</p>
-          <p className="font-medium">
-            {METHOD_LABEL[deal.proposal.method]} · {when(deal.proposal.at)}
-          </p>
-          <p className="text-sm">{deal.proposal.place}</p>
-          {deal.proposal.byMe ? (
-            <p className="mt-1 text-xs text-zinc-500">Waiting for {them}. You can propose another instead.</p>
-          ) : (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button type="button" className={button} disabled={busy !== null} onClick={() => run("decline", () => answerProposalAction(deal.id, false))}>
-                {busy === "decline" ? "Declining…" : "Not this time"}
-              </button>
-              <button type="button" className="h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60" disabled={busy !== null} onClick={() => run("agree", () => answerProposalAction(deal.id, true))}>
-                {busy === "agree" ? "Agreeing…" : "Agree"}
-              </button>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      <PaymentSteps deal={deal} viewerIsOwner={viewerIsOwner} otherName={otherName} />
-
-      {deal.status === "scheduled" ? (
-        deal.confirmedByMe || (justConfirmed?.kind === "waiting" && justConfirmed.at === deal.activityAt) ? (
-          <p className="text-sm">
-            {deal.confirmedByOther && deal.payment && !isSettled(deal.payment.stage)
-              ? `Both of you confirmed the handover. ${waitingFor(deal.payment)}`
-              : `You confirmed. Waiting for ${viewerIsOwner ? otherName : "the owner"} to confirm.`}
-          </p>
-        ) : (
-          <>
-            {deal.confirmedByOther ? <p className="text-sm">{viewerIsOwner ? otherName : "The owner"} says it was {deal.viewerHandsOver ? "received" : "handed over"}. Confirm if it was, or say it was not.</p> : null}
-            {deal.confirmedByOther ? (
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" className={button} disabled={busy !== null} onClick={() => run("reject-handover", () => rejectHandoverAction(deal.id))}>
-                  {busy === "reject-handover" ? "Saving…" : deal.viewerHandsOver ? "I didn't hand it over" : "I didn't receive it"}
-                </button>
-                <button type="button" className="h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60" disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
-                  {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
-                </button>
-              </div>
-            ) : (
-              <button type="button" className={button} disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
-                {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
-              </button>
-            )}
-          </>
-        )
-      ) : null}
-
+  // Where the reservation shows it depends on the step: first thing while a time is still to be agreed, last once it is.
+  const proposeBlock = (
+    <>
       {options && !editing ? (
-        <button type="button" className={button} disabled={busy !== null} onClick={openForm}>
+        <button type="button" className={deal.handover || deal.proposal ? button : primary} disabled={busy !== null} onClick={openForm}>
           {deal.handover ? "Change time or place" : deal.proposal && !deal.proposal.byMe ? "Suggest another" : "Propose a time and place"}
         </button>
       ) : null}
@@ -297,6 +234,91 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
           </div>
         </form>
       ) : null}
+    </>
+  );
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+      {deal.handover ? (
+        <div>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Handover agreed</p>
+          <p className="font-medium">
+            {METHOD_LABEL[deal.handover.method]} · {when(deal.handover.at)}
+          </p>
+          <p className="text-sm">{deal.handover.place}</p>
+          <CalendarActions deal={deal} />
+        </div>
+      ) : (
+        <p className="font-semibold">
+          {deal.proposal
+            ? deal.proposal.byMe
+              ? `Next: ${them} answers your proposal.`
+              : `Next: answer ${viewerIsOwner ? otherName : "the owner"}'s proposal.`
+            : "Next: agree a time and place within 7 days, or the reservation is cancelled."}
+        </p>
+      )}
+
+      {deal.proposal ? (
+        <div className="rounded-lg bg-zinc-100 p-2 dark:bg-zinc-800">
+          <p className="text-xs text-zinc-500">{deal.proposal.byMe ? "You proposed" : `${viewerIsOwner ? otherName : "The owner"} proposed`}</p>
+          <p className="font-medium">
+            {METHOD_LABEL[deal.proposal.method]} · {when(deal.proposal.at)}
+          </p>
+          <p className="text-sm">{deal.proposal.place}</p>
+          {deal.proposal.byMe ? (
+            <p className="mt-1 text-xs text-zinc-500">Waiting for {them}. You can propose another instead.</p>
+          ) : (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" className={button} disabled={busy !== null} onClick={() => run("decline", () => answerProposalAction(deal.id, false))}>
+                {busy === "decline" ? "Declining…" : "Not this time"}
+              </button>
+              <button type="button" className="h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60" disabled={busy !== null} onClick={() => run("agree", () => answerProposalAction(deal.id, true))}>
+                {busy === "agree" ? "Agreeing…" : "Agree"}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {deal.status === "agreed" ? proposeBlock : null}
+
+      {deal.payment ? (
+        <p className="border-l-4 border-amber-500 pl-3 text-sm">
+          <span className="font-medium">Do not pay before you and {them} have agreed a time and place for the handover.</span> Studiskarte does not hold or move money: you pay each other directly.
+        </p>
+      ) : null}
+
+      <PaymentSteps deal={deal} viewerIsOwner={viewerIsOwner} otherName={otherName} />
+
+      {deal.status === "scheduled" ? (
+        deal.confirmedByMe || (justConfirmed?.kind === "waiting" && justConfirmed.at === deal.activityAt) ? (
+          <p className="text-sm">
+            {deal.confirmedByOther && deal.payment && !isSettled(deal.payment.stage)
+              ? `Both of you confirmed the handover. ${waitingFor(deal.payment)}`
+              : `You confirmed. Waiting for ${viewerIsOwner ? otherName : "the owner"} to confirm.`}
+          </p>
+        ) : (
+          <>
+            {deal.confirmedByOther ? <p className="text-sm">{viewerIsOwner ? otherName : "The owner"} says it was {deal.viewerHandsOver ? "received" : "handed over"}. Confirm if it was, or say it was not.</p> : null}
+            {deal.confirmedByOther ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className={button} disabled={busy !== null} onClick={() => run("reject-handover", () => rejectHandoverAction(deal.id))}>
+                  {busy === "reject-handover" ? "Saving…" : deal.viewerHandsOver ? "I didn't hand it over" : "I didn't receive it"}
+                </button>
+                <button type="button" className="h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60" disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
+                  {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
+                </button>
+              </div>
+            ) : (
+              <button type="button" className={button} disabled={busy !== null} onClick={() => run("confirm", () => confirmHandoverAction(deal.id))}>
+                {busy === "confirm" ? "Confirming…" : deal.viewerHandsOver ? "I handed it over" : "I received it"}
+              </button>
+            )}
+          </>
+        )
+      ) : null}
+
+      {deal.status === "scheduled" ? proposeBlock : null}
 
       {deal.secured ? <p className="text-xs text-zinc-500">This can&apos;t be cancelled any more. If something goes wrong, report what happened.</p> : null}
       {deal.canReport ? <ReportBox deal={deal} otherName={otherName} /> : null}

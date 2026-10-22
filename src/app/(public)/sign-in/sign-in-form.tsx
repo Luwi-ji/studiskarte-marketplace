@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { buttonClass, inputClass, linkClass, outlineButtonClass } from "../auth-styles";
+import { buttonClass, inlineLinkClass, inputClass, linkClass, outlineButtonClass } from "../auth-styles";
 import { continueWithGoogle, signIn, type SignInState } from "./actions";
 
 export function SignInForm({ google, googleFailed }: { google: boolean; googleFailed: boolean }) {
@@ -47,7 +47,7 @@ export function SignInForm({ google, googleFailed }: { google: boolean; googleFa
       ) : null}
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
         New here?{" "}
-        <Link href="/sign-up" className="underline">
+        <Link href="/sign-up" className={inlineLinkClass}>
           Create an account
         </Link>
       </p>
