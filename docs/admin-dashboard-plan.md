@@ -12,6 +12,7 @@ One place for the owner to answer, in a minute a day: is the app healthy, is any
 | --- | --- | --- |
 | Overview | New accounts per day and by role/status; listings per day by kind; conversations, offers, reservations, completed deals, reviews; reply and completion ratios; top lists; period 7/30/90 days, Manila time | `src/app/admin/page.tsx`, `src/lib/admin/overview.ts`, `series.ts` |
 | Moderation | Posts to review (hidden first), students reported, suspended students; restore, remove, suspend, dismiss | `src/app/admin/moderation/page.tsx`, `src/lib/safety/admin.ts` |
+| Posts | Search any post by title, owner handle or name, filter by status, paged newest first; remove an open, reserved or hidden post, restore a hidden one, so the owner is not limited to reported posts | `src/app/admin/posts/page.tsx`, `src/lib/admin/posts.ts` |
 | Users | Search by handle/name, paged list with role, status, verification | `src/app/admin/users/page.tsx`, `src/lib/admin/users.ts` |
 | System | Free-tier limits (mail per day, photo storage, database), scheduled-job health, legal version in force, links to Sentry/Vercel/Neon/Cloudflare | `src/app/admin/system/page.tsx`, `src/lib/admin/system.ts` |
 
