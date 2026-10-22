@@ -208,6 +208,40 @@ export async function restoreStudent(adminId: string, studentId: string, reason?
   });
 }
 
+const HOLD_REASON_REQUIRED = "Write why the records must be kept. It is kept in the admin record.";
+
+/**
+ * Puts a legal hold on an account: the person can no longer delete it, so their records stay for the authorities
+ * (a child safety case, or a lawful order). Needs a reason. A child safety report holds an account without this
+ * (src/lib/safety/hold.ts); this is for any other case, or to hold before a report exists.
+ */
+export async function placeLegalHold(adminId: string, studentId: string, reason: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
+  if (cleanReason(reason) === null) return { ok: false, error: HOLD_REASON_REQUIRED };
+  return asAdmin(adminId, undefined, async (tx, now) => {
+    const [found] = await tx.select({ heldAt: student.legalHoldAt }).from(student).where(eq(student.id, studentId)).for("update");
+    if (!found) return { ok: false, error: STUDENT_NOT_FOUND };
+    if (found.heldAt === null) await tx.update(student).set({ legalHoldAt: now, updatedAt: now }).where(eq(student.id, studentId));
+    await logAction(tx, { adminId, action: "place_legal_hold", studentId, reason: cleanReason(reason) });
+    return { ok: true };
+  });
+}
+
+/** Lifts the hold the owner placed. A hold that comes from an open or acted-on child safety report stays until that is decided otherwise. */
+export async function liftLegalHold(adminId: string, studentId: string, reason?: string): Promise<AdminResult> {
+  const problem = reasonProblem(reason);
+  if (problem) return { ok: false, error: problem };
+  return asAdmin(adminId, undefined, async (tx, now) => {
+    const [found] = await tx.select({ heldAt: student.legalHoldAt }).from(student).where(eq(student.id, studentId)).for("update");
+    if (!found) return { ok: false, error: STUDENT_NOT_FOUND };
+    if (found.heldAt === null) return { ok: false, error: "There is no hold placed by you on this account." };
+    await tx.update(student).set({ legalHoldAt: null, updatedAt: now }).where(eq(student.id, studentId));
+    await logAction(tx, { adminId, action: "lift_legal_hold", studentId, reason: cleanReason(reason) });
+    return { ok: true };
+  });
+}
+
 export type ReportLine = { reason: string; details: string | null; createdAt: Date };
 export type QueuePost = {
   id: string;

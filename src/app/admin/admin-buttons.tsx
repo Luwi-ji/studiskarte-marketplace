@@ -1,7 +1,7 @@
 "use client";
 
 import { useAction } from "@/app/safety/use-action";
-import { dismissPostReportsAction, dismissStudentReportsAction, removePostAction, restorePostAction, restoreStudentAction, suspendStudentAction } from "./actions";
+import { dismissPostReportsAction, dismissStudentReportsAction, liftLegalHoldAction, placeLegalHoldAction, removePostAction, restorePostAction, restoreStudentAction, suspendStudentAction } from "./actions";
 
 const ACTIONS = {
   restorePost: restorePostAction,
@@ -10,6 +10,8 @@ const ACTIONS = {
   dismissStudent: dismissStudentReportsAction,
   suspendStudent: suspendStudentAction,
   restoreStudent: restoreStudentAction,
+  placeHold: placeLegalHoldAction,
+  liftHold: liftLegalHoldAction,
 } as const;
 
 export type AdminActionKind = keyof typeof ACTIONS;

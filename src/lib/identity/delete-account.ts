@@ -22,12 +22,15 @@ import { getDb } from "@/lib/db";
 import { ACTIVE_STATUSES, syncAvailability } from "@/lib/deals/capacity";
 import { endActiveDeal } from "@/lib/deals/end";
 import type { ObjectStore } from "@/lib/images/store";
+import { underLegalHold } from "@/lib/safety/hold";
 import { deleteChecksOf } from "@/lib/verification/service";
 import { offerKey, recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 
 export type DeleteAccountResult = { ok: true } | { ok: false; error: string };
 
 export const DELETE_NOT_ALLOWED = "This account could not be deleted.";
+/** Deliberately says nothing about why: a person under a child safety case is not told. */
+export const DELETE_HELD = "This account can't be deleted right now. Write to support@studiskarte.com.";
 export const DELETE_ADMIN = "An admin account can't be deleted here. Ask the owner to remove your admin access first.";
 export const DELETE_CONFIRM = "Type your handle exactly to confirm.";
 
@@ -76,6 +79,8 @@ export async function deleteAccount(args: {
     if (!me || me.status !== "active" || !me.handle) return { ok: false, error: DELETE_NOT_ALLOWED };
     if (me.isAdmin) return { ok: false, error: DELETE_ADMIN };
     if (args.confirmHandle.trim().replace(/^@/, "").toLowerCase() !== me.handle) return { ok: false, error: DELETE_CONFIRM };
+    // Records under a legal hold (or a child safety report) are kept, so the account stays.
+    if (await underLegalHold(tx, args.studentId)) return { ok: false, error: DELETE_HELD };
 
     // Lock every post this touches, in id order and before changing anything, as every other flow
     // locks the post first. A reservation or offer being accepted at this moment finishes before we

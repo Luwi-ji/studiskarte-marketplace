@@ -1,0 +1,3 @@
+ALTER TABLE "admin_action" DROP CONSTRAINT "admin_action_kind";--> statement-breakpoint
+ALTER TABLE "student" ADD COLUMN "legal_hold_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "admin_action" ADD CONSTRAINT "admin_action_kind" CHECK ("admin_action"."action" in ('restore_post', 'remove_post', 'dismiss_post_reports', 'dismiss_student_reports', 'suspend_student', 'restore_student', 'place_legal_hold', 'lift_legal_hold'));

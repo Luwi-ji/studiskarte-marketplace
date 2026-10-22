@@ -30,7 +30,7 @@ A report with the child safety reason hides the post at once, and you get an ema
 6. **Keep the evidence.** Do not delete the post, the account records or the messages. If the poster is a minor who sent a picture of themselves, treat them as the victim, not the offender: do not shame them and do not publish who they are.
 7. If a report turns out to be a mistake: **Restore** the post with a reason and dismiss. A report made in good faith is not punished.
 
-**Known gap (build item):** a person can delete their own account from Settings, which erases their email and other details even if you are holding them for a child safety case. There is no "legal hold" yet. Until it exists, write the handle, post id and date down in step 2 before you suspend, and do not wait. Tell a lawyer about this gap.
+**Legal hold (built 2026-10-23).** A child safety report about a person, or about one of their listings, that is open or was acted on, stops that person from deleting their account (Settings shows only "This account can't be deleted right now. Write to support@studiskarte.com." and does not say why). A dismissed report holds nothing. For any other case, such as a lawful order, use Admin, Users, **Hold records** (a reason is required, and it is written to the admin record); **Lift hold** undoes only a hold you placed, never the one that comes from a child safety report. A suspended person cannot sign in, so they cannot delete anyway. Still write the note in step 2: the hold keeps the records, it does not write your report for you. Tell the lawyer the hold exists and ask whether blocking deletion is the right way to meet the preservation duty.
 
 ## ID check review
 

@@ -111,6 +111,11 @@ function Table({ rows }: { rows: UserRow[] }) {
                   <AdminButton compact kind="suspendStudent" id={u.id} label="Suspend" danger ask="required" confirm="Suspend this student? They are signed out everywhere and cannot sign in." />
                 ) : null}
                 {u.accountStatus === "suspended" ? <AdminButton compact kind="restoreStudent" id={u.id} label="Restore" /> : null}
+                {u.accountStatus !== "deleted" && !u.legalHold ? (
+                  <AdminButton compact kind="placeHold" id={u.id} label="Hold records" ask="required" confirm="Keep this account's records? The person will not be able to delete the account." />
+                ) : null}
+                {u.legalHold ? <AdminButton compact kind="liftHold" id={u.id} label="Lift hold" ask="optional" confirm="Lift the hold? The person will be able to delete the account again unless a child safety report still holds it." /> : null}
+                {u.legalHold || u.childSafetyCase ? <span className="mt-1 block text-xs text-red-600 dark:text-red-400">{u.legalHold ? "Records held" : "Child safety case: records held"}</span> : null}
               </td>
             </tr>
           ))}

@@ -28,6 +28,10 @@ export type UserRow = {
   /** Reports made about the account itself (not about its listings). */
   reportsAgainst: number;
   openReportsAgainst: number;
+  /** The owner placed a legal hold: the person cannot delete the account. */
+  legalHold: boolean;
+  /** A child safety report about the person or their listings is open or was acted on: held without a hold being placed. */
+  childSafetyCase: boolean;
 };
 
 export type UsersPage = {
@@ -68,6 +72,8 @@ type PageRow = {
   listings: number;
   reports_against: number;
   open_reports_against: number;
+  legal_hold_at: Date | string | null;
+  child_safety_case: boolean;
 };
 
 /**
@@ -91,7 +97,7 @@ export async function listUsers(options: { search?: string | string[]; page?: nu
 
   const result = await db.execute<PageRow>(sql`
     with page as (
-      select s.id, s.handle, s.name, s.email, s.school_domain, s.role, s.account_status, s.is_admin, s.created_at
+      select s.id, s.handle, s.name, s.email, s.school_domain, s.role, s.account_status, s.is_admin, s.created_at, s.legal_hold_at
         from student s
        where ${filter}
        order by s.created_at desc, s.id
@@ -108,7 +114,13 @@ export async function listUsers(options: { search?: string | string[]; page?: nu
            page.role, page.account_status, page.is_admin, page.created_at,
            coalesce(listings.n, 0) as listings,
            coalesce(reports.n, 0) as reports_against,
-           coalesce(reports.open_n, 0) as open_reports_against
+           coalesce(reports.open_n, 0) as open_reports_against,
+           page.legal_hold_at,
+           exists (
+             select 1 from report cs
+              where cs.reason = 'child_safety' and cs.status in ('open', 'actioned')
+                and (cs.student_id = page.id or cs.post_id in (select p2.id from post p2 where p2.owner_id = page.id))
+           ) as child_safety_case
       from page
       left join school sc on sc.domain = page.school_domain
       left join listings on listings.id = page.id
@@ -135,6 +147,8 @@ export async function listUsers(options: { search?: string | string[]; page?: nu
       listings: row.listings,
       reportsAgainst: row.reports_against,
       openReportsAgainst: row.open_reports_against,
+      legalHold: row.legal_hold_at !== null,
+      childSafetyCase: row.child_safety_case,
     })),
   };
 }

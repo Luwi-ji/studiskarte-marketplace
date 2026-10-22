@@ -20,7 +20,7 @@ Terms, Privacy Policy, Community Guidelines and Child Safety Standards (RA 11930
 
 ## Questions, most important first
 
-1. **RA 11930.** Am I an "internet intermediary" with the Sec 9 duties (24-hour takedown, 3-day report to DOJ-OOC and NCC, preservation)? Do the personal liability and fines apply to me as an individual? Is my child safety page enough?
+1. **RA 11930.** Am I an "internet intermediary" with the Sec 9 duties (24-hour takedown, 3-day report to DOJ-OOC and NCC, preservation)? Do the personal liability and fines apply to me as an individual? Is my child safety page enough? A member cannot delete their account while a child safety report about them or their listings is open or was acted on (records are kept); is that the right way to meet the preservation duty?
 2. **Minors.** Is a self-declared minimum of 16 defensible? Is a Child Privacy Impact Assessment needed (NPC Advisory 2024-03), especially as 16 and 17 year olds can upload IDs? What if a minor makes a contract (Civil Code Arts 1327, 1390)?
 3. **ID check.** Is the consent valid when refusing limits a member to one showcase (Circular 2023-04 Sec 7)? Can the ID also be the age check? May I keep the result record and consent record after withdrawal (3 years)? Is covering the ID number acceptable?
 4. **NPC registration and DPO.** Must I register now (Circular 2022-04)? Can I be my own DPO with a separate address?

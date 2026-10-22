@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/access";
-import { dismissPostReports, dismissStudentReports, removePost, restorePost, restoreStudent, suspendStudent } from "@/lib/safety/admin";
+import { dismissPostReports, dismissStudentReports, liftLegalHold, placeLegalHold, removePost, restorePost, restoreStudent, suspendStudent } from "@/lib/safety/admin";
 
 type Outcome = { ok: boolean; error?: string };
 
@@ -63,4 +63,14 @@ export async function suspendStudentAction(studentId: unknown, reason?: unknown)
 /** Lets a suspended student back in. */
 export async function restoreStudentAction(studentId: unknown, reason?: unknown): Promise<Outcome> {
   return act("restore-student", studentId, reason, false, restoreStudent);
+}
+
+/** Keeps an account's records: the person can no longer delete it. The reason is required. */
+export async function placeLegalHoldAction(studentId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("place-hold", studentId, reason, true, placeLegalHold);
+}
+
+/** Lifts a hold the owner placed. */
+export async function liftLegalHoldAction(studentId: unknown, reason?: unknown): Promise<Outcome> {
+  return act("lift-hold", studentId, reason, false, liftLegalHold);
 }

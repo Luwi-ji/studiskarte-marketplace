@@ -173,7 +173,7 @@ describe("listUsers: what a row says", () => {
   it("never carries a message, password, session or address of a device", async () => {
     const [row] = (await listUsers({ search: `RP_${run}` })).rows;
     expect(Object.keys(row).sort()).toEqual(
-      ["accountStatus", "createdAt", "displayName", "email", "handle", "id", "isAdmin", "listings", "openReportsAgainst", "reportsAgainst", "role", "schoolDomain", "schoolName"].sort(),
+      ["accountStatus", "childSafetyCase", "createdAt", "displayName", "email", "handle", "id", "isAdmin", "legalHold", "listings", "openReportsAgainst", "reportsAgainst", "role", "schoolDomain", "schoolName"].sort(),
     );
   });
 });

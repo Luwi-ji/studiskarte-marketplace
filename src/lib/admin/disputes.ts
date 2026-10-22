@@ -89,4 +89,6 @@ export const ACTION_LABEL: Record<string, string> = {
   dismiss_student_reports: "Dismissed reports on a student",
   suspend_student: "Suspended a student",
   restore_student: "Restored a student",
+  place_legal_hold: "Held a student's records",
+  lift_legal_hold: "Lifted a records hold",
 };

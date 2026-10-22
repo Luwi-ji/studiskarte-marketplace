@@ -75,6 +75,9 @@ export const student = pgTable(
     // cleared on withdrawal. The check lapses at id_check_expires_at.
     idCheckedAt: timestamp("id_checked_at", { withTimezone: true }),
     idCheckExpiresAt: timestamp("id_check_expires_at", { withTimezone: true }),
+    // The owner holds this account's records (a child safety case or a lawful order): it cannot be deleted by the person.
+    // See src/lib/safety/hold.ts: a child safety report on the person or their listings holds it too.
+    legalHoldAt: timestamp("legal_hold_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -874,7 +877,7 @@ export const adminAction = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("admin_action_kind", sql`${t.action} in ('restore_post', 'remove_post', 'dismiss_post_reports', 'dismiss_student_reports', 'suspend_student', 'restore_student')`),
+    check("admin_action_kind", sql`${t.action} in ('restore_post', 'remove_post', 'dismiss_post_reports', 'dismiss_student_reports', 'suspend_student', 'restore_student', 'place_legal_hold', 'lift_legal_hold')`),
     check("admin_action_reason_length", sql`${t.reason} is null or char_length(btrim(${t.reason})) between 1 and 300`),
     index("admin_action_recent_idx").on(t.createdAt.desc()),
   ],
