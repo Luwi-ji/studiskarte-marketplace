@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-22.
+Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-23.
 
 The app is run by its owner, an individual, not a company. You can reach us at support@studiskarte.com.
 
@@ -42,12 +42,27 @@ Signed-in members can see your handle, display name, picture, school (shown as t
 We use these services to run the app. Each receives only what it needs:
 - **Vercel** hosts the app and sees requests to it (including IP addresses) in its logs for a short time.
 - **Neon** hosts the database (in the United States).
-- **Cloudflare** stores listing photos, message pictures and profile pictures (R2), manages our domain name, and forwards the mail you send to our support address. Photos can only be reached through short-lived links that the app creates for signed-in members.
+- **Cloudflare** stores listing photos, message pictures and profile pictures (R2), manages our domain name, and forwards the mail you send to our support address. Photos can only be reached through short-lived links that the app creates for signed-in members. If you use the ID check, Cloudflare also stores those pictures in a separate private area that only the owner can open.
 - **Resend** sends our emails (sign-in, sign-up, password reset and school email codes), so Resend sees the address we send a code to and the code itself. **Google sign-in** is used only if you choose it, and then Google sees that you sign in to the app.
 - **Sentry** receives error reports when something breaks in the app, so we can fix it. We configure it to leave out your name, email address, IP address, cookies and what you typed. A report can still show which page failed. Sentry stores data outside the Philippines.
 - **Push services** run by your phone's maker or browser (for example Apple, Google or Mozilla) carry device alerts.
 
 Photos, messages and reservations are stored in these services, some outside the Philippines.
+
+## ID check
+
+The ID check is optional. It lets you show that you are a real person who studies or works at the school you chose, and that you meet the minimum age of 16, so other members can trust a badge that says "ID checked". Without an ID check you can still browse, message, make offers, reserve, and post Wishlist items. You can have one open Showcase listing at a time until your ID is checked.
+
+- **What we collect.** A picture of your school ID or certificate of registration, and a photo of you holding it. These show information about your education and may show your age, so we treat them with extra care. You may cover your ID number.
+- **Why.** Only to decide whether to give your account an "ID checked" badge: to check who you are, your role at the school you chose, and that you meet the minimum age. We do not use the pictures for anything else.
+- **Your consent.** We ask for it on its own screen, before you can upload anything, separate from accepting these terms. The screen says what we ask for, why, who sees it, what happens next and how to withdraw. You can say no and use the rest of the app. We keep a record that you agreed: which version of the screen you saw, when, and, if you withdraw, when.
+- **Who sees it.** Only the owner. The pictures are kept in a private storage area, separate from listing photos, and the owner opens them only through links that stop working after a few minutes. Each time a picture is opened it is written down (who, which check, when). We do not share them with anyone, and they do not appear anywhere in the app.
+- **After the decision.** The pictures are deleted from storage first, and only then is the decision saved. We keep the result (approved or rejected), who decided, the date, and a short reason. If we reject, you will see the reason. We do not copy details from your ID into our records.
+- **If you start but do not finish,** or the check waits more than 7 days, the pictures are deleted and the check is closed.
+- **If we reject it,** you may try again, up to 3 times in total.
+- **How long a check lasts.** 12 months. After that the badge ends and you can ask again.
+- **Withdrawing your consent.** You can withdraw at any time in Settings, "ID check", with one tap. If the pictures are still waiting, we delete them right away and stop the check. If we have already decided, the pictures are already gone. Your badge is removed. You can check again later. Withdrawing does not undo what we did while you agreed. We keep the record of the check result and of your consent for 3 years after you delete your account, so that we can show what you agreed to.
+- **If you delete your account,** any pictures still waiting are deleted.
 
 ## How long we keep it
 

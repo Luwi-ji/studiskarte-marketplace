@@ -1,6 +1,6 @@
 # Terms of Service
 
-By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-22. If you do not agree, do not use the app.
+By creating an account or using Studiskarte Marketplace ("the app") you agree to these terms. Last updated 2026-10-23. If you do not agree, do not use the app.
 
 ## What the app is
 
@@ -14,6 +14,7 @@ The app lets members post **Showcase** listings (things or services they offer) 
 - One person, one account. Do not make several accounts, and do not pretend to be someone else, a school, or the app's staff.
 - Choosing a role (student, faculty or teacher, staff, alumni) or adding a school email does not mean the app has checked your identity unless a badge says so.
 - You must be 16 or older to use the app, and you confirm this when you sign up. We may close an account if we find that its owner is younger than that. If you are under 18, tell a parent or guardian that you use the app. Read the Child Safety Standards.
+- You may ask for an optional ID check in Settings to get an "ID checked" badge; how it works is in the Privacy Policy. Without one, you can have one open Showcase at a time. A badge only says what was actually checked.
 - You can delete your account at any time in Settings. We may suspend or remove an account that breaks these terms.
 
 ## Using the app
