@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PendingTabLink } from "@/components/pending-nav";
 import { FilterSheet } from "@/app/feed/filter-sheet";
 import { SearchBox } from "@/app/feed/search-box";
 
@@ -13,10 +14,11 @@ export type SearchNav = {
 };
 
 const iconButton = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:opacity-80";
-// Same underlined tab strip as the feed's.
-const tabBase = "relative flex h-11 flex-1 items-center justify-center whitespace-nowrap px-2 text-[13px] font-medium active:opacity-80";
-const tabOff = `${tabBase} text-zinc-600 dark:text-zinc-400`;
-const tabOn = `${tabBase} font-semibold text-brand-text after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand-text`;
+// Same underlined tab strip as the feed's; the underline is always there, collapsed, and the current tab grows it.
+const tabBase =
+  "relative flex h-11 flex-1 items-center justify-center whitespace-nowrap px-2 text-[13px] font-medium transition-colors duration-150 ease-out active:opacity-80 motion-reduce:transition-none after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:origin-center after:rounded-full after:bg-brand-text after:transition-transform after:duration-150 after:ease-out motion-reduce:after:transition-none";
+const tabOff = `${tabBase} text-zinc-600 after:scale-x-0 dark:text-zinc-400`;
+const tabOn = `${tabBase} font-semibold text-brand-text after:scale-x-100`;
 
 /**
  * The Search page's pinned top: [back] [search field] [filters], then the Posts | People | Schools strip.
@@ -56,9 +58,9 @@ export function SearchHeader({ nav, q = "", tab = "posts", enter = false }: { na
         <nav aria-label="Search results" className="flex px-2">
           {nav
             ? nav.tabs.map((t) => (
-                <Link key={t.id} href={t.href} replace aria-current={t.current ? "page" : undefined} className={t.current ? tabOn : tabOff}>
+                <PendingTabLink key={t.id} id={t.id} href={t.href} replace current={t.current} onClass={tabOn} offClass={tabOff}>
                   {t.label}
-                </Link>
+                </PendingTabLink>
               ))
             : ["Posts", "People", "Schools"].map((label) => (
                 <span key={label} className={`${tabOff} opacity-60`}>

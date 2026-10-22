@@ -4,6 +4,7 @@ import { FeedHeader, type FeedNav } from "@/components/feed-header";
 import { NotificationBell } from "@/components/notification-bell";
 import { PostGrid } from "@/components/post-grid";
 import { CardGridSkeleton } from "@/components/skeletons";
+import { PendingNav, PendingResults } from "@/components/pending-nav";
 import { requireActiveStudent } from "@/lib/access";
 import { FirstRunStrip } from "@/components/first-run-strip";
 import { listFeed } from "@/lib/discovery/feed";
@@ -15,18 +16,20 @@ import { MoreCards } from "../feed/more-cards";
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <Suspense
-      fallback={
-        <>
-          <FeedHeader bell={<NotificationBell />} />
-          <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-            <CardGridSkeleton />
-          </main>
-        </>
-      }
-    >
-      <Feed searchParams={searchParams} />
-    </Suspense>
+    <PendingNav>
+      <Suspense
+        fallback={
+          <>
+            <FeedHeader bell={<NotificationBell />} />
+            <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
+              <CardGridSkeleton />
+            </main>
+          </>
+        }
+      >
+        <Feed searchParams={searchParams} />
+      </Suspense>
+    </PendingNav>
   );
 }
 
@@ -79,40 +82,42 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
         <div className="flex flex-col gap-3">
           {showStrip ? <FirstRunStrip studentId={me.id} displayName={profile?.displayName || me.handle} /> : null}
-          {items.length === 0 ? (
-            mine && active === 1 ? (
-              <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
-                <p className="text-zinc-600 dark:text-zinc-400">No one at {profile?.school ?? "your school"} has posted yet. Be the first, or look at all schools.</p>
-                <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
-                  Post an item
-                </Link>
-                <Link href={hrefWith({ school: undefined })} className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
-                  All schools
-                </Link>
-              </div>
-            ) : active > 0 ? (
-              <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
-                <p className="text-zinc-600 dark:text-zinc-400">No posts match these filters.</p>
-                <Link href="/" className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
-                  Clear filters
-                </Link>
-              </div>
+          <PendingResults skeleton={<CardGridSkeleton />} className="flex flex-col gap-3">
+            {items.length === 0 ? (
+              mine && active === 1 ? (
+                <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+                  <p className="text-zinc-600 dark:text-zinc-400">No one at {profile?.school ?? "your school"} has posted yet. Be the first, or look at all schools.</p>
+                  <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+                    Post an item
+                  </Link>
+                  <Link href={hrefWith({ school: undefined })} className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
+                    All schools
+                  </Link>
+                </div>
+              ) : active > 0 ? (
+                <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+                  <p className="text-zinc-600 dark:text-zinc-400">No posts match these filters.</p>
+                  <Link href="/" className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
+                    Clear filters
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
+                  <p className="text-zinc-600 dark:text-zinc-400">
+                    {profile ? `Nothing posted yet, not even at ${profile.school}. Be the first.` : "Nothing posted yet. Be the first."}
+                  </p>
+                  <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+                    Create a post
+                  </Link>
+                </div>
+              )
             ) : (
-              <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-                <p className="text-zinc-600 dark:text-zinc-400">
-                  {profile ? `Nothing posted yet, not even at ${profile.school}. Be the first.` : "Nothing posted yet. Be the first."}
-                </p>
-                <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
-                  Create a post
-                </Link>
-              </div>
-            )
-          ) : (
-            <>
-              <PostGrid items={items} />
-              <MoreCards key={JSON.stringify(params)} params={params} nextCursor={nextCursor} />
-            </>
-          )}
+              <>
+                <PostGrid items={items} />
+                <MoreCards key={JSON.stringify(params)} params={params} nextCursor={nextCursor} />
+              </>
+            )}
+          </PendingResults>
         </div>
       </main>
     </>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
+import { PendingTabLink, useShownTab } from "@/components/pending-nav";
 import { FilterSheet } from "@/app/feed/filter-sheet";
 import { CategoryDrawer, type CategoryLink } from "@/components/category-drawer";
 
@@ -18,9 +19,11 @@ export type FeedNav = {
 };
 
 const iconButton = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:opacity-80";
-const tabBase = "relative flex h-11 items-center justify-center whitespace-nowrap px-2 text-[13px] font-medium active:opacity-80";
-const tabOff = `${tabBase} text-zinc-600 dark:text-zinc-400`;
-const tabOn = `${tabBase} font-semibold text-brand-text after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand-text`;
+// The underline is always there, collapsed; the current tab grows it (under 150 ms, not at all with reduced motion).
+const tabBase =
+  "relative flex h-11 items-center justify-center whitespace-nowrap px-2 text-[13px] font-medium transition-colors duration-150 ease-out active:opacity-80 motion-reduce:transition-none after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:origin-center after:rounded-full after:bg-brand-text after:transition-transform after:duration-150 after:ease-out motion-reduce:after:transition-none";
+const tabOff = `${tabBase} text-zinc-600 after:scale-x-0 dark:text-zinc-400`;
+const tabOn = `${tabBase} font-semibold text-brand-text after:scale-x-100`;
 
 /**
  * The feed's pinned top: [menu] [search] [hearts] [bell], then the tab strip with the Filters button at its right end.
@@ -28,7 +31,7 @@ const tabOn = `${tabBase} font-semibold text-brand-text after:absolute after:ins
  */
 export function FeedHeader({ bell, nav }: { bell: ReactNode; nav?: FeedNav }) {
   const strip = useRef<HTMLElement>(null);
-  const currentId = nav?.schoolChip?.current ? nav.schoolChip.id : nav?.tabs.find((tab) => tab.current)?.id;
+  const currentId = useShownTab(nav?.schoolChip?.current ? nav.schoolChip.id : nav?.tabs.find((tab) => tab.current)?.id);
 
   // On a narrow phone the strip scrolls: bring the current tab into view when it changes.
   useEffect(() => {
@@ -72,22 +75,25 @@ export function FeedHeader({ bell, nav }: { bell: ReactNode; nav?: FeedNav }) {
             {nav ? (
               <>
                 {nav.tabs.map((tab) => (
-                  <Link key={tab.id} href={tab.href} aria-current={tab.current ? "page" : undefined} className={`flex-1 ${tab.current ? tabOn : tabOff}`}>
+                  <PendingTabLink key={tab.id} id={tab.id} href={tab.href} current={tab.current} onClass={`flex-1 ${tabOn}`} offClass={`flex-1 ${tabOff}`}>
                     {tab.label}
-                  </Link>
+                  </PendingTabLink>
                 ))}
                 {nav.schoolChip ? (
-                  <Link
+                  <PendingTabLink
+                    id={nav.schoolChip.id}
+                    goesTo={nav.schoolChip.current ? "all" : (nav.tabs.find((tab) => tab.current)?.id ?? "all")}
                     href={nav.schoolChip.href}
-                    aria-current={nav.schoolChip.current ? "page" : undefined}
-                    className={`max-w-44 shrink-0 gap-1.5 ${nav.schoolChip.current ? tabOn : tabOff}`}
+                    current={nav.schoolChip.current}
+                    onClass={`max-w-44 shrink-0 gap-1.5 ${tabOn}`}
+                    offClass={`max-w-44 shrink-0 gap-1.5 ${tabOff}`}
                   >
                     <span className="truncate">{nav.schoolChip.label}</span>
                     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
                       <path d="M6 6l12 12M18 6 6 18" />
                     </svg>
                     <span className="sr-only">, show all schools</span>
-                  </Link>
+                  </PendingTabLink>
                 ) : null}
               </>
             ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@/components/pending-nav";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { LISTED, LISTED_LABEL, SORT_LABEL, SORTS } from "@/lib/discovery/filters";
 import { CONDITION_LABEL, CONDITIONS, PRICE_MAX } from "@/lib/posts/schema";
@@ -89,7 +89,7 @@ const SlidersIcon = ({ size }: { size: string }) => (
 
 /** The Filters button and the bottom sheet it opens. Applying changes the page's query string. */
 export function FilterSheet({ action, categories, schools, values, keep, activeCount, variant = "button" }: Props) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   // Each opening starts from what the page has, so changes left unapplied are dropped.
   const [session, setSession] = useState(0);
@@ -101,7 +101,7 @@ export function FilterSheet({ action, categories, schools, values, keep, activeC
 
   function apply(params: URLSearchParams) {
     const qs = params.toString();
-    router.push(qs ? `${action}?${qs}` : action);
+    navigate(qs ? `${action}?${qs}` : action);
     setOpen(false);
   }
 

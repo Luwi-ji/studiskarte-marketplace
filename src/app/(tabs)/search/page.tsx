@@ -3,7 +3,8 @@ import Link from "next/link";
 import { SearchHeader, type SearchNav } from "@/components/search-header";
 import { CategoryPicker } from "@/components/category-picker";
 import { PostGrid } from "@/components/post-grid";
-import { CardGridSkeleton } from "@/components/skeletons";
+import { ListSkeleton, CardGridSkeleton } from "@/components/skeletons";
+import { PendingNav, PendingResults } from "@/components/pending-nav";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
@@ -26,18 +27,20 @@ const AVATAR_LINK_SECONDS = 5 * 60;
 
 export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
-    <Suspense
-      fallback={
-        <>
-          <SearchHeader enter />
-          <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3 transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none">
-            <CardGridSkeleton />
-          </main>
-        </>
-      }
-    >
-      <Search searchParams={searchParams} />
-    </Suspense>
+    <PendingNav>
+      <Suspense
+        fallback={
+          <>
+            <SearchHeader enter />
+            <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3 transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none">
+              <CardGridSkeleton />
+            </main>
+          </>
+        }
+      >
+        <Search searchParams={searchParams} />
+      </Suspense>
+    </PendingNav>
   );
 }
 
@@ -78,19 +81,29 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
     <>
       <SearchHeader nav={nav} q={q} tab={tab} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        {tab === "posts" ? (
-          q === "" && activeFilterCount(filters) === 0 ? (
-            <CategoryPicker categories={options.categories} />
+        {/* A tab tapped while its results load shows the skeleton of what it will show; null where the new tab shows a hint or the categories, which stay as they are. */}
+        <PendingResults
+          skeleton={<CardGridSkeleton />}
+          skeletonFor={{
+            posts: q === "" && activeFilterCount(filters) === 0 ? null : <CardGridSkeleton />,
+            people: q === "" ? null : <ListSkeleton kind="people" />,
+            schools: q === "" ? null : <ListSkeleton kind="schools" />,
+          }}
+        >
+          {tab === "posts" ? (
+            q === "" && activeFilterCount(filters) === 0 ? (
+              <CategoryPicker categories={options.categories} />
+            ) : (
+              <PostResults meId={me.id} params={params} q={q} />
+            )
+          ) : q === "" ? (
+            <SearchStart />
+          ) : tab === "people" ? (
+            <PeopleResults meId={me.id} q={q} />
           ) : (
-            <PostResults meId={me.id} params={params} q={q} />
-          )
-        ) : q === "" ? (
-          <SearchStart />
-        ) : tab === "people" ? (
-          <PeopleResults meId={me.id} q={q} />
-        ) : (
-          <SchoolResults meId={me.id} q={q} />
-        )}
+            <SchoolResults meId={me.id} q={q} />
+          )}
+        </PendingResults>
       </main>
     </>
   );
