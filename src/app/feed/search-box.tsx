@@ -24,7 +24,8 @@ export function SearchBox({ initial, tab }: { initial: string; tab: string }) {
     event.preventDefault();
     draft = "";
     const q = text.replace(/\s+/g, " ").trim();
-    router.push(q ? `/search?${new URLSearchParams({ q, tab })}` : "/search");
+    // Replace, so every search does not add a step for Back (Back leaves Search for the feed).
+    router.replace(q ? `/search?${new URLSearchParams({ q, tab })}` : "/search");
   }
 
   return (

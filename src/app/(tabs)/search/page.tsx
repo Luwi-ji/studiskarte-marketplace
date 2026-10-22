@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { SearchHeader, type SearchNav } from "@/components/search-header";
+import { CategoryPicker } from "@/components/category-picker";
 import { PostGrid } from "@/components/post-grid";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -44,7 +45,7 @@ function Hint({ children }: { children: string }) {
   return <p className="px-6 py-12 text-center text-zinc-500">{children}</p>;
 }
 
-/** Before anything is typed: what to type. Categories live in the header's menu. */
+/** People and Schools with nothing typed: what to type. Posts shows the categories instead. */
 function SearchStart() {
   return <Hint>Search posts, people or schools.</Hint>;
 }
@@ -60,9 +61,6 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
   const options = await filterOptions(me.id);
   const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
 
-  // Choosing a category stays on Search: keep the query and the other filters, show Posts.
-  const categoryHref = (category: string | undefined) => `/search?${toSearchParams({ ...params, q, tab: "posts", category })}`;
-  const chosenCategories = filters.category ?? [];
   const nav: SearchNav = {
     tabs: TABS.map((t) => ({
       id: t.id,
@@ -70,11 +68,6 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
       href: `/search?${toSearchParams({ ...(t.id === "posts" ? params : { q }), tab: t.id })}`,
       current: t.id === tab,
     })),
-    categories: {
-      allHref: categoryHref(undefined),
-      allCurrent: chosenCategories.length === 0,
-      items: options.categories.map((c) => ({ id: c.id, name: c.name, href: categoryHref(c.id), current: chosenCategories.includes(c.id) })),
-    },
     filters:
       tab === "posts"
         ? { categories: options.categories, schools: options.schools, values: params, keep: { q, tab: "posts" }, activeCount: active }
@@ -85,10 +78,14 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
     <>
       <SearchHeader nav={nav} q={q} tab={tab} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        {q === "" ? (
+        {tab === "posts" ? (
+          q === "" && activeFilterCount(filters) === 0 ? (
+            <CategoryPicker categories={options.categories} />
+          ) : (
+            <PostResults meId={me.id} params={params} q={q} />
+          )
+        ) : q === "" ? (
           <SearchStart />
-        ) : tab === "posts" ? (
-          <PostResults meId={me.id} params={params} q={q} />
         ) : tab === "people" ? (
           <PeopleResults meId={me.id} q={q} />
         ) : (
@@ -101,14 +98,15 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
 
 async function PostResults({ meId, params, q }: { meId: string; params: Record<string, string>; q: string }) {
   const filters = parseFilters(params);
-  if (filters.terms.length === 0) return <Hint>Type at least 2 letters.</Hint>;
+  // Words are needed unless filters (a category, a school...) already narrow the list. A one-letter query matches nothing.
+  if (filters.terms.length === 0 && (q !== "" || activeFilterCount(filters) === 0)) return <Hint>Type at least 2 letters.</Hint>;
   const { items, nextCursor } = await listFeed(meId, { filters });
 
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-zinc-500">Newest first unless you choose another sort.</p>
       {items.length === 0 ? (
-        <Hint>{`No posts found for “${q}”.`}</Hint>
+        <Hint>{q === "" ? "No posts match these filters." : `No posts found for “${q}”.`}</Hint>
       ) : (
         <>
           <PostGrid items={items} />
