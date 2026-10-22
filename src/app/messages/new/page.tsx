@@ -60,7 +60,7 @@ async function NewMessageView({ searchParams }: { searchParams: Promise<Record<s
               Back to the feed
             </Link>
           ) : (
-            <NewMessage postId={detail.id} />
+            <NewMessage postId={detail.id} place={detail.exchangeMeetup ? detail.meetupLocation : null} />
           )}
         </div>
       </main>

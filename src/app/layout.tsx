@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
 import "./globals.css";
+import { BlockedNotice } from "./safety/blocked-notice";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 import { UpdateNotice } from "./update-notice";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <ServiceWorkerRegistration />
         <UpdateNotice />
+        <BlockedNotice />
       </body>
     </html>
   );

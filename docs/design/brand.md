@@ -61,7 +61,7 @@ Plain, warm, direct. Short sentences, active verbs, say what happens next.
 
 [Impeccable](https://github.com/pbakaus/impeccable) (Apache-2.0) is a design skill for AI coding agents: commands such as `audit`, `critique`, `polish`, `harden`, `onboard` and a set of deterministic detectors for generic AI-looking design. It fits here as a **review aid**, not as a source of taste: our decisions come from the research and the mascot.
 
-I did not install it. Its installer adds a skill, edit hooks to the project and a downloaded binary (`~/.impeccable/bin`) that runs on your machine. If you want it: `npx impeccable install`, read what it wrote first, then `/impeccable init` (it records the product facts in `PRODUCT.md`) and run `audit` and `critique` on one page at a time.
+Used 2026-10-23, without installing it: its installer adds edit hooks to the project and a downloaded binary (`~/.impeccable/bin`), so instead its playbooks (`critique`, `onboard`, `clarify`, `operate`, and its craft floor) were read from the repository and applied by hand. `PRODUCT.md` at the repo root is the `init` result. The critique is `docs/design/audit/impeccable-critique.md` (marked degraded: the deterministic detector did not run). To get the detector and edit hooks: `npx impeccable install`, read what it wrote first, then `/impeccable init`.
 
 ## What is not done yet
 

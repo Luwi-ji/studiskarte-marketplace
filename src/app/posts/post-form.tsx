@@ -99,13 +99,15 @@ function fileSize(bytes: number): string {
 
 
 type Props =
-  | { mode: "create"; categories: Category[]; canSell: boolean }
+  | { mode: "create"; categories: Category[]; canSell: boolean; prefill?: { kind: PostKind; values: Partial<PostFormValues> } }
   | { mode: "edit"; categories: Category[]; postId: string; kind: PostKind; initial: PostFormValues; relist: boolean };
 
 export function PostForm(props: Props) {
   const router = useRouter();
-  const [kind, setKind] = useState<PostKind>(props.mode === "edit" ? props.kind : props.canSell ? "showcase" : "wishlist");
-  const [values, setValues] = useState<PostFormValues>(props.mode === "edit" ? props.initial : EMPTY);
+  const startKind: PostKind = props.mode === "edit" ? props.kind : (props.prefill?.kind === "wishlist" || !props.canSell ? "wishlist" : "showcase");
+  const startValues: PostFormValues = props.mode === "edit" ? props.initial : { ...EMPTY, ...props.prefill?.values };
+  const [kind, setKind] = useState<PostKind>(startKind);
+  const [values, setValues] = useState<PostFormValues>(startValues);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uploading, setUploading] = useState<{ key: string; size: string }[]>([]);
   // null: open by itself when a detail has an error or is not the default; true/false: the student's choice.
@@ -205,8 +207,10 @@ export function PostForm(props: Props) {
     }
     // Next.js keeps this page alive after navigating away; start fresh next time.
     if (props.mode === "create") {
-      setValues(EMPTY);
-      setKind(props.canSell ? "showcase" : "wishlist");
+      setValues(startValues);
+      setKind(startKind);
+      router.push(`/posts/${result.id}?created=1`);
+      return;
     }
     router.push(`/me?tab=${kind}`);
   }

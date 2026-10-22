@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { requireActiveStudent } from "@/lib/access";
 import { getOwnProfile } from "@/lib/identity/profile";
+import { hasVisiblePerks } from "@/lib/perks/list";
 import { ROLE_LABEL } from "@/lib/identity/roles";
 import { getObjectStore } from "@/lib/images/store";
 import { AlertsToggle } from "@/components/alerts-toggle";
@@ -68,7 +69,10 @@ async function Settings() {
   const calendarActive = await hasCalendarToken(me.id);
   const idCheck = verificationEnabled() ? await getMyCheck(me.id) : null;
 
+  const hasPerks = await hasVisiblePerks(me.schoolDomain);
+  // The tab bar shows Perks when the school has any, and My posts otherwise; the other one is a row here.
   const activity = [
+    hasPerks ? { href: "/me/posts", label: "My posts" } : { href: "/perks", label: "Perks" },
     { href: `/u/${profile.handle}`, label: "My profile" },
     { href: "/me/hearts", label: "Hearted" },
     { href: "/notifications", label: "Notifications" },

@@ -1,16 +1,20 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { after } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
+import { post, student } from "@/db/schema";
 import { requireActiveStudent } from "@/lib/access";
+import { getDb } from "@/lib/db";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 import { alertChildSafetyReport, alertNewReport, isChildSafetyInput } from "@/lib/safety/report-alert";
 import { blockStudent, unblockStudent } from "@/lib/safety/block";
 import { reportPost, reportStudent, REPORT_TARGET_GONE } from "@/lib/safety/report";
 
-type Outcome = { ok: boolean; error?: string };
+/** `handle` is set by the actions that find the person themselves, for the confirmation. */
+type Outcome = { ok: boolean; error?: string; handle?: string };
 
 const idSchema = z.uuid();
 const handleSchema = z.string().trim().min(1).max(64);
@@ -62,6 +66,20 @@ export async function blockStudentAction(handle: unknown): Promise<Outcome> {
     if (result === "self") return { ok: false, error: "You cannot block yourself." };
     if (result === "not_found") return { ok: false, error: "That student could not be found." };
     return { ok: true };
+  });
+}
+
+/** Blocks whoever posted a listing, for a report on a post (the page only knows the post). Gives back their handle for the confirmation. */
+export async function blockPostOwnerAction(postId: unknown): Promise<Outcome> {
+  return act("block-post-owner", async (blockerId) => {
+    const id = idSchema.safeParse(postId);
+    if (!id.success) return { ok: false, error: "That student could not be found." };
+    const [owner] = await getDb().select({ handle: student.handle }).from(post).innerJoin(student, eq(student.id, post.ownerId)).where(eq(post.id, id.data));
+    if (!owner?.handle) return { ok: false, error: "That student could not be found." };
+    const result = await blockStudent(blockerId, owner.handle, sendAlertAfterResponse);
+    if (result === "self") return { ok: false, error: "You cannot block yourself." };
+    if (result === "not_found") return { ok: false, error: "That student could not be found." };
+    return { ok: true, handle: owner.handle };
   });
 }
 

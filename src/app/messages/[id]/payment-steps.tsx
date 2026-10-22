@@ -69,18 +69,19 @@ function blameText(r: { mine: boolean; blames: "me" | "them" | null }, otherName
 type Props = { deal: DealCardData; viewerIsOwner: boolean; otherName: string };
 
 /**
- * Securing the slot and settling the payment, once a time and place are
- * agreed. Online or others: the one being paid asks, the payer says they paid,
- * the payee confirms. Cash: the payer asks to pay cash in person and the payee
- * agrees (the slot is then secured); at the handover, when the cash really
- * changes hands, the payer says they gave it and the payee confirms they
- * received it. From "paid" or "cash agreed" on the slot cannot be cancelled.
+ * Settling the payment, once a time and place are agreed: payments only exist
+ * for a scheduled reservation, so nothing shows before that. Online or others:
+ * the one being paid asks, the payer says they paid, the payee confirms. Cash:
+ * the payer asks to pay cash in person and the payee agrees; at the handover,
+ * when the cash really changes hands, the payer says they gave it and the payee
+ * confirms they received it. From "paid" or "cash agreed" on, neither person
+ * can cancel.
  */
 export function PaymentSteps({ deal, otherName }: Props) {
   const payment = deal.payment;
   const step = useStep();
   const [ask, setAsk] = useState<PaymentMode | "">("");
-  if (!payment) return null;
+  if (!payment || deal.status !== "scheduled") return null;
   const waysOnline = payment.modes.filter((m) => m !== "cash");
   const cashTaken = payment.modes.includes("cash");
   const askLabel = payment.askMethod ? PAYMENT_LABEL[payment.askMethod].toLowerCase() : "";
@@ -90,17 +91,26 @@ export function PaymentSteps({ deal, otherName }: Props) {
 
   const header = (
     <div>
-      <p className="text-sm font-medium">Payment: {total} in all</p>
-      <p className="text-sm">Ways to pay: {payment.modes.map((m) => PAYMENT_LABEL[m]).join(", ")}</p>
+      <p className="text-sm font-medium">
+        Payment: {total} · {payment.modes.map((m) => PAYMENT_LABEL[m]).join(", ")}
+      </p>
       {payment.note ? <p className="text-sm text-zinc-600 dark:text-zinc-400">{payment.note}</p> : null}
     </div>
   );
 
+  // Until the payer says they paid or cash is agreed, say plainly what that step locks, for whom, and how to meet.
+  const lockRule =
+    payment.stage === "open" || payment.stage === "asked" || payment.stage === "cash_requested" ? (
+      <p className="text-sm">
+        {payment.viewerPays
+          ? "Meet in a public place and check the item first. Once you say you paid, or cash in person is agreed, neither of you can cancel this reservation."
+          : `Meet in a public place. Once ${who} says they paid, or you agree to cash in person, neither of you can cancel this reservation.`}
+      </p>
+    ) : null;
+
   let body: React.ReactNode;
-  if (deal.status === "agreed") {
-    body = <p className="text-sm text-zinc-600 dark:text-zinc-400">Paying, or agreeing to pay cash in person, locks the reservation: after that it can&apos;t be cancelled.</p>;
-  } else if (payment.stage === "confirmed") {
-    body = <p className="text-sm font-medium text-green-600">Payment confirmed{paidLabel ? ` (${paidLabel})` : ""}. The slot is secured.</p>;
+  if (payment.stage === "confirmed") {
+    body = <p className="text-sm font-medium text-green-600">Payment confirmed{paidLabel ? ` (${paidLabel})` : ""}.</p>;
   } else if (payment.stage === "cash_received") {
     body = <p className="text-sm font-medium text-green-600">Cash received and confirmed. The payment is settled.</p>;
   } else if (payment.stage === "cash_given") {
@@ -122,7 +132,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
   } else if (payment.stage === "cash_agreed") {
     body = payment.viewerPays ? (
       <>
-        <p className="text-sm font-medium text-green-600">Cash in person agreed. The slot is secured.</p>
+        <p className="text-sm font-medium text-green-600">Cash in person agreed. Neither of you can cancel now.</p>
         <p className="text-sm">When you hand over the cash at the handover, tap the button. {who} then confirms they received it.</p>
         <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("cash-give", () => giveCashAction(deal.id))}>
           {step.busy === "cash-give" ? "Saving…" : "I gave the cash"}
@@ -130,14 +140,14 @@ export function PaymentSteps({ deal, otherName }: Props) {
       </>
     ) : (
       <>
-        <p className="text-sm font-medium text-green-600">Cash in person agreed. The slot is secured.</p>
+        <p className="text-sm font-medium text-green-600">Cash in person agreed. Neither of you can cancel now.</p>
         <p className="text-sm">{who} hands you the cash at the handover and says so in the app. Then you confirm you received it.</p>
       </>
     );
   } else if (payment.stage === "paid") {
     body = payment.viewerPays ? (
       <p className="text-sm">
-        You said you paid{paidLabel ? ` by ${paidLabel}` : ""}. The slot is secured. Waiting for {who} to confirm.
+        You said you paid{paidLabel ? ` by ${paidLabel}` : ""}. Neither of you can cancel now. Waiting for {who} to confirm.
       </p>
     ) : (
       <>
@@ -160,7 +170,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
       <p className="text-sm">You asked to pay cash in person at the handover. Waiting for {who} to agree.</p>
     ) : (
       <>
-        <p className="text-sm">{who} asks to pay cash in person at the handover. If you agree, the slot is secured and neither of you can cancel.</p>
+        <p className="text-sm">{who} asks to pay cash in person at the handover.</p>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("cash-no", () => answerCashAction(deal.id, false))}>
             {step.busy === "cash-no" ? "Saving…" : "Not this time"}
@@ -177,7 +187,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
       <>
         {payment.stage === "asked" ? (
           <p className="text-sm">
-            {who} asks you to pay{askLabel ? ` by ${askLabel}` : ""}. Once you pay, the reservation can&apos;t be cancelled.
+            {who} asks you to pay{askLabel ? ` by ${askLabel}` : ""}.
           </p>
         ) : (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -242,6 +252,7 @@ export function PaymentSteps({ deal, otherName }: Props) {
   return (
     <div className="flex flex-col gap-2">
       {header}
+      {lockRule}
       {body}
       {step.error ? (
         <p role="alert" className="text-sm text-red-600">

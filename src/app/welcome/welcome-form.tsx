@@ -70,6 +70,11 @@ export function WelcomeForm({ terms, askRole }: { terms: string | null; askRole:
         <span className="text-xs text-zinc-500">How other students see you. You can change it any time.</span>
         {errorFor("displayName")}
       </label>
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+        <li>Meet in a public place, between 6:00 AM and 8:00 PM.</li>
+        <li>The app never handles money.</li>
+        <li>The owner reads reports within 24 hours.</li>
+      </ul>
       {terms ? (
         <label className="flex items-start gap-3">
           <input type="checkbox" name="terms" value={terms} required className="mt-1 h-5 w-5 shrink-0" />

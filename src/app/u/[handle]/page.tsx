@@ -33,13 +33,37 @@ const TABS: { id: PostKind; label: string }[] = [
 export default function ProfilePage({ params, searchParams }: PageProps<"/u/[handle]">) {
   return (
     <>
-      <PageHeader title="Profile" back="/" />
+      <Suspense fallback={<PageHeader title="Profile" back="/" />}>
+        <ProfileHeader params={params} />
+      </Suspense>
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4">
         <Suspense fallback={<CardGridSkeleton />}>
           <Profile params={params} searchParams={searchParams} />
         </Suspense>
       </main>
     </>
+  );
+}
+
+/** The top bar; on your own profile it carries a Settings gear. */
+async function ProfileHeader({ params }: { params: Promise<{ handle: string }> }) {
+  const me = await requireActiveStudent();
+  const own = decodeURIComponent((await params).handle).toLowerCase() === me.handle.toLowerCase();
+  return (
+    <PageHeader
+      title="Profile"
+      back="/"
+      action={
+        own ? (
+          <Link href="/me/settings" aria-label="Settings" className="flex h-11 w-11 items-center justify-center rounded-full">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+            </svg>
+          </Link>
+        ) : null
+      }
+    />
   );
 }
 

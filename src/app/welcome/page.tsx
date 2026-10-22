@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
 import { hasPassword } from "@/lib/identity/password";
+import { getOwnProfile } from "@/lib/identity/profile";
 import { currentLegal } from "@/lib/legal/documents";
 import { PasswordForm } from "./password-form";
 import { WelcomeForm } from "./welcome-form";
@@ -34,10 +35,12 @@ async function Guarded() {
       </>
     );
   }
+  const school = me.schoolDomain ? (await getOwnProfile(me.id))?.school : null;
   return (
     <>
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">Welcome to Studiskarte</h1>
+        {school ? <p className="font-medium">Your school: {school}</p> : null}
         <p className="text-zinc-600 dark:text-zinc-400">
           Choose how other people will find you. Your email is never shown.
         </p>

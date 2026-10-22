@@ -33,12 +33,12 @@ function formatDay(date: Date): string {
   return yearFormat.format(date) === yearFormat.format(new Date()) ? dayFormat.format(date) : dayYearFormat.format(date);
 }
 
-export default function PostPage({ params }: PageProps<"/posts/[id]">) {
+export default function PostPage({ params, searchParams }: PageProps<"/posts/[id]">) {
   return (
     <>
       <PageHeader title="Post" back="/" />
       <Suspense fallback={<PostSkeleton />}>
-        <Post params={params} />
+        <Post params={params} searchParams={searchParams} />
       </Suspense>
     </>
   );
@@ -53,7 +53,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-async function Post({ params }: { params: Promise<{ id: string }> }) {
+async function Post({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireActiveStudent();
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) notFound();
@@ -76,6 +76,13 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   const options = offerOptions({ priceKind: detail.priceKind, postStatus: detail.status, postExpiresAt: detail.expiresAt, ownerStatus: "active", responderStatus: "active", unitsLeft: unitsLeft(detail.quantity, detail.unitsTaken), hasActiveDeal: detail.hasReservation, hasPendingOffer: detail.myTransaction?.state === "pending" });
   const howMany = quantityLine(detail.kind, detail.quantity, detail.unitsTaken);
   const labels = offerLabels(detail.kind);
+  // Reserve and Make offer sit side by side only when neither is hidden; then one line says how they differ.
+  const bothButtons = canMessage && !studentsOnly && !detail.myTransaction && options.offer && options.reserve;
+  const justCreated = (await searchParams).created === "1";
+  // "Post another" opens the form with this post's kind, place and payment already filled in.
+  const again = new URLSearchParams({ kind: detail.kind });
+  if (detail.exchangeMeetup && detail.meetupLocation) again.set("place", detail.meetupLocation);
+  if (detail.paymentModes.length > 0) again.set("pay", detail.paymentModes.join(","));
   // The seller is the first thing a stranger weighs, so the card sits under the price, not at the bottom.
   const sellerWho = (
     <>
@@ -100,7 +107,20 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
   );
 
   return (
-    <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner || canMessage ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
+    <main className={`mx-auto w-full max-w-md flex-1 ${detail.isOwner || canMessage ? (bothButtons ? "pb-[calc(8rem+env(safe-area-inset-bottom))]" : "pb-[calc(5rem+env(safe-area-inset-bottom))]") : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}>
+      {detail.isOwner && justCreated ? (
+        <div role="status" className="flex flex-col gap-3 bg-brand/10 px-4 py-4">
+          <p className="font-medium text-brand-text">Your post is live. Students at your school can see it now.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href={`/posts/new?${again.toString()}`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white active:opacity-80">
+              Post another
+            </Link>
+            <Link href="/" className="flex h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white font-medium dark:border-zinc-700 dark:bg-zinc-900">
+              View feed
+            </Link>
+          </div>
+        </div>
+      ) : null}
       {detail.isOwner ? null : <ViewTracker postId={detail.id} />}
       <PhotoCarousel photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))} title={detail.title} />
 
@@ -236,22 +256,31 @@ async function Post({ params }: { params: Promise<{ id: string }> }) {
           ) : detail.myTransaction ? (
             <BuyerShortcuts transaction={detail.myTransaction} />
           ) : (
-            <div className="mx-auto flex max-w-md gap-2">
-              {/* Message is the first step with a stranger, so it is the big blue button; offering and reserving come after talking. */}
-              <Link href={`/messages/new?post=${detail.id}`} className="flex h-12 flex-[2] items-center justify-center rounded-lg bg-brand font-medium text-white">
-                Message
-              </Link>
-              {options.offer ? (
-                <Link href={`/offers/new?post=${detail.id}&type=offer`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
-                  {labels.offer}
+            <>
+              <div className="mx-auto flex max-w-md gap-2">
+                {/* Message is the first step with a stranger, so it is the big blue button; offering and reserving come after talking. */}
+                <Link href={`/messages/new?post=${detail.id}`} className="flex h-12 flex-[2] items-center justify-center rounded-lg bg-brand font-medium text-white">
+                  Message
                 </Link>
+                {options.offer ? (
+                  <Link href={`/offers/new?post=${detail.id}&type=offer`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
+                    {labels.offer}
+                  </Link>
+                ) : null}
+                {options.reserve ? (
+                  <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
+                    {labels.reserve}
+                  </Link>
+                ) : null}
+              </div>
+              {bothButtons ? (
+                <p className="mx-auto mt-2 max-w-md text-xs text-zinc-500">
+                  {wishlist
+                    ? `${labels.reserve}: say you can give them the item at their budget. ${labels.offer}: suggest a different price.`
+                    : `${labels.reserve}: ask the seller to hold it at the asking price. ${labels.offer}: suggest a different price.`}
+                </p>
               ) : null}
-              {options.reserve ? (
-                <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
-                  {labels.reserve}
-                </Link>
-              ) : null}
-            </div>
+            </>
           )}
         </div>
       ) : null}

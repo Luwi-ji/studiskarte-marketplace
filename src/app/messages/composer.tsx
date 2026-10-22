@@ -11,7 +11,16 @@ type Attached = { id: string; thumbUrl: string };
  * The message box: text, up to 4 photos, and Send. `onSend` writes the message;
  * the box clears only when it worked, so nothing typed is lost on a failure.
  */
-export function Composer({ onSend, placeholder = "Write a message" }: { onSend: (input: { body: string; imageIds: string[] }) => Promise<SendResult>; placeholder?: string }) {
+export function Composer({
+  onSend,
+  placeholder = "Write a message",
+  openers = [],
+}: {
+  onSend: (input: { body: string; imageIds: string[] }) => Promise<SendResult>;
+  placeholder?: string;
+  /** One-tap first messages shown above the box while it is empty: a tap sends that text. */
+  openers?: string[];
+}) {
   const [text, setText] = useState("");
   const [photos, setPhotos] = useState<Attached[]>([]);
   const [uploading, setUploading] = useState(0);
@@ -38,14 +47,12 @@ export function Composer({ onSend, placeholder = "Write a message" }: { onSend: 
     }
   }
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  async function send(body: string, imageIds: string[]) {
     if (sending || uploading > 0) return;
-    if (text.trim() === "" && photos.length === 0) return;
     setSending(true);
     setError(null);
     try {
-      const result = await onSend({ body: text, imageIds: photos.map((p) => p.id) });
+      const result = await onSend({ body, imageIds });
       if (result.ok) {
         setText("");
         setPhotos([]);
@@ -59,10 +66,32 @@ export function Composer({ onSend, placeholder = "Write a message" }: { onSend: 
     }
   }
 
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (text.trim() === "" && photos.length === 0) return;
+    await send(text, photos.map((p) => p.id));
+  }
+
   const empty = text.trim() === "" && photos.length === 0;
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2">
+      {openers.length > 0 && empty ? (
+        <ul aria-label="Quick messages" className="-mx-3 flex gap-2 overflow-x-auto px-3">
+          {openers.map((opener) => (
+            <li key={opener} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => void send(opener, [])}
+                disabled={sending}
+                className="flex h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-medium active:opacity-80 disabled:opacity-40 dark:border-zinc-700"
+              >
+                {opener}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {photos.length > 0 || uploading > 0 ? (
         <ul className="flex gap-2 overflow-x-auto">
           {photos.map((photo) => (

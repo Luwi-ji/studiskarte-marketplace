@@ -26,7 +26,7 @@ const DETAILS_MAX = 500;
 const LABELS = {
   child_safety: "A child is being harmed, or sexual content involving someone under 18",
   spam: "Spam or an advertisement",
-  scam: "A scam or fraud",
+  scam: "A scam or fraud, such as being asked to pay first or to leave the app",
   prohibited: "Something that is not allowed here",
   offensive: "Offensive content",
   harassment: "Harassment or threats",

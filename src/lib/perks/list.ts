@@ -59,6 +59,17 @@ export async function listPerks(
     .orderBy(desc(perk.startsAt), desc(perk.id));
 }
 
+/** Whether the student's school has at least one visible perk; a one-row check for the tab bar. */
+export async function hasVisiblePerks(schoolDomain: string | null): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: perk.id })
+    .from(perk)
+    .innerJoin(partner, eq(partner.id, perk.partnerId))
+    .where(visiblePerks(schoolDomain))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** The kinds and areas the student's visible perks cover, for the filter chips. */
 export async function perkFilterOptions(schoolDomain: string | null): Promise<{ kinds: string[]; areas: string[] }> {
   const rows = await getDb()

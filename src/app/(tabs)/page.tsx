@@ -5,7 +5,10 @@ import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { requireActiveStudent } from "@/lib/access";
+import { FirstRunStrip } from "@/components/first-run-strip";
 import { listFeed } from "@/lib/discovery/feed";
+import { hasStarted } from "@/lib/discovery/started";
+import { getOwnProfile } from "@/lib/identity/profile";
 import { activeFilterCount, firstValues, parseFilters, toSearchParams } from "@/lib/discovery/filters";
 import { filterOptions } from "@/lib/discovery/page-data";
 import { FilterSheet } from "../feed/filter-sheet";
@@ -33,7 +36,13 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
   const raw = await searchParams;
   const params = firstValues(raw);
   const filters = parseFilters(raw);
-  const [{ items, nextCursor }, options] = await Promise.all([listFeed(me.id, { filters }), filterOptions(me.id)]);
+  const [{ items, nextCursor }, options, started, profile] = await Promise.all([
+    listFeed(me.id, { filters }),
+    filterOptions(me.id),
+    hasStarted(me.id),
+    getOwnProfile(me.id),
+  ]);
+  const showStrip = !started;
   const active = activeFilterCount(filters) + (filters.sort === "newest" ? 0 : 1);
 
   // Which school the feed shows, and which kind of post: one tap changes either, and the Filters button counts them.
@@ -48,6 +57,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
 
   return (
     <div className="flex flex-col gap-3">
+      {showStrip ? <FirstRunStrip studentId={me.id} displayName={profile?.displayName || me.handle} /> : null}
       <div className="flex gap-2">
         <Link
           href="/search"
@@ -88,7 +98,17 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
       </nav>
 
       {items.length === 0 ? (
-        active > 0 ? (
+        mine && active === 1 ? (
+          <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+            <p className="text-zinc-600 dark:text-zinc-400">No one at {profile?.school ?? "your school"} has posted yet. Be the first, or look at all schools.</p>
+            <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+              Post an item
+            </Link>
+            <Link href={hrefWith({ school: undefined })} className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
+              All schools
+            </Link>
+          </div>
+        ) : active > 0 ? (
           <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
             <p className="text-zinc-600 dark:text-zinc-400">No posts match these filters.</p>
             <Link href="/" className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
@@ -97,7 +117,9 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-            <p className="text-zinc-600 dark:text-zinc-400">Nothing posted yet. Be the first.</p>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              {profile ? `Nothing posted yet, not even at ${profile.school}. Be the first.` : "Nothing posted yet. Be the first."}
+            </p>
             <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
               Create a post
             </Link>
