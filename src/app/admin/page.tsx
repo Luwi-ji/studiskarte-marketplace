@@ -8,6 +8,7 @@ import {
   LISTING_KINDS,
   type Overview,
 } from "@/lib/admin/overview";
+import { getAttention } from "@/lib/admin/attention";
 import { PERIOD_OPTIONS, parsePeriodDays, type DailyPoint } from "@/lib/admin/series";
 import { ROLE_LABEL, type Role } from "@/lib/identity/roles";
 import { DataTable, dayLabel, formatCount, formatShare, Section, Stat, TrendCard, type ChartPart } from "./admin-ui";
@@ -51,11 +52,28 @@ function partTotal<K extends string>(points: DailyPoint<K>[], key: K): number {
 async function Dashboard({ searchParams }: Pick<PageProps<"/admin">, "searchParams">) {
   await requireAdmin();
   const days = parsePeriodDays((await searchParams).days);
-  const o = await getOverview({ days });
+  const [o, attention] = await Promise.all([getOverview({ days }), getAttention()]);
   const stars = o.reviews.averageStars;
 
   return (
     <div className="flex flex-col gap-8">
+      <Section title="Needs your attention">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          {[
+            { label: "Child safety reports", n: attention.childSafetyReports, href: "/admin/moderation", urgent: true },
+            { label: "Other open reports", n: attention.otherReports, href: "/admin/moderation", urgent: false },
+            { label: "Hidden posts", n: attention.hiddenPosts, href: "/admin/moderation", urgent: false },
+            { label: "ID checks waiting", n: attention.pendingIdChecks, href: "/admin/verifications", urgent: false },
+            { label: "Deal problems", n: attention.dealProblems, href: "/admin/moderation", urgent: false },
+          ].map((item) => (
+            <Link key={item.label} href={item.href} className={`flex flex-col gap-1 rounded-xl border p-3 ${item.n > 0 && item.urgent ? "border-red-400 dark:border-red-700" : "border-zinc-200 dark:border-zinc-800"}`}>
+              <span className="text-sm font-medium">{item.label}</span>
+              <span className={`text-2xl font-semibold tabular-nums ${item.n > 0 && item.urgent ? "text-red-600 dark:text-red-400" : ""}`}>{formatCount(item.n)}</span>
+            </Link>
+          ))}
+        </div>
+      </Section>
+
       <PeriodSwitch current={o.period} />
 
       <Section title="People">

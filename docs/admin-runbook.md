@@ -6,10 +6,11 @@ You promised members (live Terms, Child Safety Standards): urgent and child safe
 
 ## Every morning and evening (10 minutes)
 
-1. **Email.** `support@` and `dpo@` arrive in your own inbox. A subject starting "URGENT: child safety report" means do the child safety steps below now. "New report waiting" is sent at most once an hour.
-2. **Admin, Moderation.** Child safety reports sit at the top. Then posts to review (hidden ones first), students reported, **Deal problems**, and **Recent decisions**.
-3. **Admin, ID checks.** Review anything waiting. Pictures are deleted after 7 days if you do not decide.
-4. **Admin, System.** Free-tier limits (mail, photo storage, database) and the scheduled jobs. A job marked overdue or failed needs a look at the GitHub "Scheduled jobs" workflow. GitHub also emails you when that workflow fails.
+1. **Email.** `support@` and `dpo@` arrive in your own inbox. A subject starting "URGENT: child safety report" means do the child safety steps below now. "New report waiting" and "ID check waiting" are each sent at most once an hour.
+2. **Admin, Overview.** The "Needs your attention" strip at the top counts child safety reports (red when above zero), other open reports, hidden posts, ID checks waiting and deal problems. Each tile opens the right tab.
+3. **Admin, Moderation.** Child safety reports sit at the top. Then posts to review (hidden ones first), students reported, **Deal problems**, and **Recent decisions**.
+4. **Admin, ID checks.** Review anything waiting. Pictures are deleted after 7 days if you do not decide.
+5. **Admin, System.** Free-tier limits (mail, photo storage, database) and the scheduled jobs. A job marked overdue or failed needs a look at the GitHub "Scheduled jobs" workflow. GitHub also emails you when that workflow fails.
 
 ## When a report or a person needs a decision
 

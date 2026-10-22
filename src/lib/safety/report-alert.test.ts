@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { rateLimitEvent } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
-import { alertChildSafetyReport, alertNewReport, isChildSafetyInput, REPORT_DIGEST } from "@/lib/safety/report-alert";
+import { alertChildSafetyReport, alertNewIdCheck, alertNewReport, ID_CHECK_DIGEST, isChildSafetyInput, REPORT_DIGEST } from "@/lib/safety/report-alert";
 
 const sendMail = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/lib/mail", () => ({ MailQuotaError: class MailQuotaError extends Error {}, sendMail }));
@@ -20,6 +20,17 @@ afterAll(async () => {
   vi.unstubAllEnvs();
   await clear();
   await getPool().end();
+});
+
+describe("ID check alert", () => {
+  it("sends one email an hour however many checks arrive", async () => {
+    await db.delete(rateLimitEvent).where(and(eq(rateLimitEvent.action, ID_CHECK_DIGEST.action), eq(rateLimitEvent.key, ID_CHECK_DIGEST.key)));
+    await alertNewIdCheck();
+    await alertNewIdCheck();
+    expect(sendMail).toHaveBeenCalledTimes(1);
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ subject: "ID check waiting" }));
+    await db.delete(rateLimitEvent).where(and(eq(rateLimitEvent.action, ID_CHECK_DIGEST.action), eq(rateLimitEvent.key, ID_CHECK_DIGEST.key)));
+  });
 });
 
 describe("report alerts", () => {

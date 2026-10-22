@@ -2,8 +2,10 @@
 
 import { refresh } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
+import { after } from "next/server";
 import { requireActiveStudent } from "@/lib/access";
 import { getIdStore } from "@/lib/images/store";
+import { alertNewIdCheck } from "@/lib/safety/report-alert";
 import { verificationEnabled } from "@/lib/verification/config";
 import { NOT_OPEN, startCheck, submitCheck, withdrawConsent } from "@/lib/verification/service";
 
@@ -32,6 +34,7 @@ export async function submitCheckAction(): Promise<Answer> {
     const me = await requireActiveStudent();
     const result = await submitCheck(me.id);
     if (!result.ok) return result;
+    after(() => alertNewIdCheck());
     refresh();
     return { ok: true };
   } catch (error) {

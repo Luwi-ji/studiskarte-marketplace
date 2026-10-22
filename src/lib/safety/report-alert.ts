@@ -10,6 +10,22 @@ export function isChildSafetyInput(input: unknown): boolean {
 /** At most one "new report" email an hour, so a burst of reports cannot use up the day's mail (sign-in codes share it). */
 export const REPORT_DIGEST = { action: "report_alert", key: "owner", max: 1, windowSeconds: 60 * 60 };
 
+/** At most one "ID check waiting" email an hour, for the same reason. */
+export const ID_CHECK_DIGEST = { action: "id_check_alert", key: "owner", max: 1, windowSeconds: 60 * 60 };
+
+/** Tells the owner an ID check was sent in. Same rules as alertNewReport: hourly at most, never throws. */
+export async function alertNewIdCheck(): Promise<void> {
+  const to = process.env.CHILD_SAFETY_ALERT_EMAIL || process.env.MAIL_FROM;
+  if (!to) return;
+  try {
+    if (!(await consume(ID_CHECK_DIGEST))) return;
+    await sendMail({ to, subject: "ID check waiting", text: `A member sent in an ID check. Pictures are deleted after 7 days if nobody decides. More checks in the next hour will not send another email.\n\n${process.env.BETTER_AUTH_URL ?? ""}/admin/verifications` });
+  } catch (error) {
+    if (error instanceof MailQuotaError) console.error("ID check alert not sent: mail quota reached");
+    else console.error("ID check alert failed", error);
+  }
+}
+
 /**
  * Tells the owner an ordinary report arrived (any reason except child safety, which has its own immediate alert).
  * Sent once an hour at most; the email only says where to look. Never throws: the report is already saved.

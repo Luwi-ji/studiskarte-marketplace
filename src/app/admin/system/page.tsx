@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { requireAdmin } from "@/lib/access";
 import { getSystemStatus, type JobState, type Usage } from "@/lib/admin/system";
 import { WARN_AT_PERCENT } from "@/lib/jobs/health";
+import { verificationEnabled } from "@/lib/verification/config";
 import { card, formatBytes, formatCount, formatDateTime, formatShare, link, Section, Stat } from "../admin-ui";
 
 export const metadata = { title: "System · Admin · Studiskarte Marketplace" };
@@ -127,6 +128,11 @@ async function Status() {
             label="Visitors can sign up"
             value={s.visitorsAllowed ? "Yes" : "No"}
             caption="People without a school email. Set by ALLOW_VISITORS in the Vercel environment."
+          />
+          <Stat
+            label="ID checks"
+            value={verificationEnabled() ? "On" : "Off"}
+            caption="On when R2_ID_BUCKET is set in Vercel. Off hides the check screens and the one-showcase limit. Remove the variable and redeploy to stop them."
           />
         </div>
       </Section>
