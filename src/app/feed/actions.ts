@@ -5,6 +5,7 @@ import { requireActiveStudent } from "@/lib/access";
 import { toCards, type PostCardData } from "@/lib/discovery/cards";
 import { listFeed } from "@/lib/discovery/feed";
 import { parseFilters } from "@/lib/discovery/filters";
+import { filterOptions } from "@/lib/discovery/page-data";
 
 // The filters come back from the browser as the page's query-string values.
 const paramsSchema = z.record(z.string().max(40), z.string().max(200)).refine((p) => Object.keys(p).length <= 12);
@@ -18,4 +19,10 @@ export async function loadMoreFeedAction(params: unknown, cursor: unknown): Prom
     cursor: typeof cursor === "string" ? cursor : null,
   });
   return { cards: await toCards(page.items), nextCursor: page.nextCursor };
+}
+
+/** The categories and schools the Filters sheet and the category drawer list, for a tap that comes before the page has brought them. */
+export async function loadFilterOptionsAction() {
+  const me = await requireActiveStudent();
+  return filterOptions(me.id);
 }

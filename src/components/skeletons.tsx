@@ -37,6 +37,39 @@ export function ListSkeleton({ kind }: { kind: "people" | "schools" }) {
   );
 }
 
+/** Grey rows where an option list will be: with a round icon (the category lists) or a check box at the right (the filter lists), at the real rows' height. */
+export function RowsSkeleton({ variant, count = 6 }: { variant: "icon" | "check"; count?: number }) {
+  return (
+    <ul aria-hidden className="motion-safe:animate-pulse">
+      {Array.from({ length: count }, (_, i) =>
+        variant === "icon" ? (
+          <li key={i} className="flex h-14 items-center gap-3 px-2">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+            <div className={`h-4 ${i % 3 === 0 ? "w-2/5" : i % 3 === 1 ? "w-1/2" : "w-1/3"} ${block}`} />
+          </li>
+        ) : (
+          <li key={i} className="flex min-h-14 items-center justify-between gap-3 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
+            <div className={`h-4 ${i % 3 === 0 ? "w-2/5" : i % 3 === 1 ? "w-1/2" : "w-1/3"} ${block}`} />
+            <div className={`h-5 w-5 shrink-0 ${block}`} />
+          </li>
+        ),
+      )}
+    </ul>
+  );
+}
+
+/** The Search page's category list while it loads: its title, then the rows. */
+export function CategoryListSkeleton() {
+  return (
+    <div aria-hidden>
+      <div className="px-2 pb-1">
+        <div className={`h-7 w-28 ${block} motion-safe:animate-pulse`} />
+      </div>
+      <RowsSkeleton variant="icon" count={8} />
+    </div>
+  );
+}
+
 /** A photo, a price, a title and a seller row where a post will be. */
 export function PostSkeleton() {
   return (

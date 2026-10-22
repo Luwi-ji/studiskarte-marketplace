@@ -78,10 +78,26 @@ const DRAWINGS: Record<string, ReactNode> = {
   other: TAG,
 };
 
-export function CategoryIcon({ id, className = "h-6 w-6" }: { id: string; className?: string }) {
+function Svg({ className, children }: { className: string; children: ReactNode }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {DRAWINGS[id] ?? TAG}
+      {children}
     </svg>
+  );
+}
+
+export function CategoryIcon({ id, className = "h-6 w-6" }: { id: string; className?: string }) {
+  return <Svg className={className}>{DRAWINGS[id] ?? TAG}</Svg>;
+}
+
+/** "All categories": four tiles. */
+export function AllCategoriesIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+    </Svg>
   );
 }

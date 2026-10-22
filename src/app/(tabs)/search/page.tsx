@@ -3,8 +3,9 @@ import Link from "next/link";
 import { SearchHeader, type SearchNav } from "@/components/search-header";
 import { CategoryPicker } from "@/components/category-picker";
 import { PostGrid } from "@/components/post-grid";
-import { ListSkeleton, CardGridSkeleton } from "@/components/skeletons";
+import { ListSkeleton, CardGridSkeleton, CategoryListSkeleton } from "@/components/skeletons";
 import { PendingNav, PendingResults } from "@/components/pending-nav";
+import { HeaderSheets } from "@/components/header-sheets";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
@@ -28,18 +29,20 @@ const AVATAR_LINK_SECONDS = 5 * 60;
 export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
     <PendingNav>
-      <Suspense
-        fallback={
-          <>
-            <SearchHeader enter />
-            <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3 transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none">
-              <CardGridSkeleton />
-            </main>
-          </>
-        }
-      >
-        <Search searchParams={searchParams} />
-      </Suspense>
+      <HeaderSheets action="/search">
+        <Suspense
+          fallback={
+            <>
+              <SearchHeader enter />
+              <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3 transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none">
+                <CardGridSkeleton />
+              </main>
+            </>
+          }
+        >
+          <Search searchParams={searchParams} />
+        </Suspense>
+      </HeaderSheets>
     </PendingNav>
   );
 }
@@ -73,7 +76,7 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
     })),
     filters:
       tab === "posts"
-        ? { categories: options.categories, schools: options.schools, values: params, keep: { q, tab: "posts" }, activeCount: active }
+        ? { options, activeCount: active }
         : null,
   };
 
@@ -81,14 +84,10 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
     <>
       <SearchHeader nav={nav} q={q} tab={tab} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        {/* A tab tapped while its results load shows the skeleton of what it will show; null where the new tab shows a hint or the categories, which stay as they are. */}
+        {/* A navigation that is slow shows the skeleton of what it will show: cards, the category list, or a list of people or schools (also where the new tab shows only a hint). */}
         <PendingResults
           skeleton={<CardGridSkeleton />}
-          skeletonFor={{
-            posts: q === "" && activeFilterCount(filters) === 0 ? null : <CardGridSkeleton />,
-            people: q === "" ? null : <ListSkeleton kind="people" />,
-            schools: q === "" ? null : <ListSkeleton kind="schools" />,
-          }}
+          skeletonFor={{ categories: <CategoryListSkeleton />, people: <ListSkeleton kind="people" />, schools: <ListSkeleton kind="schools" /> }}
         >
           {tab === "posts" ? (
             q === "" && activeFilterCount(filters) === 0 ? (

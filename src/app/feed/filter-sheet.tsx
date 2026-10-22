@@ -1,25 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { OptionsPending, type Option, type Session } from "@/components/filter-options";
 import { useNavigate } from "@/components/pending-nav";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { LISTED, LISTED_LABEL, SORT_LABEL, SORTS } from "@/lib/discovery/filters";
 import { CONDITION_LABEL, CONDITIONS, PRICE_MAX } from "@/lib/posts/schema";
 
-type Option = { id: string; name: string };
-
 type Props = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   /** The page the filters apply to, e.g. "/" or "/search". */
   action: string;
-  categories: Option[];
-  schools: Option[];
-  /** What is chosen now, as the page's query-string values. */
-  values: Record<string, string>;
-  /** Query-string values to keep when filters change (the search words and tab). */
-  keep: Record<string, string>;
-  activeCount: number;
-  /** "icon" is a small icon-only trigger with the count as a badge, for a tight toolbar. */
-  variant?: "button" | "icon";
+  /** Present once the sheet has been opened: the page's query-string values at that moment. Each opening starts from them, so changes left unapplied are dropped. */
+  session: Session | null;
+  /** Null until they have arrived: the lists show skeleton rows meanwhile and the rest of the sheet works. */
+  categories: Option[] | null;
+  schools: Option[] | null;
+  failed: boolean;
+  /** CSS selector of the button that opens the sheet, to give focus back to if that button was replaced meanwhile. */
+  returnFocusTo: string;
 };
 
 type Screen = "root" | "school" | "sort" | "kind" | "category" | "condition" | "price" | "listed";
@@ -75,73 +75,48 @@ function priceSummary({ min, max }: Price): string {
   return "Any";
 }
 
-function pickedSummary(ids: string[], options: Option[]): string {
+function pickedSummary(ids: string[], options: Option[] | null): string {
   if (ids.length === 0) return "Any";
-  if (ids.length === 1) return options.find((o) => o.id === ids[0])?.name ?? "1 selected";
+  if (ids.length === 1) return options?.find((o) => o.id === ids[0])?.name ?? "1 selected";
   return `${ids.length} selected`;
 }
 
-const SlidersIcon = ({ size }: { size: string }) => (
+export const SlidersIcon = ({ size }: { size: string }) => (
   <svg viewBox="0 0 24 24" className={size} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
     <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />
   </svg>
 );
 
-/** The Filters button and the bottom sheet it opens. Applying changes the page's query string. */
-export function FilterSheet({ action, categories, schools, values, keep, activeCount, variant = "button" }: Props) {
+/** The bottom sheet the Filters button opens. Applying changes the page's query string. */
+export function FilterSheet({ open, onOpenChange, action, session, categories, schools, failed, returnFocusTo }: Props) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  // Each opening starts from what the page has, so changes left unapplied are dropped.
-  const [session, setSession] = useState(0);
-
-  function show() {
-    setSession((n) => n + 1);
-    setOpen(true);
-  }
+  const search = action === "/search";
+  // On Search the words and tab stay, and the filters apply to Posts.
+  const keep: Record<string, string> = search ? { ...(session?.values.q ? { q: session.values.q } : {}), tab: "posts" } : {};
 
   function apply(params: URLSearchParams) {
     const qs = params.toString();
-    navigate(qs ? `${action}?${qs}` : action);
-    setOpen(false);
+    navigate(qs ? `${action}?${qs}` : action, search ? { id: "posts" } : undefined);
+    onOpenChange(false);
   }
 
   return (
-    <>
-      {variant === "icon" ? (
-        <button
-          type="button"
-          onClick={show}
-          aria-haspopup="dialog"
-          aria-label={activeCount > 0 ? `Filters, ${activeCount} active` : "Filters"}
-          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:opacity-80"
-        >
-          <SlidersIcon size="h-6 w-6" />
-          {activeCount > 0 ? (
-            <span aria-hidden className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-white">
-              {activeCount > 9 ? "9+" : activeCount}
-            </span>
-          ) : null}
-        </button>
-      ) : (
-        <button type="button" onClick={show} aria-haspopup="dialog" className="flex h-11 shrink-0 items-center gap-2 rounded-lg border border-zinc-300 px-3 font-medium dark:border-zinc-700">
-          <SlidersIcon size="h-5 w-5" />
-          Filters{activeCount > 0 ? ` (${activeCount})` : ""}
-        </button>
-      )}
-
-      <BottomSheet open={open} onOpenChange={setOpen} label="Filters">
-        <FilterForm key={`${session}:${JSON.stringify(values)}`} keep={keep} values={values} categories={categories} schools={schools} onApply={apply} onClose={() => setOpen(false)} />
-      </BottomSheet>
-    </>
+    <BottomSheet open={open} onOpenChange={onOpenChange} label="Filters" returnFocusTo={returnFocusTo}>
+      {session ? (
+        <FilterForm key={session.n} keep={keep} values={session.values} categories={categories} schools={schools} failed={failed} onApply={apply} onClose={() => onOpenChange(false)} />
+      ) : null}
+    </BottomSheet>
   );
 }
 
-type FormProps = Pick<Props, "categories" | "schools" | "values" | "keep"> & {
+type FormProps = Pick<Props, "categories" | "schools" | "failed"> & {
+  keep: Record<string, string>;
+  values: Record<string, string>;
   onApply: (params: URLSearchParams) => void;
   onClose: () => void;
 };
 
-function FilterForm({ categories, schools, values, keep, onApply, onClose }: FormProps) {
+function FilterForm({ categories, schools, failed, values, keep, onApply, onClose }: FormProps) {
   const [screen, setScreen] = useState<Screen>("root");
   const [sort, setSort] = useState(values.sort ?? "newest");
   const [kind, setKind] = useState(values.kind ?? "");
@@ -252,7 +227,7 @@ function FilterForm({ categories, schools, values, keep, onApply, onClose }: For
       </div>
 
       <SubScreen id="school" screen={screen} onBack={back} onReset={() => setSchool([])} canReset={school.length > 0}>
-        <MultiChoice name="School" options={schools} picked={school} onChange={setSchool} empty="No schools yet." />
+        <MultiChoice name="School" options={schools} failed={failed} picked={school} onChange={setSchool} empty="No schools yet." />
       </SubScreen>
       <SubScreen id="sort" screen={screen} onBack={back} onReset={() => setSort("newest")} canReset={sort !== "newest"}>
         <SingleChoice name="sort" options={SORT_OPTIONS} value={sort} onPick={setSort} onDone={back} />
@@ -261,7 +236,7 @@ function FilterForm({ categories, schools, values, keep, onApply, onClose }: For
         <SingleChoice name="kind-choice" options={KINDS} value={kind} onPick={setKind} onDone={back} />
       </SubScreen>
       <SubScreen id="category" screen={screen} onBack={back} onReset={() => setCategory([])} canReset={category.length > 0}>
-        <MultiChoice name="Category" options={categories} picked={category} onChange={setCategory} empty="No categories yet." />
+        <MultiChoice name="Category" options={categories} failed={failed} picked={category} onChange={setCategory} empty="No categories yet." />
       </SubScreen>
       <SubScreen id="condition" screen={screen} onBack={back} onReset={() => setCondition([])} canReset={condition.length > 0}>
         <MultiChoice name="Condition" options={CONDITION_OPTIONS} picked={condition} onChange={setCondition} empty="" />
@@ -346,7 +321,8 @@ function SingleChoice({ name, options, value, onPick, onDone }: { name: string; 
 const TITLE_FOR: Record<string, string> = { sort: "Sort by", "kind-choice": "Type", "listed-choice": "Date listed" };
 
 /** Any number of answers; the list stays open. */
-function MultiChoice({ name, options, picked, onChange, empty }: { name: string; options: Option[]; picked: string[]; onChange: (ids: string[]) => void; empty: string }) {
+function MultiChoice({ name, options, failed = false, picked, onChange, empty }: { name: string; options: Option[] | null; failed?: boolean; picked: string[]; onChange: (ids: string[]) => void; empty: string }) {
+  if (!options) return <OptionsPending failed={failed} variant="check" />;
   if (options.length === 0) return <p className="px-4 py-4 text-sm text-zinc-500">{empty}</p>;
   return (
     <div role="group" aria-label={name}>

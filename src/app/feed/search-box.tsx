@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "@/components/pending-nav";
 
 /**
  * The search field of the Search page's header. Searching keeps the current tab and starts with no filters.
@@ -12,7 +12,7 @@ import { useRef, useState, type FormEvent } from "react";
 let draft = "";
 
 export function SearchBox({ initial, tab }: { initial: string; tab: string }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(initial || draft);
   const change = (value: string) => {
@@ -24,8 +24,9 @@ export function SearchBox({ initial, tab }: { initial: string; tab: string }) {
     event.preventDefault();
     draft = "";
     const q = text.replace(/\s+/g, " ").trim();
-    // Replace, so every search does not add a step for Back (Back leaves Search for the feed).
-    router.replace(q ? `/search?${new URLSearchParams({ q, tab })}` : "/search");
+    // Replace, so every search does not add a step for Back (Back leaves Search for the feed). Through the page's
+    // pending navigation, so the tab and the results respond at once like any tab tap.
+    navigate(q ? `/search?${new URLSearchParams({ q, tab })}` : "/search", { id: q ? tab : "posts", replace: true });
   }
 
   return (

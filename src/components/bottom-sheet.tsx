@@ -17,6 +17,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   /** The sheet's accessible name. */
   label: string;
+  /** CSS selector of the button that opens the sheet: it gets focus back on close if the button was replaced while the sheet was open. */
+  returnFocusTo?: string;
   children: ReactNode;
 };
 
@@ -25,7 +27,7 @@ type Props = {
  * down on any element marked `data-sheet-drag` (the handle bar and headers). A native <dialog> gives the focus trap
  * and returns focus to the button that opened it. With reduced motion on, it appears and closes without sliding.
  */
-export function BottomSheet({ open, onOpenChange, label, children }: Props) {
+export function BottomSheet({ open, onOpenChange, label, returnFocusTo, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const drag = useRef<Drag | null>(null);
 
@@ -99,7 +101,10 @@ export function BottomSheet({ open, onOpenChange, label, children }: Props) {
         event.preventDefault();
         onOpenChange(false);
       }}
-      onClose={() => onOpenChange(false)}
+      onClose={() => {
+        onOpenChange(false);
+        if (returnFocusTo && (!document.activeElement || document.activeElement === document.body)) document.querySelector<HTMLElement>(returnFocusTo)?.focus();
+      }}
       onClick={(event) => {
         if (event.target === event.currentTarget) onOpenChange(false);
       }}

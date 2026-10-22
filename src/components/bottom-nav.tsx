@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
+import { useScrollDirection } from "@/components/use-scroll-direction";
 
 type Tab = { href: string; label: string; icon: string; primary?: boolean };
 
@@ -26,45 +27,30 @@ function isActive(tab: Tab, pathname: string, handle: string | null, hasPerks: b
   return within(pathname, "/me") || (handle !== null && within(pathname.toLowerCase(), `/u/${handle.toLowerCase()}`));
 }
 
-// Scrolling down past this far from the top hides the bar; any upward scroll shows it.
-const HIDE_AFTER_PX = 120;
-const MOVE_PX = 8;
-
 /**
  * Fixed bottom tabs, within thumb reach. Pads for the iPhone home bar. Slides
  * away while scrolling down to give the content room, and comes back on the
- * first scroll up, at the top, at the bottom, and on every page change.
+ * first scroll up, at the top, and on every page change (see `useScrollDirection`).
+ * While hidden it marks the page (`data-tab-bar-hidden`) so the floating category bar can follow it down.
  */
 export function BottomNav({ unread = 0, hasPerks = false, handle = null }: { unread?: number; hasPerks?: boolean; handle?: string | null }) {
   const tabs = hasPerks ? [FEED, MESSAGES, CREATE, PERKS, ME] : [FEED, MESSAGES, CREATE, MY_POSTS, ME];
   const pathname = usePathname();
-  const [hidden, setHidden] = useState(false);
-  const lastY = useRef(0);
+  const { hidden, focusProps } = useScrollDirection();
 
   useEffect(() => {
-    lastY.current = window.scrollY;
-    function onScroll() {
-      const y = window.scrollY;
-      const nearBottom = y + window.innerHeight >= document.documentElement.scrollHeight - 8;
-      if (y <= HIDE_AFTER_PX || nearBottom || y < lastY.current - MOVE_PX) setHidden(false);
-      else if (y > lastY.current + MOVE_PX) setHidden(true);
-      if (Math.abs(y - lastY.current) > MOVE_PX) lastY.current = y;
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Show the bar again on every page change.
-  const [shownFor, setShownFor] = useState(pathname);
-  if (shownFor !== pathname) {
-    setShownFor(pathname);
-    setHidden(false);
-  }
+    const root = document.documentElement;
+    root.toggleAttribute("data-tab-bar-hidden", hidden);
+    return () => root.removeAttribute("data-tab-bar-hidden");
+  }, [hidden]);
 
   return (
     <nav
       aria-label="Main"
-      className={`fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur motion-safe:transition-transform motion-safe:duration-200 dark:border-zinc-800 ${hidden ? "translate-y-full" : ""}`}
+      inert={hidden}
+      aria-hidden={hidden || undefined}
+      {...focusProps}
+      className={`fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur will-change-transform motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out dark:border-zinc-800 ${hidden ? "translate-y-full" : ""}`}
     >
       <ul className="mx-auto grid h-16 max-w-md grid-cols-5">
         {tabs.map((tab) => {
@@ -74,7 +60,6 @@ export function BottomNav({ unread = 0, hasPerks = false, handle = null }: { unr
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                tabIndex={hidden ? -1 : undefined}
                 className={`flex h-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
               >
                 <span

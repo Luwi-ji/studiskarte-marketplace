@@ -4,7 +4,8 @@ import { FeedHeader, type FeedNav } from "@/components/feed-header";
 import { NotificationBell } from "@/components/notification-bell";
 import { PostGrid } from "@/components/post-grid";
 import { CardGridSkeleton } from "@/components/skeletons";
-import { PendingNav, PendingResults } from "@/components/pending-nav";
+import { PendingLink, PendingNav, PendingResults } from "@/components/pending-nav";
+import { HeaderSheets } from "@/components/header-sheets";
 import { requireActiveStudent } from "@/lib/access";
 import { FirstRunStrip } from "@/components/first-run-strip";
 import { listFeed } from "@/lib/discovery/feed";
@@ -17,18 +18,20 @@ import { MoreCards } from "../feed/more-cards";
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <PendingNav>
-      <Suspense
-        fallback={
-          <>
-            <FeedHeader bell={<NotificationBell />} />
-            <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-              <CardGridSkeleton />
-            </main>
-          </>
-        }
-      >
-        <Feed searchParams={searchParams} />
-      </Suspense>
+      <HeaderSheets action="/">
+        <Suspense
+          fallback={
+            <>
+              <FeedHeader bell={<NotificationBell />} />
+              <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
+                <CardGridSkeleton />
+              </main>
+            </>
+          }
+        >
+          <Feed searchParams={searchParams} />
+        </Suspense>
+      </HeaderSheets>
     </PendingNav>
   );
 }
@@ -59,7 +62,6 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
 
   // The tab strip highlights one tab: the kind if one is set, else the school scope.
   const kind = filters.kind;
-  const chosenCategories = filters.category ?? [];
   const nav: FeedNav = {
     tabs: [
       ...(me.schoolDomain ? [{ id: "mine", label: "My school", href: hrefWith({ school: me.schoolDomain, kind: undefined }), current: !kind && mine }] : []),
@@ -68,12 +70,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
       { id: "wishlist", label: "Wishlist", href: hrefWith({ kind: "wishlist" }), current: kind === "wishlist" },
     ],
     schoolChip: otherSchools ? { id: "school", label: otherLabel, href: hrefWith({ school: undefined }), current: !kind } : null,
-    categories: {
-      allHref: hrefWith({ category: undefined }),
-      allCurrent: chosenCategories.length === 0,
-      items: options.categories.map((c) => ({ id: c.id, name: c.name, href: hrefWith({ category: c.id }), current: chosenCategories.includes(c.id) })),
-    },
-    filters: { categories: options.categories, schools: options.schools, values: params, activeCount: active },
+    filters: { options, activeCount: active },
   };
 
   return (
@@ -90,16 +87,16 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
                   <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
                     Post an item
                   </Link>
-                  <Link href={hrefWith({ school: undefined })} className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
+                  <PendingLink href={hrefWith({ school: undefined })} id="all" className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
                     All schools
-                  </Link>
+                  </PendingLink>
                 </div>
               ) : active > 0 ? (
                 <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
                   <p className="text-zinc-600 dark:text-zinc-400">No posts match these filters.</p>
-                  <Link href="/" className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
+                  <PendingLink href="/" className="flex h-11 items-center rounded-lg border border-zinc-300 px-4 font-medium dark:border-zinc-700">
                     Clear filters
-                  </Link>
+                  </PendingLink>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
