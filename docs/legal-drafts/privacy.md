@@ -85,19 +85,20 @@ We use these services to run the app. Each receives only what it needs for its j
 
 Photos, messages, reservations and the rest of your data are stored and handled by the services above, and all of them have servers outside the Philippines. The database is in the United States. We send data abroad only to run the app. Under the Data Privacy Act we remain accountable for your data while a service handles it for us, and we use contracts or the services' standard data-processing terms to require protection comparable to the Act's [owner to confirm that each provider's data-processing terms have been accepted].
 
-## ID verification [applies once ID verification opens]
+## ID check
 
-ID verification is optional. It lets you show that you are a real person who studies or works at the school you chose, so other members can trust a badge that says "ID checked". Until you verify, you can still browse, ask for things and post Wishlist items [limits for unverified students: owner to confirm before launch, and say them here].
+The ID check is optional. It lets you show that you are a real person who studies or works at the school you chose, and that you meet the minimum age, so other members can trust a badge that says "ID checked". Without an ID check you can still browse, message, make offers, reserve, and post Wishlist items. You can have one open Showcase listing at a time until your ID is checked.
 
-- **What we collect.** A picture of your school ID or certificate of registration, and a photo of you holding it. These show information about your education and are issued by your school, so we treat them with extra care.
-- **Why.** Only to decide whether to give your account an "ID checked" badge for the school and role you chose [state here whether the check also confirms that you meet the minimum age: owner to decide before launch]. We do not use the pictures for anything else.
-- **Your consent.** We ask for it on its own screen, before you upload anything, separate from accepting the Terms. You can say no and use the rest of the app.
-- **Who sees it.** Only the owner. The pictures are kept in a private area, separate from listing photos, and the owner opens them only through short-lived links. Each time the pictures are opened is logged. We do not share them with anyone, and they do not appear anywhere in the app.
-- **What happens after the decision.** As soon as we approve or reject, the pictures are deleted. We keep only the result (approved or rejected), who decided, the date, and a short reason. We do not copy numbers or other details from your ID into our records [confirm when built]. We keep no copy of the pictures [confirm when built that no storage version or backup holds them].
-- **If you start but do not finish,** pictures that have not been decided are deleted after 7 days.
-- **If we reject it,** you may try again, up to 3 attempts.
-- **How long a check lasts.** 12 months. After that you can verify again to keep the badge. [Graduates (alumni): documents to be decided.]
-- **Withdrawing your consent.** You can withdraw at any time, as easily as you gave it: in Settings [location to be built] or by writing to us. If the pictures are still waiting for a decision, we delete them right away and stop the check. If we have already decided, the pictures are already gone. You can ask us to remove your "ID checked" badge, and then we delete the record of the check [lawyer: confirm what, if anything, we may keep]. Withdrawing does not undo what we did while you consented.
+- **What we collect.** A picture of your school ID or certificate of registration, and a photo of you holding it. These show information about your education and may show your age, so we treat them with extra care. You may cover your ID number.
+- **Why.** Only to decide whether to give your account an "ID checked" badge: to check who you are, your role at the school you chose, and that you meet the minimum age of 16. We do not use the pictures for anything else.
+- **Your consent.** We ask for it on its own screen, before you can upload anything, separate from accepting the Terms. The screen says what we ask for, why, who sees it, what happens next and how to withdraw. You can say no and use the rest of the app. We keep a record that you agreed: which version of the screen you saw, when, and, if you withdraw, when.
+- **Who sees it.** Only the owner. The pictures are kept in a private storage area, separate from listing photos, and the owner opens them only through links that stop working after a few minutes. Each time a picture is opened it is written down (who, which check, when). We do not share them with anyone, and they do not appear anywhere in the app.
+- **After the decision.** The pictures are deleted from storage first, and only then is the decision saved. We keep the result (approved or rejected), who decided, the date, and a short reason. If we reject, you will see the reason. We do not copy details from your ID into our records.
+- **If you start but do not finish,** or the check waits more than 7 days, the pictures are deleted and the check is closed.
+- **If we reject it,** you may try again, up to 3 times in total.
+- **How long a check lasts.** 12 months. After that the badge ends and you can ask again. [Graduates (alumni): the documents they may show are still to be decided.]
+- **Withdrawing your consent.** You can withdraw at any time in Settings, "ID check", with one tap. If the pictures are still waiting, we delete them right away and stop the check. If we have already decided, the pictures are already gone. Your badge is removed. You can check again later. Withdrawing does not undo what we did while you agreed. [Lawyer: confirm that keeping the result record and the consent record, described under "How long we keep it", is allowed after withdrawal.]
+- **If you delete your account,** any pictures still waiting are deleted.
 
 ## How long we keep it
 
