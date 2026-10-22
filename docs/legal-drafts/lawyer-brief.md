@@ -31,9 +31,9 @@ ID check (optional): a school ID or registration plus a photo holding it, review
 7. **Liability and venue.** Is the liability clause safe (Consumer Act Art 106)? Venue is Parañaque City: acceptable?
 8. **Cross-border.** Are the providers' standard terms enough under DPA Sec 21?
 
-## Please read first
+## Where to look in the package
 
-`content/legal/*.md` (what is live), `docs/legal-drafts/README.md` (all 14 questions and the response times I set: 24 hours, 3 working days, 7 days, 15 days), `docs/legal-drafts/ph-law-research.md` (what I read and could not read), `src/lib/verification/consent.ts` (exact ID consent wording).
+Part B: the live text and the exact ID consent screen. Part C: the 14 open questions and the research memo (what I read and could not read). Part D: drafts not yet live. Response times I set, for you to confirm: 24 hours, 3 working days, 7 days, 15 days.
 
 ## Not legal advice
 
