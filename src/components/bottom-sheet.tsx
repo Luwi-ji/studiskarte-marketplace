@@ -55,7 +55,7 @@ export function BottomSheet({ open, onOpenChange, label, returnFocusTo, children
       }
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [open, overlay]);
+  }, [open, overlay, label]);
 
   // Overlay mode: Escape closes it and the page behind does not scroll.
   useEffect(() => {
