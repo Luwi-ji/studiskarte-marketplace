@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ConfirmSheet } from "@/components/confirm-sheet";
+import { LeaveGuard } from "@/components/leave-guard";
 import { canGoBackInApp, PageHeader } from "@/components/page-header";
 import { ProfileAvatar, SettingsSection, SettingsRow } from "@/components/settings-list";
 import { preparePhoto } from "@/lib/images/prepare-photo";
@@ -146,6 +147,7 @@ export function EditProfile() {
         ) : null}
       </main>
 
+      <LeaveGuard active={draft.dirty && !saving} skipBack allow="/me/settings/profile" />
       <ConfirmSheet
         open={discarding}
         onOpenChange={setDiscarding}

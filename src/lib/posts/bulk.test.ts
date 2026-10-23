@@ -98,6 +98,20 @@ describe("changePosts", () => {
     expect(await openCount()).toBe(before - 2);
   });
 
+  it("keeps going when one post throws, and leaves one structured line for it", async () => {
+    const good = await postIn("open");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      // Not a UUID: the database refuses the query, which is an unexpected failure, not a rule.
+      const results = await changePosts({ ownerId: owner, action: "withdraw", ids: ["not-a-uuid", good], store });
+      expect(results.map((r) => r.ok)).toEqual([false, true]);
+      const lines = log.mock.calls.map((c) => JSON.parse(String(c[0])));
+      expect(lines).toEqual([expect.objectContaining({ event: "bulk_post_failed", action: "withdraw", postId: "not-a-uuid" })]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("refuses to withdraw a post with a reservation in progress, as the single action does", async () => {
     const reserved = await postIn("open");
     const free = await postIn("open");

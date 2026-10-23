@@ -22,13 +22,19 @@ export async function bulkTransactionsAction(input: unknown): Promise<{ ok: true
   const { action, ids } = parsed.data;
   const results = await Promise.all(
     ids.map(async (id): Promise<BulkTransactionResult> => {
-      const result =
-        action === "withdraw"
-          ? await withdrawOffer({ responderId: me.id, offerId: id })
-          : action === "decline"
-            ? await declineOffer({ ownerId: me.id, offerId: id, alert: sendAlertAfterResponse })
-            : await cancelDeal({ actorId: me.id, dealId: id, alert: sendAlertAfterResponse });
-      return result.ok ? { id, ok: true } : { id, ok: false, error: result.error };
+      try {
+        const result =
+          action === "withdraw"
+            ? await withdrawOffer({ responderId: me.id, offerId: id })
+            : action === "decline"
+              ? await declineOffer({ ownerId: me.id, offerId: id, alert: sendAlertAfterResponse })
+              : await cancelDeal({ actorId: me.id, dealId: id, alert: sendAlertAfterResponse });
+        return result.ok ? { id, ok: true } : { id, ok: false, error: result.error };
+      } catch (error) {
+        // One searchable line per unexpected failure, no message text or personal data; the others still finish.
+        console.error(JSON.stringify({ event: "bulk_transaction_failed", action, id, error: error instanceof Error ? error.name : "unknown", code: (error as { code?: string })?.code }));
+        return { id, ok: false, error: "Something went wrong on our side. Try again in a moment." };
+      }
     }),
   );
   if (results.some((result) => result.ok)) refresh();

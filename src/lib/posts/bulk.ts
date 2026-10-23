@@ -91,16 +91,22 @@ export async function changePosts(args: { ownerId: string; action: BulkAction; i
   const ids = [...new Set(args.ids)].slice(0, BULK_MAX);
   const results: BulkResult[] = [];
   for (const id of ids) {
-    if (args.action === "relist") {
-      results.push(await relistOne(args.ownerId, id, args.store, now));
-      continue;
+    try {
+      if (args.action === "relist") {
+        results.push(await relistOne(args.ownerId, id, args.store, now));
+        continue;
+      }
+      const outcome = args.action === "withdraw" ? await withdrawPost(args.ownerId, id) : await deletePost(args.ownerId, id);
+      results.push(
+        outcome === "ok"
+          ? { id, ok: true }
+          : { id, ok: false, reason: outcome === "has_reservations" ? REASON.reservation : REASON.notAllowed[args.action] },
+      );
+    } catch (error) {
+      // An unexpected failure (database, storage) must not stop the others or vanish: one searchable line, no message text or personal data.
+      console.error(JSON.stringify({ event: "bulk_post_failed", action: args.action, postId: id, error: error instanceof Error ? error.name : "unknown", code: (error as { code?: string })?.code }));
+      results.push({ id, ok: false, reason: "Something went wrong on our side. Try again in a moment." });
     }
-    const outcome = args.action === "withdraw" ? await withdrawPost(args.ownerId, id) : await deletePost(args.ownerId, id);
-    results.push(
-      outcome === "ok"
-        ? { id, ok: true }
-        : { id, ok: false, reason: outcome === "has_reservations" ? REASON.reservation : REASON.notAllowed[args.action] },
-    );
   }
   return results;
 }

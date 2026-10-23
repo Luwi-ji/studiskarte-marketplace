@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { LeaveGuard } from "@/components/leave-guard";
 import { CategoryIcon } from "@/components/category-icon";
 import { CategoryList } from "@/components/category-select";
 import { uploadPhoto } from "@/lib/images/prepare-photo";
@@ -243,6 +244,7 @@ export function PostForm(props: Props) {
 
   return (
     <>
+      <LeaveGuard active={dirty && !saving} />
       <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
         {props.mode === "edit" && props.relist ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
