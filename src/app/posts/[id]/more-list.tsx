@@ -1,8 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { CardGrid } from "@/components/post-card";
+import { Card } from "@/components/post-card";
+import type { PostCardData } from "@/lib/discovery/cards";
 import { loadMoreLikeThisAction, type MoreEntry } from "./more-actions";
+
+/** Cards side by side that swipe left and right, each snapping into place; the next card peeks in at the edge. */
+function SwipeRow({ cards, label }: { cards: PostCardData[]; label: string }) {
+  return (
+    <ul
+      aria-label={label}
+      className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {cards.map((card) => (
+        <li key={card.id} className="flex w-[8.5rem] shrink-0 snap-start">
+          <div className="flex w-full [&>*]:w-full">
+            <Card card={card} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
  * The listings under a post, grouped under a plain heading each, with a
@@ -55,13 +74,13 @@ export function MoreList({
       {seller.length > 0 ? (
         <div className="flex flex-col gap-2">
           <h2 className="text-base font-semibold">{sellerHandle ? `More from @${sellerHandle}` : "More from this seller"}</h2>
-          <CardGrid cards={seller} />
+          <SwipeRow cards={seller} label="Swipe to see more listings from this seller" />
         </div>
       ) : null}
       {category.length > 0 ? (
         <div className="flex flex-col gap-2">
           <h2 className="text-base font-semibold">More in {categoryName}</h2>
-          <CardGrid cards={category} />
+          <SwipeRow cards={category} label={`Swipe to see more listings in ${categoryName}`} />
         </div>
       ) : null}
       {failed ? (

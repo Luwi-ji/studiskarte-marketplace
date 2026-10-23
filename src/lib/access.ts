@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/identity/auth";
+import { signInUrl } from "@/lib/identity/return-to";
 import type { Role } from "@/lib/identity/roles";
 import { currentLegal, needsTerms } from "@/lib/legal/documents";
 
@@ -51,9 +52,9 @@ export function hasFinishedSignUp(current: SignedInStudent): current is ActiveSt
 }
 
 /** For pages: visitors go to sign in, students without a handle go to finish sign-up, and a student who has not accepted the current terms is asked to. */
-export async function requireActiveStudent(): Promise<ActiveStudent> {
+export async function requireActiveStudent(returnTo?: string): Promise<ActiveStudent> {
   const current = await getSignedInStudent();
-  if (!current) redirect("/sign-in");
+  if (!current) redirect(signInUrl(returnTo ?? null));
   if (!hasFinishedSignUp(current)) redirect("/welcome");
   if (current.mustAcceptTerms) redirect("/accept-terms");
   return current;

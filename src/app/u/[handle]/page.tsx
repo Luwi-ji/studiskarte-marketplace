@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
 import { NewPill, SoldCount } from "@/components/seller-trust";
@@ -34,7 +35,7 @@ export default function ProfilePage({ params, searchParams }: PageProps<"/u/[han
   return (
     <>
       <Suspense fallback={<PageHeader title="Profile" logo />}>
-        <ProfileHeader params={params} />
+        <ProfileHeader params={params} searchParams={searchParams} />
       </Suspense>
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4">
         <Suspense fallback={<CardGridSkeleton />}>
@@ -46,13 +47,16 @@ export default function ProfilePage({ params, searchParams }: PageProps<"/u/[han
 }
 
 /** The top bar; on your own profile it carries a Settings gear. */
-async function ProfileHeader({ params }: { params: Promise<{ handle: string }> }) {
+async function ProfileHeader({ params, searchParams }: { params: Promise<{ handle: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireActiveStudent();
   const own = decodeURIComponent((await params).handle).toLowerCase() === me.handle.toLowerCase();
+  // Opened from a listing's seller card: a back arrow returns to that listing. Anywhere else the logo shows.
+  const from = z.uuid().safeParse((await searchParams).from);
   return (
     <PageHeader
       title="Profile"
-      logo
+      logo={!from.success}
+      back={from.success ? `/posts/${from.data}` : undefined}
       action={
         own ? (
           <Link href="/me/settings" aria-label="Settings" className="flex h-11 w-11 items-center justify-center rounded-full">

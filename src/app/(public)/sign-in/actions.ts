@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, googleEnabled } from "@/lib/identity/auth";
 import { loginWithPassword } from "@/lib/identity/password";
+import { safeReturnTo } from "@/lib/identity/return-to";
 
 export type SignInState = { error?: string; identifier?: string };
 
@@ -17,16 +18,17 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const password = String(formData.get("password") ?? "");
   const result = await loginWithPassword(identifier, password, await headers());
   if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : result.reason === "suspended" ? SUSPENDED : WRONG };
-  redirect("/");
+  redirect(safeReturnTo(formData.get("next")) ?? "/");
 }
 
 /** Starts Google sign-in: the person leaves for Google and comes back to /api/auth/callback/google. */
-export async function continueWithGoogle(): Promise<void> {
+export async function continueWithGoogle(formData: FormData): Promise<void> {
+  const next = safeReturnTo(formData.get("next")) ?? "/";
   if (!googleEnabled) redirect("/sign-in");
   const result = await auth.api.signInSocial({
     body: {
       provider: "google",
-      callbackURL: "/",
+      callbackURL: next,
       newUserCallbackURL: "/",
       errorCallbackURL: "/sign-in?google=failed",
     },

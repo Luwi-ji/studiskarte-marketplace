@@ -5,12 +5,13 @@ import { useActionState } from "react";
 import { buttonClass, inlineLinkClass, inputClass, linkClass, outlineButtonClass } from "../auth-styles";
 import { continueWithGoogle, signIn, type SignInState } from "./actions";
 
-export function SignInForm({ google, googleFailed }: { google: boolean; googleFailed: boolean }) {
+export function SignInForm({ google, googleFailed, next }: { google: boolean; googleFailed: boolean; next: string | null }) {
   const [state, action, pending] = useActionState<SignInState, FormData>(signIn, {});
 
   return (
     <div className="flex flex-col gap-4">
       <form action={action} className="flex flex-col gap-4">
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">School email, email or handle</span>
           <input
@@ -39,6 +40,7 @@ export function SignInForm({ google, googleFailed }: { google: boolean; googleFa
       </form>
       {google ? (
         <form action={continueWithGoogle} className="flex flex-col gap-2">
+          {next ? <input type="hidden" name="next" value={next} /> : null}
           {googleFailed ? (
             <p role="alert" className="text-sm text-red-600">Google sign-in did not finish. Try again, or use your email.</p>
           ) : null}

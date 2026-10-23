@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const TOAST_MS = 5000;
+const TOAST_MS = 9000;
 
 /**
  * Shares a listing as a story card (a 1080 x 1920 picture made by the share-card route). Phones open
@@ -42,6 +42,17 @@ export function ShareButton({ postId, title }: { postId: string; title: string }
     if (busy) return;
     setBusy(true);
     setMessage(null);
+    // The picture itself cannot be tapped, so the listing's link travels with it (in the share and on the clipboard,
+    // for an Instagram link sticker). Copied now, while the tap still counts as a user action.
+    const link = `${window.location.origin}/posts/${postId}`;
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(link);
+      copied = true;
+    } catch {
+      // No clipboard access: the link still goes with the share.
+    }
+    const linkHint = copied ? " The link is copied: in an Instagram story, add a Link sticker and paste it." : "";
     try {
       let file = card.current;
       if (!file) {
@@ -53,14 +64,15 @@ export function ShareButton({ postId, title }: { postId: string; title: string }
         }
         card.current = file;
       }
-      const data = { files: [file], title, text: `${title} on Studiskarte Marketplace` };
+      const data = { files: [file], title, text: `${title} on Studiskarte Marketplace`, url: link };
       if (typeof navigator.canShare !== "function" || !navigator.canShare(data)) {
         save(file);
-        setMessage("Sharing is not available here, so the card was saved to your device.");
+        setMessage(`Sharing is not available here, so the card was saved to your device.${linkHint}`);
         return;
       }
       try {
         await navigator.share(data);
+        if (copied) setMessage("Shared. The listing's link is copied: in an Instagram story, add a Link sticker and paste it so people can tap through.");
       } catch (error) {
         if (!(error instanceof DOMException)) throw error;
         // Closing the share sheet is not an error.

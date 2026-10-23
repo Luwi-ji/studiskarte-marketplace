@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/legal-links";
 import { getSignedInStudent } from "@/lib/access";
 import { googleEnabled } from "@/lib/identity/auth";
+import { safeReturnTo } from "@/lib/identity/return-to";
 import { SignInForm } from "./sign-in-form";
 
 export const metadata = { title: "Log in · Studiskarte Marketplace" };
@@ -21,19 +22,19 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
       </Suspense>
       <LegalLinks />
       <Suspense>
-        <SkipIfSignedIn />
+        <SkipIfSignedIn searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
 async function Form({ searchParams }: { searchParams: PageProps<"/sign-in">["searchParams"] }) {
-  const { google } = await searchParams;
-  return <SignInForm google={googleEnabled} googleFailed={google === "failed"} />;
+  const { google, next } = await searchParams;
+  return <SignInForm google={googleEnabled} googleFailed={google === "failed"} next={safeReturnTo(next)} />;
 }
 
 // A signed-in student has no reason to be here.
-async function SkipIfSignedIn() {
-  if (await getSignedInStudent()) redirect("/");
+async function SkipIfSignedIn({ searchParams }: { searchParams: PageProps<"/sign-in">["searchParams"] }) {
+  if (await getSignedInStudent()) redirect(safeReturnTo((await searchParams).next) ?? "/");
   return null;
 }

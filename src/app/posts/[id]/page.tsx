@@ -64,9 +64,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 async function Post({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const me = await requireActiveStudent();
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) notFound();
+  // Someone who is not signed in (a shared link) signs in and lands back on this listing.
+  const me = await requireActiveStudent(`/posts/${id.data}`);
   const detail = await getPostDetail(me.id, id.data);
   if (!detail) notFound();
 
@@ -193,7 +194,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
           <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{wishlist ? "Posted by" : "Seller"}</h2>
           {/* A profile needs a handle; posts from before sign-up was finished have none. */}
           {detail.seller.handle ? (
-            <Link href={`/u/${detail.seller.handle}`} className="flex min-h-12 items-center gap-3 active:opacity-80">
+            <Link href={`/u/${detail.seller.handle}?from=${detail.id}`} className="flex min-h-12 items-center gap-3 active:opacity-80">
               {sellerWho}
               <span aria-hidden className="text-xl text-zinc-400">›</span>
             </Link>
