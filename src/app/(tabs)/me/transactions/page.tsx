@@ -2,31 +2,32 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
-import { listTransactions, type Transaction, type TransactionGroup } from "@/lib/deals/mine";
+import { listTransactions } from "@/lib/deals/mine";
 import { getObjectStore } from "@/lib/images/store";
-import { formatPrice } from "@/lib/posts/format";
+import { TransactionsView, type TransactionRow } from "./transactions-view";
 
 export const metadata = { title: "Transactions · Studiskarte Marketplace" };
-
 const LINK_SECONDS = 5 * 60;
-
-const SECTIONS: { group: TransactionGroup; title: string }[] = [
-  { group: "waiting", title: "Waiting for an answer" },
-  { group: "active", title: "In progress" },
-  { group: "done", title: "Completed" },
-  { group: "closed", title: "Cancelled or reported" },
-];
 
 export default function TransactionsPage() {
   return (
     <>
       <PageHeader title="Transactions" back="/me/settings" />
-      <main className="mx-auto w-full max-w-md flex-1 px-3 py-3">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+      <main className="mx-auto w-full max-w-md flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+        <Suspense fallback={<TransactionsSkeleton />}>
           <Transactions />
         </Suspense>
       </main>
     </>
+  );
+}
+
+function TransactionsSkeleton() {
+  return (
+    <div aria-hidden className="motion-safe:animate-pulse">
+      <div className="h-22 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800"><div className="h-5 w-28 rounded bg-zinc-200 dark:bg-zinc-800" /><div className="mt-4 h-8 w-full rounded bg-zinc-200 dark:bg-zinc-800" /></div>
+      {Array.from({ length: 5 }, (_, i) => <div key={i} className="flex gap-3 border-b border-zinc-200 px-3 py-3 dark:border-zinc-800"><div className="h-16 w-16 rounded-lg bg-zinc-200 dark:bg-zinc-800" /><div className="flex flex-1 flex-col gap-2"><div className="h-4 w-4/5 rounded bg-zinc-200 dark:bg-zinc-800" /><div className="h-3 w-2/3 rounded bg-zinc-200 dark:bg-zinc-800" /><div className="h-3 w-1/2 rounded bg-zinc-200 dark:bg-zinc-800" /></div></div>)}
+    </div>
   );
 }
 
@@ -36,57 +37,28 @@ async function Transactions() {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-        <p className="text-zinc-600 dark:text-zinc-400">No transactions yet. An offer or a reservation, made or received, shows up here with what to do next.</p>
-        <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
-          Browse the feed
-        </Link>
+        <p className="text-zinc-600 dark:text-zinc-400">No transactions yet. Offers and reservations appear here with what to do next.</p>
+        <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">Browse the feed</Link>
       </div>
     );
   }
   const store = getObjectStore();
-  const urls = new Map(await Promise.all(items.map(async (t): Promise<[string, string]> => [t.id, await store.signedUrl(t.thumbKey, LINK_SECONDS)])));
-
-  return (
-    <div className="flex flex-col gap-6">
-      {SECTIONS.map(({ group, title }) => {
-        const rows = items.filter((t) => t.group === group);
-        if (rows.length === 0) return null;
-        return (
-          <section key={group} aria-label={title} className="flex flex-col gap-2">
-            <h2 className="px-1 text-sm font-medium text-zinc-500">
-              {title} · {rows.length}
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {rows.map((t) => (
-                <li key={t.id}>
-                  <Row item={t} thumbUrl={urls.get(t.id) ?? ""} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-function Row({ item, thumbUrl }: { item: Transaction; thumbUrl: string }) {
-  const many = item.quantity > 1;
-  const price = item.isReserve && item.amount === 0 ? "Free" : `${formatPrice("amount", item.amount)}${many ? ` × ${item.quantity}` : ""}`;
-  return (
-    <Link href={`/messages/${item.conversationId}`} className="flex min-h-[4.5rem] items-center gap-3 rounded-xl border border-zinc-200 p-2 active:opacity-80 dark:border-zinc-800">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={thumbUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 break-words font-medium leading-snug">{item.title}</p>
-        <p className="truncate text-xs text-zinc-500">
-          {item.role === "selling" ? "Selling to" : "Buying from"} {item.otherName} · {price}
-        </p>
-        <p className="text-sm">{item.state}</p>
-      </div>
-      <span aria-hidden className="text-xl text-zinc-400">
-        ›
-      </span>
-    </Link>
-  );
+  const rows: TransactionRow[] = await Promise.all(items.map(async (item) => ({
+    id: item.id,
+    postId: item.postId,
+    title: item.title,
+    kind: item.kind,
+    thumbUrl: await store.signedUrl(item.thumbKey, LINK_SECONDS),
+    otherName: item.otherName,
+    otherHandle: item.otherHandle,
+    quantity: item.quantity,
+    amount: item.amount,
+    group: item.group,
+    chip: item.chip,
+    state: item.state,
+    action: item.action,
+    conversationId: item.conversationId,
+    at: item.at.toISOString(),
+  })));
+  return <TransactionsView rows={rows} />;
 }

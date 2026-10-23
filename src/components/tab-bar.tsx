@@ -18,7 +18,7 @@ async function NavWithBadge() {
   const me = await getSignedInStudent();
   if (!me) return <PlainBar />;
   const [unread, hasPerks] = await Promise.all([countUnread(me.id), hasVisiblePerks(me.schoolDomain)]);
-  return <BottomNav unread={unread} hasPerks={hasPerks} handle={me.handle} />;
+  return <BottomNav unread={unread} hasPerks={hasPerks} handle={me.handle} canSell={me.role === "student"} />;
 }
 
 /** Page content that stops above the tab bar and the home bar, with the tab bar below it. */

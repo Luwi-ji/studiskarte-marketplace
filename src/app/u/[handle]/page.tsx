@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
-import { NewPill, SoldCount } from "@/components/seller-trust";
+import { BoughtCount, NewPill, SoldCount } from "@/components/seller-trust";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { IdCheckedBadge } from "@/components/id-checked-badge";
@@ -18,9 +17,11 @@ import { getReplyTime, REPLY_LABEL } from "@/lib/messaging/response-time";
 import { listOwnPosts } from "@/lib/posts/mine";
 import { OPEN_POSTS_MAX, type PostKind } from "@/lib/posts/schema";
 import { FollowControls } from "./follow-controls";
-import { BlockButton } from "@/app/safety/block-button";
-import { ReportControl } from "@/app/safety/report-control";
+import { MenuSheet } from "@/app/safety/menu-sheet";
+import { REPORT_REASONS } from "@/lib/safety/report";
 import { OwnPosts } from "./own-posts";
+import { NewPostButton } from "@/components/post-chooser";
+import { profileOrigin } from "./origin";
 
 export const metadata = { title: "Profile · Studiskarte Marketplace" };
 
@@ -50,13 +51,13 @@ export default function ProfilePage({ params, searchParams }: PageProps<"/u/[han
 async function ProfileHeader({ params, searchParams }: { params: Promise<{ handle: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireActiveStudent();
   const own = decodeURIComponent((await params).handle).toLowerCase() === me.handle.toLowerCase();
-  // Opened from a listing's seller card: a back arrow returns to that listing. Anywhere else the logo shows.
-  const from = z.uuid().safeParse((await searchParams).from);
+  // Opened from a listing's seller card, a conversation's name, or someone's Followers or Following list: a back arrow returns there. Anywhere else the logo shows.
+  const back = profileOrigin(await searchParams)?.back;
   return (
     <PageHeader
       title="Profile"
-      logo={!from.success}
-      back={from.success ? `/posts/${from.data}` : undefined}
+      logo={!back}
+      back={back}
       action={
         own ? (
           <Link href="/me/settings" aria-label="Settings" className="flex h-11 w-11 items-center justify-center rounded-full">
@@ -82,6 +83,8 @@ async function Profile({
   const profile = await getPublicProfile(me.id, decodeURIComponent((await params).handle));
   if (!profile) notFound();
   const tab: PostKind = (await searchParams).tab === "wishlist" ? "wishlist" : "showcase";
+  // Kept on the tab links so the back arrow stays.
+  const suffix = profileOrigin(await searchParams)?.query ?? "";
   const base = `/u/${profile.handle}`;
 
   // Your own profile lists everything you posted, with its controls; anyone else's lists what is open.
@@ -111,9 +114,15 @@ async function Profile({
           </div>
         )}
         <div className="flex min-w-0 max-w-full flex-col items-center gap-1">
-          <h2 className="max-w-full truncate text-xl font-semibold">{profile.displayName}</h2>
-          <div className="flex max-w-full flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
-            <p className="min-w-0 max-w-full truncate text-base text-zinc-500">@{profile.handle}</p>
+          {/* The badges are icons beside the name; tapping one says what it means. */}
+          <div className="flex max-w-full items-center justify-center gap-2">
+            <h2 className="min-w-0 truncate text-xl font-semibold">{profile.displayName}</h2>
+            <VerifiedBadge />
+            {profile.idChecked ? <IdCheckedBadge /> : null}
+          </div>
+          <p className="min-w-0 max-w-full truncate text-base text-zinc-500">@{profile.handle}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</p>
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-x-4 text-sm text-zinc-600 dark:text-zinc-400">
             {rep.rating ? (
               <Link href={`${base}/reviews`} className="press inline-flex min-h-11 items-center" aria-label={`Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews`}>
                 <Stars average={rep.rating.average} count={rep.rating.count} />
@@ -133,43 +142,28 @@ async function Profile({
                 <SoldCount count={rep.sold} />
               </Link>
             ) : null}
+            {/* Bought is private: only on your own profile. */}
+            {profile.isSelf && rep.bought > 0 ? (
+              <Link href={`${base}/bought`} className="press inline-flex min-h-11 items-center" aria-label={`${rep.bought} bought, see the list`}>
+                <BoughtCount count={rep.bought} />
+              </Link>
+            ) : null}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <VerifiedBadge />
-            {profile.idChecked ? <IdCheckedBadge /> : null}
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</span>
-          </div>
-          {rep.granted > 0 || (profile.isSelf && rep.bought > 0) ? (
-            <p className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
-              {rep.granted > 0 ? (
-                <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
-                  Given free {rep.granted}
-                </Link>
-              ) : null}
-              {profile.isSelf && rep.bought > 0 ? (
-                <Link href={`${base}/bought`} className="inline-flex min-h-11 items-center underline">
-                  Bought {rep.bought}
-                </Link>
-              ) : null}
-            </p>
+          {rep.granted > 0 ? (
+            <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center text-sm text-zinc-600 underline dark:text-zinc-400">
+              Given free {rep.granted}
+            </Link>
           ) : null}
           {reply ? <p className="text-xs text-zinc-500">Typically replies {REPLY_LABEL[reply]}</p> : null}
         </div>
         {profile.isSelf ? (
-          <>
-            <p className="text-sm">
-              <span className="font-semibold">{profile.followerCount}</span> {profile.followerCount === 1 ? "follower" : "followers"}
-            </p>
-            <div className="w-full">
-              <Link href="/me/settings" className="flex h-11 items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">
-                Edit my profile
-              </Link>
-            </div>
-          </>
+          // Who you follow is private: the count and its list exist only on your own profile.
+          <p className="flex items-center justify-center gap-6 text-sm">
+            <CountLink href={`${base}/followers`} n={profile.followerCount} one="follower" many="followers" />
+            <CountLink href={`${base}/following`} n={profile.followingCount ?? 0} one="following" many="following" />
+          </p>
         ) : (
-          <>
-            <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount} />
-          </>
+          <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount} />
         )}
       </section>
 
@@ -178,7 +172,7 @@ async function Profile({
           {TABS.map((t) => (
             <Link
               key={t.id}
-              href={t.id === "showcase" ? base : `${base}?tab=${t.id}`}
+              href={t.id === "showcase" ? (suffix ? `${base}?${suffix}` : base) : `${base}?tab=${t.id}${suffix ? `&${suffix}` : ""}`}
               replace
               aria-current={t.id === tab ? "page" : undefined}
               className={`flex h-11 items-center justify-center gap-1.5 border-b-2 text-sm ${t.id === tab ? "border-zinc-900 font-semibold dark:border-zinc-50" : "border-transparent text-zinc-500"}`}
@@ -197,9 +191,9 @@ async function Profile({
           <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
             <p className="text-zinc-500">{profile.isSelf ? `You have no ${noun} yet.` : `No ${noun} open right now.`}</p>
             {profile.isSelf ? (
-              <Link href="/posts/new" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+              <NewPostButton canSell={me.role === "student"} className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
                 Create a post
-              </Link>
+              </NewPostButton>
             ) : null}
           </div>
         ) : profile.isSelf ? (
@@ -210,14 +204,25 @@ async function Profile({
       </section>
 
       {profile.isSelf ? null : (
-        <details className="mx-auto w-full max-w-md border-t border-zinc-200 dark:border-zinc-800">
-          <summary className="flex min-h-11 cursor-pointer items-center justify-center text-sm text-zinc-500">Report or block @{profile.handle}</summary>
-          <div className="flex flex-col gap-1 pb-4">
-            <ReportControl target={{ kind: "student", handle: profile.handle }} label="Report this student" className="h-11 w-full text-sm font-medium underline" />
-            <BlockButton handle={profile.handle} className="h-11 w-full text-sm font-medium text-red-600 underline disabled:opacity-60" />
-          </div>
-        </details>
+        <div className="mx-auto w-full max-w-md border-t border-zinc-200 dark:border-zinc-800">
+          <MenuSheet
+            trigger={{ text: `Report or block @${profile.handle}` }}
+            reasons={REPORT_REASONS}
+            name={profile.displayName || `@${profile.handle}`}
+            handle={profile.handle}
+            blockHandle={profile.handle}
+          />
+        </div>
       )}
     </div>
+  );
+}
+
+/** A count with its label as a 44 px link, including an empty list. */
+function CountLink({ href, n, one, many }: { href: string; n: number; one: string; many: string }) {
+  return (
+    <Link href={href} className="press inline-flex min-h-11 items-center gap-1">
+      <span className="font-semibold">{n}</span> {n === 1 ? one : many}
+    </Link>
   );
 }

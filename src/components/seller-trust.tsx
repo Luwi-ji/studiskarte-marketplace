@@ -23,6 +23,22 @@ export function SoldCount({ count }: { count: number }) {
   );
 }
 
+/** Items bought as a small shopping-cart icon and the number; the icon replaces the word "Bought". Shown beside SoldCount, and drawn differently from it. */
+export function BoughtCount({ count }: { count: number }) {
+  return (
+    <span role="img" aria-label={`${count} bought`} title={`${count} bought`} className="inline-flex items-center gap-1 text-sm">
+      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="9" cy="20" r="1.5" />
+        <circle cx="18" cy="20" r="1.5" />
+        <path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 7H6" />
+      </svg>
+      <span aria-hidden="true" className="font-medium text-zinc-900 dark:text-zinc-100">
+        {count}
+      </span>
+    </span>
+  );
+}
+
 /**
  * The cues that tell a stranger whether to trust a seller, on one line: stars
  * with the review count (or "New"), items sold, and how fast they usually reply.

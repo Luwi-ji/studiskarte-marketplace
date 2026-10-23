@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
 import "./globals.css";
+import { HapticsProvider } from "@/components/haptics";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { BlockedNotice } from "./safety/blocked-notice";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 import { UpdateNotice } from "./update-notice";
@@ -36,6 +38,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         {children}
         <ServiceWorkerRegistration />
+        <HapticsProvider />
+        <PullToRefresh />
         <UpdateNotice />
         <BlockedNotice />
       </body>

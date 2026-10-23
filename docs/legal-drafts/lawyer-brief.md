@@ -29,6 +29,16 @@ Terms, Privacy Policy, Community Guidelines and Child Safety Standards (RA 11930
 7. **Liability and venue.** Is the liability clause safe (Consumer Act Art 106)? Venue is Parañaque City: acceptable?
 8. **Cross-border.** Are the providers' standard terms enough under DPA Sec 21?
 
+## Public share preview
+
+Built 2026-10-23. Any signed-in student can share one of their own listings, or any listing they can see, to the public web: the Share button gives a story picture and the link `studiskarte.com/s/<listing id>`. Anyone with the link, signed in or not, can open that page, and chat apps and social networks fetch it to draw a link card.
+
+- **What is public:** the first photo, the kind (Showcase or Wishlist), the price (or budget), the title and the school's abbreviation. Nothing else: no name, handle, picture or email of the seller, no meet-up place, no description, no other photos, no counts. The page and the link-card image carry the same.
+- **How long:** only while the listing is open (within its 30 days) or reserved and the seller's account is active. A withdrawn, finished, expired, hidden (reports or child safety) or removed listing, or one whose owner is suspended or deleted, shows "This listing is no longer available" and no picture. The link-card image is cached for 5 minutes, so a removed listing disappears from the public web within about 5 minutes. Copies already posted by others (a story, a screenshot) and a social network's own saved preview are outside my control.
+- **Search engines:** the page is marked noindex and nofollow. Block rules for blocked members do not apply, because the visitor is anonymous.
+
+Open questions: (a) Does the privacy notice need a line saying that a listing's photo, price, title and school can be seen by anyone with a shared link? (b) Must the seller be able to opt out of public previews for a listing, or is the Share button, used by the seller or a buyer, enough? Today a buyer can share someone else's listing. (c) Photos of people, and of minors, in listings: is a public page a bigger risk than the members-only page, and should the preview hide listings that were ever reported?
+
 ## Where to look in the package
 
 Part B: the live text and the exact ID consent screen. Part C: the 14 open questions and the research memo (what I read and could not read). Part D: drafts not yet live. Response times I set, for you to confirm: 24 hours, 3 working days, 7 days, 15 days.

@@ -18,15 +18,10 @@ function canGoBackInApp(): boolean {
 /** Whom to block: a student by handle, or whoever posted a listing (for the "Report this post" screen). */
 type BlockTarget = { handle: string; postId?: never } | { postId: string; handle?: never };
 
-/**
- * Blocks a student after a bottom-sheet confirmation (the same pattern as the thread "⋯" menu), then goes back to
- * the previous screen, where "Blocked @name. Undo" shows for a few seconds. Their posts and profile are gone from view.
- */
-export function BlockButton({ handle, postId, label = "Block", className }: BlockTarget & { label?: string; className?: string }) {
+/** Blocking a student by handle, or whoever posted a listing, and what follows: `onDone` runs, then back to the previous screen. */
+function useBlock({ handle, postId }: { handle?: string; postId?: string }, onDone: () => void) {
   const router = useRouter();
   const step = useAction();
-  const sheet = useRef<HTMLDialogElement>(null);
-  const name = handle ? `@${handle}` : "the person who posted this";
 
   function block() {
     let blocked = handle ?? "";
@@ -37,7 +32,7 @@ export function BlockButton({ handle, postId, label = "Block", className }: Bloc
         return result;
       },
       () => {
-        sheet.current?.close();
+        onDone();
         announceBlocked(blocked);
         if (canGoBackInApp()) router.back();
         else router.push("/");
@@ -45,6 +40,54 @@ export function BlockButton({ handle, postId, label = "Block", className }: Bloc
       false,
     );
   }
+  return { busy: step.busy, error: step.error, block };
+}
+
+/** What blocking does, the error if it failed, and the Cancel / Block buttons. */
+function BlockBody({ busy, error, onBlock, onCancel }: { busy: boolean; error: string | null; onBlock: () => void; onCancel: () => void }) {
+  return (
+    <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
+        <li>You will not see each other&apos;s posts or profiles.</li>
+        <li>The conversation becomes read-only.</li>
+        <li>A reservation you are still arranging with them is cancelled. One that is already paid or agreed in cash stays.</li>
+        <li>They are not told you blocked them.</li>
+      </ul>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">You can undo this right after, or later in Settings under Blocked students.</p>
+      {error ? (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={onCancel} className="h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700">
+          Cancel
+        </button>
+        <button type="button" disabled={busy} onClick={onBlock} className="h-11 rounded-lg border border-red-300 font-medium text-red-600 disabled:opacity-60 dark:border-red-900">
+          {busy ? "Blocking…" : "Block"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The confirmation to block a student, as a step inside a sheet that has its own header (the report menu's "Block
+ * <name>" row). Cancel goes back; once blocked, `onDone` closes the sheet and the app goes back to the previous screen.
+ */
+export function BlockConfirm({ handle, onCancel, onDone }: { handle: string; onCancel: () => void; onDone: () => void }) {
+  const { busy, error, block } = useBlock({ handle }, onDone);
+  return <BlockBody busy={busy} error={error} onBlock={block} onCancel={onCancel} />;
+}
+
+/**
+ * Blocks a student after a bottom-sheet confirmation (the same pattern as the thread "⋯" menu), then goes back to
+ * the previous screen, where "Blocked @name. Undo" shows for a few seconds. Their posts and profile are gone from view.
+ */
+export function BlockButton({ handle, postId, label = "Block", className }: BlockTarget & { label?: string; className?: string }) {
+  const sheet = useRef<HTMLDialogElement>(null);
+  const name = handle ? `@${handle}` : "the person who posted this";
+  const { busy, error, block } = useBlock({ handle, postId }, () => sheet.current?.close());
 
   return (
     <div className="flex flex-col gap-1">
@@ -64,32 +107,11 @@ export function BlockButton({ handle, postId, label = "Block", className }: Bloc
         <div className="mx-auto flex max-h-[90dvh] w-full max-w-md flex-col">
           <div className="flex items-center justify-between px-4 pt-2">
             <h2 className="min-w-0 truncate text-lg font-semibold">Block {name}?</h2>
-            <button type="button" disabled={step.busy} onClick={() => sheet.current?.close()} aria-label="Close" className="flex h-11 w-11 items-center justify-center rounded-full text-2xl">
+            <button type="button" disabled={busy} onClick={() => sheet.current?.close()} aria-label="Close" className="flex h-11 w-11 items-center justify-center rounded-full text-2xl">
               ×
             </button>
           </div>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
-            <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
-              <li>You will not see each other&apos;s posts or profiles.</li>
-              <li>The conversation becomes read-only.</li>
-              <li>A reservation you are still arranging with them is cancelled. One that is already paid or agreed in cash stays.</li>
-              <li>They are not told you blocked them.</li>
-            </ul>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">You can undo this right after, or later in Settings under Blocked students.</p>
-            {step.error ? (
-              <p role="alert" className="text-sm text-red-600">
-                {step.error}
-              </p>
-            ) : null}
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" disabled={step.busy} onClick={() => sheet.current?.close()} className="h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700">
-                Cancel
-              </button>
-              <button type="button" disabled={step.busy} onClick={block} className="h-11 rounded-lg border border-red-300 font-medium text-red-600 disabled:opacity-60 dark:border-red-900">
-                {step.busy ? "Blocking…" : "Block"}
-              </button>
-            </div>
-          </div>
+          <BlockBody busy={busy} error={error} onBlock={block} onCancel={() => sheet.current?.close()} />
         </div>
       </dialog>
     </div>

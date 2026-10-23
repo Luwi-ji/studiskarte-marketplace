@@ -15,6 +15,7 @@ import { currentLegal } from "@/lib/legal/documents";
 import { AGE_REQUIRED } from "@/lib/identity/age";
 import { idCheckIsCurrent } from "@/lib/verification/config";
 import { isBlockedEitherWay } from "@/lib/safety/block";
+import { countFollowers, countFollowing } from "@/lib/social/follow";
 
 /** What a student sees about themselves. Never includes the school email. `school` reads "Visitor" when there is no school email. */
 export type OwnProfile = {
@@ -59,7 +60,10 @@ export type PublicProfile = {
   displayName: string;
   school: string;
   avatarKey: string | null;
+  /** How many active, visible people follow this student. */
   followerCount: number;
+  /** How many people the student follows. Set only on the viewer's own profile; `null` for everyone else, whose following is never shown. */
+  followingCount: number | null;
   isSelf: boolean;
   /** The owner checked a school ID and the check has not lapsed. */
   idChecked: boolean;
@@ -93,7 +97,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
   if (!row?.handle) return null;
   if (row.id !== viewerId && (await isBlockedEitherWay(viewerId, row.id))) return null;
 
-  const [followers] = await db.select({ n: count() }).from(follow).where(eq(follow.followeeId, row.id));
+  const followerCount = await countFollowers(viewerId, row.id);
   const [mine] = await db
     .select({ n: count() })
     .from(follow)
@@ -104,7 +108,8 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     displayName: row.displayName,
     school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
     avatarKey: row.avatarKey,
-    followerCount: followers.n,
+    followerCount,
+    followingCount: row.id === viewerId ? await countFollowing(viewerId, row.id) : null,
     isSelf: row.id === viewerId,
     idChecked: idCheckIsCurrent(row.idCheckedAt, row.idCheckExpiresAt),
     isFollowing: mine.n > 0,

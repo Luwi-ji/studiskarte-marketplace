@@ -1,6 +1,3 @@
-"use client";
-
-import { useRef } from "react";
 import { ProductCard } from "@/components/product-card";
 import type { PostCard } from "@/lib/messaging/read";
 
@@ -11,49 +8,43 @@ export type PostCardData = { post: PostCard; thumbUrl: string };
 export type ListingCardData = PostCardData & { viewerIsOwner: boolean; state: string | null };
 
 /**
- * A chip in the thread's top bar: the items the two have dealt about. Tapping it
- * opens the list, each item with its state (an offer waiting, reserved…),
- * and each one opens the listing.
+ * The states (from `transactionLabel`) of a transaction that is over: finished, cancelled, reported, or an offer
+ * that was declined, withdrawn or ran out. Anything else is still going on, and so is a listing with no offer yet.
  */
-export function Transactions({ listings }: { listings: ListingCardData[] }) {
-  const sheet = useRef<HTMLDialogElement>(null);
-  if (listings.length === 0) return null;
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => sheet.current?.showModal()}
-        aria-label={`Items in this chat: ${listings.length}`}
-        className="flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-zinc-300 px-3 text-sm font-medium active:opacity-80 dark:border-zinc-700"
-      >
-        {listings.length} {listings.length === 1 ? "item" : "items"}
-        <span aria-hidden className="text-xl leading-none text-zinc-400">
-          ›
-        </span>
-      </button>
+const PAST_STATES: Record<string, true> = {
+  Completed: true,
+  "Reservation cancelled": true,
+  Reported: true,
+  "Offer declined": true,
+  "Offer withdrawn": true,
+  "Offer expired": true,
+};
 
-      <dialog
-        ref={sheet}
-        aria-label="Items in this chat"
-        className="m-0 mt-auto max-h-[90dvh] w-full max-w-none rounded-t-2xl bg-[var(--background)] p-0 text-[var(--foreground)] backdrop:bg-black/50"
-      >
-        <div className="mx-auto flex max-h-[90dvh] w-full max-w-md flex-col">
-          <div className="flex items-center justify-between px-4 pt-2">
-            <h2 className="text-lg font-semibold">Items in this chat</h2>
-            <button type="button" onClick={() => sheet.current?.close()} aria-label="Close" className="flex h-11 w-11 items-center justify-center rounded-full text-2xl">
-              ×
-            </button>
-          </div>
-          <ul className="flex flex-col gap-2 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2">
-            {listings.map((l) => (
+/**
+ * Every listing the two have dealt about, ongoing first and then past, each with its state (an offer waiting,
+ * reserved, completed…). Each one opens the listing. Shown as a step of the thread's three-dot menu.
+ */
+export function TransactionList({ listings }: { listings: ListingCardData[] }) {
+  const isPast = (l: ListingCardData) => l.state !== null && PAST_STATES[l.state] === true;
+  const groups = [
+    { title: "Ongoing", items: listings.filter((l) => !isPast(l)) },
+    { title: "Past", items: listings.filter(isPast) },
+  ].filter((g) => g.items.length > 0);
+  return (
+    <div className="flex flex-col gap-4">
+      {groups.map((g) => (
+        <section key={g.title} aria-label={g.title} className="flex flex-col gap-2">
+          <h3 className="px-1 text-sm font-semibold text-zinc-600 dark:text-zinc-400">{g.title}</h3>
+          <ul className="flex flex-col gap-2">
+            {g.items.map((l) => (
               <li key={l.post.id}>
                 <p className="px-1 pb-1 text-xs text-zinc-500">{l.viewerIsOwner ? "Your post" : "Their post"}</p>
                 <ProductCard post={l.post} thumbUrl={l.thumbUrl} state={l.state} />
               </li>
             ))}
           </ul>
-        </div>
-      </dialog>
-    </>
+        </section>
+      ))}
+    </div>
   );
 }

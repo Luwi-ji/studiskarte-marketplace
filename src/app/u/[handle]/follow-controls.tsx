@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { setFollowAction } from "@/app/social/actions";
 
 /**
@@ -32,7 +33,9 @@ export function FollowControls({ handle, initial, followerCount }: { handle: str
   return (
     <>
       <p className="text-sm">
-        <span className="font-semibold">{count}</span> {count === 1 ? "follower" : "followers"}
+        <Link href={`/u/${handle}/followers`} className="press inline-flex min-h-11 items-center gap-1">
+          <span className="font-semibold">{count}</span> {count === 1 ? "follower" : "followers"}
+        </Link>
       </p>
       <div className="w-full">
         <button

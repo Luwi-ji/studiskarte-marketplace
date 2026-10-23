@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BackToTop } from "@/components/back-to-top";
 import { CardGrid } from "@/components/post-card";
+import { PAGE_REFRESHED_EVENT } from "@/components/pull-to-refresh";
 import type { PostCardData } from "@/lib/discovery/cards";
 import { loadMoreFeedAction } from "./actions";
 
@@ -14,6 +16,21 @@ export function MoreCards({ params, nextCursor }: { params: Record<string, strin
   const [cursor, setCursor] = useState<string | null>(nextCursor);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const firstCursor = useRef(nextCursor);
+
+  // A pull-to-refresh brings a new first page: drop the pages loaded after the old one and continue from the new one.
+  useEffect(() => {
+    firstCursor.current = nextCursor;
+  }, [nextCursor]);
+  useEffect(() => {
+    function reset() {
+      setCards([]);
+      setCursor(firstCursor.current);
+      setFailed(false);
+    }
+    window.addEventListener(PAGE_REFRESHED_EVENT, reset);
+    return () => window.removeEventListener(PAGE_REFRESHED_EVENT, reset);
+  }, []);
 
   async function loadMore() {
     if (!cursor || loading) return;
@@ -49,7 +66,10 @@ export function MoreCards({ params, nextCursor }: { params: Record<string, strin
           {loading ? "Loading…" : "Show more"}
         </button>
       ) : (
-        <p className="py-2 text-center text-sm text-zinc-500">You have seen everything.</p>
+        <div className="flex flex-col items-center gap-1 text-zinc-500">
+          <p className="text-sm">You&apos;ve seen everything</p>
+          <BackToTop />
+        </div>
       )}
     </>
   );

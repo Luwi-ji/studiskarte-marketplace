@@ -1,8 +1,8 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, type SQL } from "drizzle-orm";
 import { image, post, postPhoto, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { shortSchool } from "@/lib/discovery/cards";
-import { visibleToOthers } from "@/lib/discovery/visibility";
+import { liveAndActive, visibleToOthers } from "@/lib/discovery/visibility";
 import { formatPrice, kindLabel } from "@/lib/posts/format";
 
 /**
@@ -37,7 +37,25 @@ export function isShareable(status: string, expiresAt: Date, now = new Date()): 
  * own post; others only what the feed would show them. A withdrawn, hidden, removed, expired or
  * fulfilled post is never shared, not even by its owner.
  */
-export async function getShareCard(viewerId: string, postId: string): Promise<ShareCard | null> {
+export function getShareCard(viewerId: string, postId: string): Promise<ShareCard | null> {
+  return loadShareCard(postId, or(eq(post.ownerId, viewerId), visibleToOthers(viewerId)) as SQL);
+}
+
+/**
+ * The card for the public preview of a post (a shared link, opened by anyone, or fetched by a chat app
+ * or social network to draw its link card), or null. There is no viewer, so no block applies; the post
+ * must be live and its owner's account active, exactly the part of the feed's rule that needs no viewer.
+ */
+export function getPublicShareCard(postId: string): Promise<ShareCard | null> {
+  return loadShareCard(postId, liveAndActive());
+}
+
+/** The address people reach the app at, for links that leave it (a link card names its picture by full address). */
+export function publicOrigin(): string {
+  return new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000").origin;
+}
+
+async function loadShareCard(postId: string, visible: SQL): Promise<ShareCard | null> {
   const db = getDb();
   const [row] = await db
     .select({
@@ -53,7 +71,7 @@ export async function getShareCard(viewerId: string, postId: string): Promise<Sh
     .from(post)
     .innerJoin(student, eq(student.id, post.ownerId))
     .leftJoin(school, eq(school.domain, student.schoolDomain))
-    .where(and(eq(post.id, postId), or(eq(post.ownerId, viewerId), visibleToOthers(viewerId))));
+    .where(and(eq(post.id, postId), visible));
   if (!row || !isShareable(row.status, row.expiresAt)) return null;
 
   const [photo] = await db

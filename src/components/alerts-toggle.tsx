@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { checkAlertsAction, removeAlertsAction, saveAlertsAction } from "@/app/notifications/actions";
 import { currentSubscription, deviceSupport, keyToBytes, type DeviceSupport } from "@/lib/notifications/push/device";
 
@@ -12,12 +12,8 @@ const MESSAGE: Partial<Record<Status, string>> = {
   not_set_up: "Alerts are not set up yet. You still see everything in the app.",
 };
 
-/**
- * Alerts on or off for this device. Alerts are only ever a nudge: everything
- * they say is also in the Notifications list. On an iPhone they need the app
- * installed on the Home Screen, so there it explains how.
- */
-export function AlertsToggle({ publicKey, banner = false }: { publicKey: string | null; banner?: boolean }) {
+/** Alerts on or off for this device: what it is now, and the two ways to change it. */
+export function useDeviceAlerts(publicKey: string | null) {
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +41,7 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
     };
   }, [publicKey]);
 
-  async function turnOn() {
+  const turnOn = useCallback(async () => {
     if (!publicKey) return;
     setBusy(true);
     setError(null);
@@ -68,9 +64,9 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
     } finally {
       setBusy(false);
     }
-  }
+  }, [publicKey]);
 
-  async function turnOff() {
+  const turnOff = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
@@ -85,42 +81,33 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
     } finally {
       setBusy(false);
     }
-  }
+  }, []);
 
-  const on = status === "on";
-  const canToggle = status === "on" || status === "off";
+  return { status, busy, error, on: status === "on", canToggle: status === "on" || status === "off", turnOn, turnOff };
+}
 
-  // The banner only asks while alerts are not on; once they are, or while we do not know yet, it takes no room.
-  if (banner && (status === "checking" || on)) return null;
-
+/** The switch. Its accessible name is the row's title. */
+export function AlertsSwitch({ on, disabled, onToggle }: { on: boolean; disabled: boolean; onToggle: () => void }) {
   return (
-    <section className={banner ? "mx-3 mt-3 flex flex-col gap-2 rounded-xl border border-brand bg-zinc-50 px-3 py-1 dark:bg-zinc-900" : "flex flex-col gap-2"}>
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <div className="min-w-0">
-          {banner ? (
-            <p className="text-sm font-medium">Get a phone alert for handover times and payments.</p>
-          ) : (
-            <>
-              <p className="text-sm font-medium">Alerts on this device</p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                A short phone alert for messages, reservations, handover reminders and payments. It shows the post&apos;s title and, for a handover, its time and place, never what a message says.
-              </p>
-            </>
-          )}
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={on}
-          aria-label="Alerts on this device"
-          disabled={!canToggle || busy}
-          onClick={on ? turnOff : turnOn}
-          className="relative flex h-11 w-14 shrink-0 items-center disabled:opacity-40"
-        >
-          <span className={`block h-8 w-14 rounded-full transition-colors ${on ? "bg-brand" : "bg-[var(--field-border)]"}`} />
-          <span className={`absolute left-0 top-2.5 h-6 w-6 rounded-full bg-white transition-transform ${on ? "translate-x-7" : "translate-x-1"}`} />
-        </button>
-      </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label="Alerts on this device"
+      disabled={disabled}
+      onClick={onToggle}
+      className="relative flex h-11 w-14 shrink-0 items-center disabled:opacity-40"
+    >
+      <span className={`block h-8 w-14 rounded-full transition-colors duration-150 ease-out motion-reduce:transition-none ${on ? "bg-brand" : "bg-[var(--field-border)]"}`} />
+      <span className={`absolute left-0 top-2.5 h-6 w-6 rounded-full bg-white transition-transform duration-150 ease-out motion-reduce:transition-none ${on ? "translate-x-7" : "translate-x-1"}`} />
+    </button>
+  );
+}
+
+/** The guidance under the switch: how to get alerts on an iPhone, or why they cannot be turned on here. */
+export function AlertsGuidance({ status }: { status: Status }) {
+  return (
+    <>
       {status === "install_needed" ? (
         <div className="rounded-lg bg-zinc-100 px-3 py-2 text-sm dark:bg-zinc-900">
           <p className="font-medium">To get alerts on an iPhone, add Studiskarte to your Home Screen.</p>
@@ -132,7 +119,27 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
           <p className="mt-1 text-xs text-zinc-500">Until then, everything still shows in the app.</p>
         </div>
       ) : null}
-      {MESSAGE[status] ? <p className="pb-2 text-sm text-zinc-600 dark:text-zinc-400">{MESSAGE[status]}</p> : null}
+      {MESSAGE[status] ? <p className="text-sm text-zinc-600 dark:text-zinc-400">{MESSAGE[status]}</p> : null}
+    </>
+  );
+}
+
+/**
+ * The prompt on the Notifications page while alerts are not on. Alerts are only ever a nudge: everything they say is
+ * also in the Notifications list. Once they are on, or while we do not know yet, it takes no room.
+ */
+export function AlertsToggle({ publicKey }: { publicKey: string | null }) {
+  const { status, busy, error, on, canToggle, turnOn, turnOff } = useDeviceAlerts(publicKey);
+  if (status === "checking" || on) return null;
+  return (
+    <section className="mx-3 mt-3 flex flex-col gap-2 rounded-xl border border-brand bg-zinc-50 px-3 py-1 dark:bg-zinc-900">
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <p className="min-w-0 text-sm font-medium">Get a phone alert for handover times and payments.</p>
+        <AlertsSwitch on={on} disabled={!canToggle || busy} onToggle={on ? turnOff : turnOn} />
+      </div>
+      <div className="pb-2">
+        <AlertsGuidance status={status} />
+      </div>
       {error ? (
         <p role="alert" className="text-sm text-red-600">
           {error}
@@ -140,4 +147,34 @@ export function AlertsToggle({ publicKey, banner = false }: { publicKey: string 
       ) : null}
     </section>
   );
+}
+
+/** The Alerts page on Settings: a titled switch row, what alerts are, and the device's caveats. */
+export function AlertsSettings({ publicKey }: { publicKey: string | null }) {
+  const { status, busy, error, on, canToggle, turnOn, turnOff } = useDeviceAlerts(publicKey);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-zinc-200 px-4 dark:border-zinc-800">
+        <span className="text-base font-medium">Alerts on this device</span>
+        <AlertsSwitch on={on} disabled={!canToggle || busy} onToggle={on ? turnOff : turnOn} />
+      </div>
+      <div className="flex flex-col gap-3 px-4">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          A short phone alert for messages, reservations, handover reminders and payments. It shows the post&apos;s title and, for a handover, its time and place, never what a message says. This only affects this device; everything is also in your Notifications.
+        </p>
+        <AlertsGuidance status={status} />
+        {error ? (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** "On" or "Off" for the Settings row; nothing while it is being worked out. A device that cannot show alerts reads Off. */
+export function AlertsRowValue({ publicKey }: { publicKey: string | null }) {
+  const { status, on } = useDeviceAlerts(publicKey);
+  return status === "checking" ? <span className="inline-block h-4 w-8 rounded bg-zinc-200 dark:bg-zinc-800" aria-hidden /> : on ? "On" : "Off";
 }

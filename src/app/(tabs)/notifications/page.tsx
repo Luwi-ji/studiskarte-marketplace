@@ -35,7 +35,7 @@ export default function NotificationsPage() {
 async function Notifications() {
   const me = await requireActiveStudent();
   const items = await listNotifications(me.id);
-  const banner = <AlertsToggle banner publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />;
+  const banner = <AlertsToggle publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />;
   if (items.length === 0) {
     return (
       <>

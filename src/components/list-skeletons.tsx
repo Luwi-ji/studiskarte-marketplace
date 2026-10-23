@@ -37,3 +37,44 @@ export function HeartedSkeleton() {
     </ul>
   );
 }
+
+/** Settings while it loads: three groups of rows at the real rows' height, with a subhead each. */
+export function SettingsSkeleton() {
+  return (
+    <div aria-hidden className="motion-safe:animate-pulse">
+      {[3, 2, 4].map((rows, g) => (
+        <div key={g}>
+          <div className={`mx-4 mb-2 mt-5 h-3 w-20 ${block}`} />
+          <ul className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {Array.from({ length: rows }, (_, i) => (
+              <li key={i} className={`flex items-center gap-3 px-4 ${g === 0 && i === 0 ? "min-h-20" : "min-h-12"}`}>
+                <div className={`${g === 0 && i === 0 ? "h-14 w-14 rounded-full" : "h-6 w-6"} shrink-0 bg-zinc-200 dark:bg-zinc-800`} />
+                <div className={`h-4 ${i % 2 === 0 ? "w-2/5" : "w-1/3"} ${block}`} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The Edit profile page while it loads: the big picture, then the two rows. */
+export function EditProfileSkeleton() {
+  return (
+    <div aria-hidden className="motion-safe:animate-pulse">
+      <div className="flex flex-col items-center gap-3 py-6">
+        <div className="h-24 w-24 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+        <div className={`h-4 w-28 ${block}`} />
+      </div>
+      <ul className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {[0, 1].map((i) => (
+          <li key={i} className="flex min-h-12 items-center justify-between gap-3 px-4">
+            <div className={`h-4 w-24 ${block}`} />
+            <div className={`h-4 w-28 ${block}`} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

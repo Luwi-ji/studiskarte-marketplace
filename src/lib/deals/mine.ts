@@ -1,20 +1,33 @@
-import { and, desc, eq, gt, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lte, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { deal, image, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { formatHandoverTime } from "@/lib/deals/handover";
-import { paymentStage, type PaymentFields, type PaymentStage } from "@/lib/deals/slot";
+import { isSecured, paymentStage, type PaymentFields, type PaymentStage } from "@/lib/deals/slot";
 
-/** Where a transaction is: what is waiting on someone, being carried out, or over. */
-export type TransactionGroup = "waiting" | "active" | "done" | "closed";
+/**
+ * Where a transaction is: an offer waiting for an answer, a reservation being carried out, or over (completed,
+ * cancelled, reported, or an offer that was declined, withdrawn or ran out of time).
+ */
+export type TransactionGroup = "waiting" | "active" | "done" | "cancelled" | "reported" | "ended";
+
+/** What can still be done to a transaction in one tap, by the same rules as doing it from the conversation. */
+export type TransactionAction = "withdraw" | "decline" | "cancel";
+
+/** Offers that came to nothing stay on the list this long. */
+export const ENDED_OFFER_DAYS = 60;
 
 export type Transaction = {
   /** The deal's id, or the offer's while it is only an offer. */
   id: string;
   postId: string;
   title: string;
+  /** "showcase" or "wishlist". */
+  kind: string;
   thumbKey: string;
   otherName: string;
+  /** The other person's handle, when they have one. */
+  otherHandle: string | null;
   /** The viewer is buying (made the offer) or selling (owns the listing). */
   role: "buying" | "selling";
   quantity: number;
@@ -22,8 +35,12 @@ export type Transaction = {
   amount: number;
   isReserve: boolean;
   group: TransactionGroup;
+  /** One or two words on where it stands: "Waiting", "Reserved", "Declined". */
+  chip: string;
   /** One line on where it stands and what comes next. */
   state: string;
+  /** What the viewer can still do to it (withdraw their offer, decline one made to them, cancel a reservation), or null. */
+  action: TransactionAction | null;
   conversationId: string;
   at: Date;
 };
@@ -79,15 +96,23 @@ function dealState(d: PaymentFields & {
   return `Scheduled ${when}${payment}`;
 }
 
-/** All of a student's offers waiting for an answer, and reservations (any state), most recently changed first. */
+const DEAL_CHIP: Partial<Record<TransactionGroup, string>> = { active: "Reserved", done: "Completed", cancelled: "Cancelled", reported: "Reported" };
+
+/**
+ * All of a student's offers waiting for an answer, offers that ended in the last `ENDED_OFFER_DAYS` days, and
+ * reservations (any state), most recently changed first.
+ */
 export async function listTransactions(viewerId: string): Promise<Transaction[]> {
   const db = getDb();
+  const now = new Date();
+  const since = new Date(now.getTime() - ENDED_OFFER_DAYS * 24 * 60 * 60 * 1000);
   const [deals, offers] = await Promise.all([
     db
       .select({
         id: deal.id,
         postId: post.id,
         title: post.title,
+        kind: post.kind,
         thumbKey: cover.thumbKey,
         ownerId: deal.ownerId,
         ownerName: owner.name,
@@ -127,6 +152,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
         id: offer.id,
         postId: post.id,
         title: post.title,
+        kind: post.kind,
         thumbKey: cover.thumbKey,
         ownerId: post.ownerId,
         ownerName: owner.name,
@@ -136,8 +162,11 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
         quantity: offer.quantity,
         amount: offer.amount,
         isReserve: offer.isReserve,
+        status: offer.status,
+        expiresAt: offer.expiresAt,
+        decidedAt: offer.decidedAt,
         conversationId: offer.conversationId,
-        at: offer.createdAt,
+        createdAt: offer.createdAt,
       })
       .from(offer)
       .innerJoin(post, eq(post.id, offer.postId))
@@ -145,44 +174,79 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
       .innerJoin(responder, eq(responder.id, offer.responderId))
       .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
       .innerJoin(cover, eq(cover.id, postPhoto.imageId))
-      .where(and(eq(offer.status, "pending"), gt(offer.expiresAt, new Date()), or(eq(post.ownerId, viewerId), eq(offer.responderId, viewerId)))),
+      .where(
+        and(
+          or(eq(post.ownerId, viewerId), eq(offer.responderId, viewerId)),
+          or(
+            and(eq(offer.status, "pending"), gt(offer.expiresAt, now)),
+            // Offers that came to nothing, for a while: a pending one past its time counts as expired before the sweep marks it.
+            and(gt(offer.createdAt, since), or(inArray(offer.status, ["declined", "withdrawn", "expired"]), and(eq(offer.status, "pending"), lte(offer.expiresAt, now)))),
+          ),
+        ),
+      ),
   ]);
 
   const fromDeals = deals.map((d): Transaction => {
     const viewerIsOwner = d.ownerId === viewerId;
+    const group: TransactionGroup = d.status === "completed" ? "done" : d.status === "cancelled" ? "cancelled" : d.status === "disputed" ? "reported" : "active";
     return {
       id: d.id,
       postId: d.postId,
       title: d.title,
+      kind: d.kind,
       thumbKey: d.thumbKey,
       otherName: viewerIsOwner ? nameOf(d.responderName, d.responderHandle) : nameOf(d.ownerName, d.ownerHandle),
+      otherHandle: (viewerIsOwner ? d.responderHandle : d.ownerHandle) ?? null,
       role: viewerIsOwner ? "selling" : "buying",
       quantity: d.quantity,
       amount: d.amount,
       isReserve: d.isReserve,
-      group: d.status === "completed" ? "done" : d.status === "cancelled" || d.status === "disputed" ? "closed" : "active",
+      group,
+      chip: DEAL_CHIP[group] ?? "",
       state: dealState({ ...d, viewerIsOwner, viewerId }),
+      // Once payment is under way or a handover was confirmed, only completing or a report ends it (cancel.ts).
+      action: group === "active" && !isSecured(d) ? "cancel" : null,
       conversationId: d.conversationId,
       at: d.at,
     };
   });
+
   const fromOffers = offers.map((o): Transaction => {
     const viewerIsOwner = o.ownerId === viewerId;
-    return {
+    const what = o.isReserve ? "reservation request" : "offer";
+    const base = {
       id: o.id,
       postId: o.postId,
       title: o.title,
+      kind: o.kind,
       thumbKey: o.thumbKey,
       otherName: viewerIsOwner ? nameOf(o.responderName, o.responderHandle) : nameOf(o.ownerName, o.ownerHandle),
-      role: viewerIsOwner ? "selling" : "buying",
+      otherHandle: (viewerIsOwner ? o.responderHandle : o.ownerHandle) ?? null,
+      role: viewerIsOwner ? ("selling" as const) : ("buying" as const),
       quantity: o.quantity,
       amount: o.amount,
       isReserve: o.isReserve,
-      group: "waiting",
-      state: viewerIsOwner ? (o.isReserve ? "Reservation request · waiting for you" : "Offer · waiting for you") : o.isReserve ? "Reservation request · waiting for the owner" : "Offer · waiting for the owner",
       conversationId: o.conversationId,
-      at: o.at,
     };
+    if (o.status === "pending" && o.expiresAt.getTime() > now.getTime()) {
+      return {
+        ...base,
+        group: "waiting",
+        chip: "Waiting",
+        state: viewerIsOwner ? (o.isReserve ? "Reservation request · waiting for you" : "Offer · waiting for you") : o.isReserve ? "Reservation request · waiting for the owner" : "Offer · waiting for the owner",
+        action: viewerIsOwner ? "decline" : "withdraw",
+        at: o.createdAt,
+      };
+    }
+    // A pending offer past its time reads as expired, as the conversation does.
+    const ended = o.status === "pending" ? "expired" : o.status;
+    if (ended === "declined") {
+      return { ...base, group: "ended", chip: "Declined", state: viewerIsOwner ? `You declined this ${what}` : `The owner declined your ${what}`, action: null, at: o.decidedAt ?? o.createdAt };
+    }
+    if (ended === "withdrawn") {
+      return { ...base, group: "ended", chip: "Withdrawn", state: viewerIsOwner ? `They took back their ${what}` : `You took back your ${what}`, action: null, at: o.decidedAt ?? o.createdAt };
+    }
+    return { ...base, group: "ended", chip: "Expired", state: `No answer in time, so the ${what} ended`, action: null, at: o.decidedAt ?? o.expiresAt };
   });
-  return [...fromOffers, ...fromDeals];
+  return [...fromOffers, ...fromDeals].sort((a, b) => b.at.getTime() - a.at.getTime());
 }

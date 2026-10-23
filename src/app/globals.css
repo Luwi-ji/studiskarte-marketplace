@@ -139,6 +139,85 @@ select {
       transition: none;
     }
   }
+
+  /*
+   * One pressed look for everything tappable, not only <button>: links, role="button" / tab controls, summary rows and
+   * toggle labels dip to 85% (and 98% scale where motion is welcome) in 100 ms. `.press-row` keeps its own tint.
+   * Same transform/opacity-only rule as buttons, so nothing around the control moves.
+   */
+  a[href]:not(.press-row),
+  [role="button"],
+  [role="tab"],
+  summary,
+  label:has(input[type="checkbox"], input[type="radio"]) {
+    transition:
+      scale 100ms ease-out,
+      opacity 100ms ease-out;
+  }
+  :is(a[href]:not(.press-row), [role="button"], [role="tab"], summary, label:has(input[type="checkbox"], input[type="radio"])):not(
+      [aria-disabled="true"]
+    ):active {
+    opacity: 0.85;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :is(a[href]:not(.press-row), [role="button"], [role="tab"], summary, label:has(input[type="checkbox"], input[type="radio"])):not(
+        [aria-disabled="true"]
+      ):active {
+      scale: 0.98;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    a[href]:not(.press-row),
+    [role="button"],
+    [role="tab"],
+    summary,
+    label:has(input[type="checkbox"], input[type="radio"]) {
+      transition: none;
+    }
+  }
+
+  /*
+   * Taps: no 300 ms wait and no double-tap zoom on anything that can be tapped. Controls are not text, so a long press
+   * or a drag across them selects nothing and iOS shows no copy callout; typed and read text stays selectable.
+   */
+  a[href],
+  button,
+  select,
+  summary,
+  label,
+  [role="button"],
+  [role="tab"],
+  [role="switch"],
+  [role="menuitem"],
+  input:is([type="checkbox"], [type="radio"], [type="range"], [type="submit"], [type="button"], [type="file"]) {
+    touch-action: manipulation;
+  }
+  button,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [role="switch"],
+  [role="menuitem"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /*
+   * Scrolling inside a panel stays inside it: a sheet, a drawer or a scrolling row never hands the swipe on to the page
+   * behind (nor pulls the browser chrome) when it reaches its end. Axis by axis, so a sideways row still lets an up-down
+   * swipe scroll the page. The page itself may rubber-band.
+   */
+  dialog,
+  .overflow-y-auto,
+  .overflow-y-scroll {
+    overscroll-behavior-y: contain;
+  }
+  .overflow-x-auto,
+  .overflow-x-scroll,
+  [data-haptic-scroll] {
+    overscroll-behavior-x: contain;
+  }
 }
 
 @layer components {

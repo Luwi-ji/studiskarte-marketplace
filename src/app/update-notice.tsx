@@ -15,11 +15,27 @@ async function currentVersion(): Promise<string | null> {
   }
 }
 
+/** The address of a plain in-app link click that should become a full page load, or null to leave the click alone. */
+function reloadTarget(event: MouseEvent): string | null {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
+  const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+  if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("download")) return null;
+  if (link.target !== "" && link.target !== "_self") return null;
+  const href = link.getAttribute("href") ?? "";
+  if (!href.startsWith("/") || href.startsWith("//")) return null;
+  const url = new URL(href, window.location.href);
+  // Same page (or only the #hash changes): nothing to load.
+  if (url.origin !== window.location.origin || (url.pathname === window.location.pathname && url.search === window.location.search)) return null;
+  return url.href;
+}
+
 /**
- * Tells the person when the app was updated while this page stayed open (an app
- * on the Home Screen keeps running the old scripts until it is reloaded, and old
- * scripts can call things that no longer exist, so buttons do nothing).
- * Checked when the app comes back to the foreground and every few minutes.
+ * Tells the person when the app was updated while this page stayed open. An app on the Home Screen keeps running the
+ * old scripts until it is reloaded, and old scripts can call things that no longer exist, so buttons do nothing.
+ *
+ * The version is checked at once when the app comes back to the foreground or a page is restored from the back/forward
+ * cache, and every few minutes. Once a newer version is seen the banner stays, and the next tap on a link inside the
+ * app loads that page from the server instead of navigating in place, so the new scripts arrive with it.
  */
 export function UpdateNotice() {
   const loadedWith = useRef<string | null>(null);
@@ -38,13 +54,33 @@ export function UpdateNotice() {
     const onVisible = () => {
       if (document.visibilityState === "visible") void check();
     };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void check();
+    };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
       alive = false;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
+
+  // Out of date: the next in-app link tap is a full page load. Capture phase on the document runs before React's own
+  // handlers, which must not also start a client-side navigation.
+  useEffect(() => {
+    if (!stale) return;
+    const onClick = (event: MouseEvent) => {
+      const target = reloadTarget(event);
+      if (target === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.location.assign(target);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [stale]);
 
   if (!stale) return null;
   return (

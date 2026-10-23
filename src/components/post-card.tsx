@@ -5,11 +5,11 @@ import { formatPrice, kindLabel } from "@/lib/posts/format";
 
 const pill = "whitespace-nowrap rounded-full px-1.5 py-0.5 text-[11px] font-semibold min-[360px]:px-2 min-[360px]:text-xs";
 
-/** Each kind has its own accent: a stripe on top of the card, the kind badge and the price. */
-const ACCENT: Record<string, { stripe: string; badge: string; price: string }> = {
-  wishlist: { stripe: "bg-amber-400", badge: "bg-amber-400 text-amber-950", price: "text-amber-700 dark:text-amber-300" },
+/** Each kind has its own accent colour: the kind badge and the price. The card itself stays plain. */
+const ACCENT: Record<string, { badge: string; price: string }> = {
+  wishlist: { badge: "bg-amber-400 text-amber-950", price: "text-amber-700 dark:text-amber-300" },
 };
-const SHOWCASE_ACCENT = { stripe: "bg-brand", badge: "bg-brand text-white", price: "text-brand-text" };
+const SHOWCASE_ACCENT = { badge: "bg-brand text-white", price: "text-brand-text" };
 
 /**
  * Two-column grid of cards, from the server or the browser. The card is one tappable area: the title's link is
@@ -33,7 +33,6 @@ export function Card({ card }: { card: PostCardData }) {
   const accent = ACCENT[card.kind] ?? SHOWCASE_ACCENT;
   return (
     <div className="press relative flex h-full flex-col overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm has-[button:active]:scale-100 has-[button:active]:opacity-100 dark:border-zinc-800 dark:bg-zinc-900">
-      <div aria-hidden className={`h-1 shrink-0 ${accent.stripe}`} />
       <div className="relative">
         {/* Signed, short-lived links; next/image would route private photos through the optimizer. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}

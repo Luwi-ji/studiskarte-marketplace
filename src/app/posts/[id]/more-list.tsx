@@ -10,6 +10,7 @@ function SwipeRow({ cards, label }: { cards: PostCardData[]; label: string }) {
   return (
     <ul
       aria-label={label}
+      data-haptic-scroll
       className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {cards.map((card) => (

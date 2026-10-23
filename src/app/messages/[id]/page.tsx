@@ -9,13 +9,12 @@ import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
 import { REPLY_LABEL } from "@/lib/messaging/response-time";
-import { BlockButton } from "@/app/safety/block-button";
-import { ReportControl } from "@/app/safety/report-control";
+import { MenuSheet } from "@/app/safety/menu-sheet";
+import { REPORT_REASONS } from "@/lib/safety/report";
 import { Chat, type ChatMessageData } from "./chat";
 import type { OfferCardData } from "./offer-card";
 import { ErrorBanner } from "./error-banner";
-import { Transactions, type ListingCardData } from "./transactions";
-import { ThreadMenu } from "./thread-menu";
+import { TransactionList, type ListingCardData } from "./transactions";
 
 export const metadata = { title: "Messages · Studiskarte Marketplace" };
 
@@ -83,42 +82,46 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
 
   const { profile } = view;
   const handle = view.other.handle;
+  const listings = view.listings.map(withThumb);
 
   return (
     <div className="flex min-h-dvh flex-col">
       <PageHeader
         title={name}
+        titleHref={handle ? `/u/${handle}?thread=${view.id}` : undefined}
         back="/messages"
         action={
-          handle ? (
-            <ThreadMenu
+          handle || listings.length > 0 ? (
+            <MenuSheet
+              trigger="plain"
+              reasons={REPORT_REASONS}
               name={name}
-              report={<ReportControl target={{ kind: "student", handle }} label="Report this student" className="h-11 w-full rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700" />}
-              block={<BlockButton handle={handle} className="h-11 w-full rounded-lg border border-red-300 text-sm font-medium text-red-600 disabled:opacity-60 dark:border-red-900" />}
+              handle={handle}
+              blockHandle={handle ?? undefined}
+              before={
+                listings.length > 0
+                  ? [{ id: "transactions", icon: "receipt", label: "Transactions", detail: String(listings.length), title: "Transactions", content: <TransactionList listings={listings} /> }]
+                  : undefined
+              }
             />
           ) : null
         }
       />
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col">
-        {/* Stays under the header while the thread scrolls: who this is, and the items one tap away. */}
-        <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 flex items-center gap-2 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 dark:border-zinc-800">
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm text-zinc-600 dark:text-zinc-400">
-            {handle ? (
-              <>
-                <p className="flex flex-wrap items-center gap-x-2">
-                  <span>{profile.school}</span>
-                  {profile.rating ? <Stars average={profile.rating.average} count={profile.rating.count} /> : <span className="font-medium text-brand-text">New</span>}
-                  {profile.sold > 0 ? <SoldCount count={profile.sold} /> : null}
-                </p>
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {profile.schoolEmailChecked ? <VerifiedBadge /> : null}
-                  {view.replyTime ? <span>Replies {REPLY_LABEL[view.replyTime]}</span> : null}
-                </p>
-              </>
-            ) : null}
+        {handle ? (
+          /* Stays under the header while the thread scrolls: who this is. */
+          <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 flex flex-col gap-0.5 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+            <p className="flex flex-wrap items-center gap-x-2">
+              <span>{profile.school}</span>
+              {profile.rating ? <Stars average={profile.rating.average} count={profile.rating.count} /> : <span className="font-medium text-brand-text">New</span>}
+              {profile.sold > 0 ? <SoldCount count={profile.sold} /> : null}
+            </p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {profile.schoolEmailChecked ? <VerifiedBadge /> : null}
+              {view.replyTime ? <span>Replies {REPLY_LABEL[view.replyTime]}</span> : null}
+            </p>
           </div>
-          <Transactions listings={view.listings.map(withThumb)} />
-        </div>
+        ) : null}
         <ErrorBanner />
         <Chat conversationId={view.id} messages={messages} pinned={view.pinned.map(offerData)} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
       </main>

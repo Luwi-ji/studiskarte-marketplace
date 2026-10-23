@@ -14,5 +14,6 @@ export default function MePage({ searchParams }: PageProps<"/me">) {
 async function ToProfile({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<never> {
   const me = await requireActiveStudent();
   const { tab } = await searchParams;
-  redirect(`/u/${me.handle}${tab === "wishlist" ? "?tab=wishlist" : ""}`);
+  if (tab === "showcase" || tab === "wishlist") redirect(`/me/posts?type=${tab}`);
+  redirect(`/u/${me.handle}`);
 }

@@ -8,7 +8,7 @@ import type { MouseEvent, ReactNode } from "react";
 type NavigationLike = { canGoBack: boolean };
 
 /** True when going back stays inside the app. Browsers without the Navigation API fall back to history length. */
-function canGoBackInApp(): boolean {
+export function canGoBackInApp(): boolean {
   const navigation = (window as Window & { navigation?: NavigationLike }).navigation;
   return navigation ? navigation.canGoBack : window.history.length > 1;
 }
@@ -19,14 +19,19 @@ function canGoBackInApp(): boolean {
  * Back returns to the page the student came from (keeping the feed's loaded
  * cards, filters and scroll); `back` is the link used when there is nowhere to
  * go back to, such as a post opened from a shared link.
- * Pads for the notch with env(safe-area-inset-top).
+ * Pads for the notch with env(safe-area-inset-top). `titleHref` makes the title a link (a conversation's name opens the profile).
  */
-export function PageHeader({ title, back, action, logo }: { title: ReactNode; back?: string; action?: ReactNode; logo?: boolean }) {
+export function PageHeader({ title, titleHref, back, onBack, action, logo }: { title: ReactNode; titleHref?: string; back?: string; /** Runs instead of going back, for a page that asks first (unsaved changes). */ onBack?: () => void; action?: ReactNode; logo?: boolean }) {
   const router = useRouter();
 
   function goBack(event: MouseEvent<HTMLAnchorElement>) {
     // Let a new-tab or new-window click behave as a link.
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    if (onBack) {
+      event.preventDefault();
+      onBack();
+      return;
+    }
     if (!canGoBackInApp()) return;
     event.preventDefault();
     router.back();
@@ -45,7 +50,16 @@ export function PageHeader({ title, back, action, logo }: { title: ReactNode; ba
         ) : (
           <span className="w-2" />
         )}
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</h1>
+        {titleHref ? (
+          <h1 className="min-w-0 flex-1 text-lg font-semibold">
+            {/* A 44 px tall link inside the 56 px bar, so the title keeps its place and still ellipsizes. */}
+            <Link href={titleHref} className="flex h-11 min-w-0 items-center active:opacity-80">
+              <span className="truncate">{title}</span>
+            </Link>
+          </h1>
+        ) : (
+          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</h1>
+        )}
         {action}
       </div>
     </header>

@@ -12,25 +12,53 @@ import { confirmSchoolEmail, requestSchoolEmailCode } from "@/lib/identity/schoo
 import { getIdStore, getObjectStore } from "@/lib/images/store";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 import { verificationEnabled } from "@/lib/verification/config";
+import { eq } from "drizzle-orm";
+import { student } from "@/db/schema";
+import { getDb } from "@/lib/db";
+import { checkDisplayName, checkHandle, HANDLE_PROBLEM_MESSAGE } from "@/lib/identity/names";
 
-export type FieldState = { value: string; error?: string; saved?: boolean };
+export type HandleAvailability = { ok: true; handle: string } | { ok: false; message: string };
 
-export async function saveDisplayName(_prev: FieldState, formData: FormData): Promise<FieldState> {
-  const value = String(formData.get("displayName") ?? "");
+/** Whether a handle is well formed and free. Another student's own current handle counts as taken; yours counts as free. */
+export async function checkHandleAction(raw: unknown): Promise<HandleAvailability> {
   const me = await requireActiveStudent();
-  const result = await changeDisplayName(me.id, value);
-  if (!result.ok) return { value, error: result.message };
-  refresh();
-  return { value: value.trim(), saved: true };
+  const checked = checkHandle(typeof raw === "string" ? raw.slice(0, 64) : "");
+  if (!checked.ok) return { ok: false, message: HANDLE_PROBLEM_MESSAGE[checked.problem] };
+  if (checked.handle === me.handle) return { ok: true, handle: checked.handle };
+  const [taken] = await getDb().select({ id: student.id }).from(student).where(eq(student.handle, checked.handle)).limit(1);
+  return taken ? { ok: false, message: "That handle is taken. Choose another." } : { ok: true, handle: checked.handle };
 }
 
-export async function saveHandle(_prev: FieldState, formData: FormData): Promise<FieldState> {
-  const value = String(formData.get("handle") ?? "");
+export type SaveProfileResult = { ok: true } | { ok: false; errors: { displayName?: string; handle?: string } };
+
+/**
+ * Saves what the Edit profile page staged: a new display name and/or handle (the picture goes through /api/me/avatar).
+ * Both are checked before either is written, so a bad name does not leave a handle changed.
+ */
+export async function saveProfileAction(input: { displayName?: string; handle?: string }): Promise<SaveProfileResult> {
   const me = await requireActiveStudent();
-  const result = await changeHandle(me.id, value);
-  if (!result.ok) return { value, error: result.message };
+  const errors: { displayName?: string; handle?: string } = {};
+  if (input.displayName !== undefined) {
+    const name = checkDisplayName(String(input.displayName));
+    if (!name.ok) errors.displayName = name.message;
+  }
+  if (input.handle !== undefined) {
+    const handle = await checkHandleAction(input.handle);
+    if (!handle.ok) errors.handle = handle.message;
+  }
+  if (errors.displayName || errors.handle) return { ok: false, errors };
+
+  // The handle first: it is the one that can still be refused (taken a moment ago, 30-day wait).
+  if (input.handle !== undefined) {
+    const result = await changeHandle(me.id, String(input.handle));
+    if (!result.ok) return { ok: false, errors: { handle: result.message } };
+  }
+  if (input.displayName !== undefined) {
+    const result = await changeDisplayName(me.id, String(input.displayName));
+    if (!result.ok) return { ok: false, errors: { displayName: result.message } };
+  }
   refresh();
-  return { value: value.trim().replace(/^@/, "").toLowerCase(), saved: true };
+  return { ok: true };
 }
 
 export type CalendarLinkResult = { ok: true; url: string; webcalUrl: string } | { ok: false; error: string };

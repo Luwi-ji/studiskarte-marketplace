@@ -1,51 +1,35 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
+import { PostChoices } from "@/components/post-chooser";
 import { requireActiveStudent } from "@/lib/access";
-import { listCategories } from "@/lib/posts/categories";
-import type { PaymentMode } from "@/lib/payment";
-import { PLACE_MAX, type PostKind } from "@/lib/posts/schema";
-import { PostForm, type PostFormValues } from "../post-form";
+import { carriedQuery, kindFrom } from "./prefill";
 
 export const metadata = { title: "Create a post · Studiskarte Marketplace" };
 
+/** Opened directly, `/posts/new` is the chooser. The old `?kind=` address goes on to that kind's own page. */
 export default function NewPostPage({ searchParams }: PageProps<"/posts/new">) {
   return (
     <>
       <PageHeader title="Create a post" back="/" />
       <main className="mx-auto w-full max-w-md flex-1 px-4 pt-4">
-        <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
-          <Guarded searchParams={searchParams} />
+        <Suspense fallback={<div aria-hidden className="h-44 rounded-lg bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800" />}>
+          <Choose searchParams={searchParams} />
         </Suspense>
       </main>
     </>
   );
 }
 
-const PAYMENT_MODES: readonly string[] = ["cash", "online", "other"];
-
-// "Post another" from a new post's page opens the form with the same kind, place and payment. Anything unreadable is ignored.
-function prefillFrom(raw: Record<string, string | string[] | undefined>): { kind: PostKind; values: Partial<PostFormValues> } | undefined {
-  const first = (key: string) => {
-    const value = raw[key];
-    return Array.isArray(value) ? value[0] : value;
-  };
-  const kind = first("kind");
-  if (kind !== "showcase" && kind !== "wishlist") return undefined;
-  const values: Partial<PostFormValues> = {};
-  const place = first("place")?.trim().slice(0, PLACE_MAX);
-  if (place) values.meetupLocation = place;
-  const modes = (first("pay") ?? "").split(",").filter((mode): mode is PaymentMode => PAYMENT_MODES.includes(mode));
-  if (modes.length > 0) {
-    values.paymentCash = modes.includes("cash");
-    values.paymentOnline = modes.includes("online");
-    values.paymentOther = modes.includes("other");
-  }
-  return { kind, values };
-}
-
-async function Guarded({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+async function Choose({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireActiveStudent();
-  const prefill = prefillFrom(await searchParams);
-  // A new key starts a fresh form even when Next.js has kept an earlier one alive.
-  return <PostForm key={prefill ? JSON.stringify(prefill) : "blank"} mode="create" categories={await listCategories()} canSell={me.role === "student"} prefill={prefill} />;
+  const raw = await searchParams;
+  const kind = kindFrom(raw);
+  if (kind === "wishlist" || (kind === "showcase" && me.role === "student")) redirect(`/posts/new/${kind}${carriedQuery(raw)}`);
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-base text-zinc-600 dark:text-zinc-400">What do you want to post?</p>
+      <PostChoices canSell={me.role === "student"} />
+    </div>
+  );
 }

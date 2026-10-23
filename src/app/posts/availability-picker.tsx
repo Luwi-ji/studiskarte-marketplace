@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MEETUP_FIRST, MEETUP_LAST } from "@/lib/deals/handover";
+import {
+  DAY_SHORTCUTS,
+  DEFAULT_TIMES,
+  sameDays,
+  SHORT_DAY,
+  shortTime,
+  summarizeAvailability,
+  timePresets,
+  timeProblem,
+  WEEK_ORDER,
+} from "@/lib/posts/form-summary";
 import {
   addDays,
   AVAILABILITY_DAYS_AHEAD,
@@ -15,16 +26,13 @@ import {
 export type AvailabilityValue = PostFields["availability"];
 type Entry = AvailabilityValue[number];
 
-// Monday first, as on most Philippine school timetables.
-const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const SHORT_DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const dateLabel = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const monthLabel = new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "UTC" });
 
 const field =
   "w-full rounded-lg border border-zinc-300 bg-white min-h-11 px-3 py-2 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 const chip = (on: boolean) =>
-  `min-h-11 min-w-11 rounded-full border px-3 py-2 text-sm ${on ? "border-brand bg-brand text-white" : "border-zinc-300 dark:border-zinc-700"}`;
+  `flex min-h-11 items-center justify-center rounded-full border px-3 py-2 text-sm font-medium transition-colors duration-100 motion-reduce:transition-none ${on ? "border-brand bg-brand text-white" : "border-zinc-300 dark:border-zinc-700"}`;
 
 function entryLabel(entry: Entry): string {
   return entry.kind === "weekly" ? `Every ${WEEKDAY_LABEL[entry.weekday]}` : dateLabel.format(new Date(`${entry.date}T00:00:00Z`));
@@ -54,23 +62,56 @@ function shiftMonth(month: string, by: number): string {
   return date.toISOString().slice(0, 7);
 }
 
+type TimeEditorProps = {
+  label: string;
+  start: string;
+  end: string;
+  onChange: (start: string, end: string) => void;
+  error?: string;
+  meetup: boolean;
+  compact?: boolean;
+};
+
 // Module level so React keeps the same inputs between renders (focus stays put).
-function TimeRange(props: { label: string; start: string; end: string; onStart: (t: string) => void; onEnd: (t: string) => void; error?: string; hours?: boolean }) {
-  // `hours`: the post offers meet-ups, which are only held from MEETUP_FIRST to MEETUP_LAST.
-  const limits = props.hours ? { min: MEETUP_FIRST, max: MEETUP_LAST } : {};
+/** Quick ranges, then the two native time inputs (a wheel on a phone). `meetup`: only meet-up hours are accepted. */
+function TimeEditor({ label, start, end, onChange, error, meetup, compact = false }: TimeEditorProps) {
+  const limits = meetup ? { min: MEETUP_FIRST, max: MEETUP_LAST } : {};
+  const presets = timePresets(meetup);
   return (
-    <>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <input type="time" aria-label={`${props.label} from`} value={props.start} onChange={(e) => props.onStart(e.target.value)} className={field} {...limits} />
-        <span className="text-zinc-500">to</span>
-        <input type="time" aria-label={`${props.label} until`} value={props.end} onChange={(e) => props.onEnd(e.target.value)} className={field} {...limits} />
+    <div className="flex flex-col gap-2">
+      <div role="group" aria-label={`${label} quick times`} className={compact ? "grid grid-cols-4 gap-1" : "grid grid-cols-2 gap-2"}>
+        {presets.map((preset) => {
+          const on = start === preset.start && end === preset.end;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange(preset.start, preset.end)}
+              className={`flex flex-col items-center justify-center rounded-lg border px-2 text-center transition-colors duration-100 motion-reduce:transition-none ${compact ? "min-h-11 text-xs" : "min-h-14 text-sm"} ${on ? "border-brand bg-brand text-white" : "border-zinc-300 dark:border-zinc-700"}`}
+            >
+              <span className="font-medium">{preset.label}</span>
+              {compact ? null : <span className={`text-xs ${on ? "text-white/80" : "text-zinc-500"}`}>{preset.id === "all-day" && !meetup ? "Any time" : `${shortTime(preset.start)} to ${shortTime(preset.end)}`}</span>}
+            </button>
+          );
+        })}
       </div>
-      {props.error ? (
+      <div className="grid grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          From
+          <input type="time" aria-label={`${label} from`} aria-invalid={error ? true : undefined} value={start} onChange={(e) => onChange(e.target.value, end)} className={field} {...limits} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Until
+          <input type="time" aria-label={`${label} until`} aria-invalid={error ? true : undefined} value={end} onChange={(e) => onChange(start, e.target.value)} className={field} {...limits} />
+        </label>
+      </div>
+      {error ? (
         <p role="alert" className="text-sm text-red-600">
-          {props.error}
+          {error}
         </p>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -92,11 +133,17 @@ export function AvailabilityPicker({
   const [mode, setMode] = useState<"weekly" | "date">(value[0]?.kind ?? "weekly");
   const [sameTime, setSameTime] = useState(sameTimes(value));
   const [month, setMonth] = useState((value.find((e) => e.kind === "date")?.date ?? today).slice(0, 7));
-  const shared = { startTime: value[0]?.startTime ?? "", endTime: value[0]?.endTime ?? "" };
+  // The times the last chosen day had: a day added after the list was emptied starts with them.
+  const lastTimes = useRef(value[0] ? { startTime: value[0].startTime, endTime: value[0].endTime } : DEFAULT_TIMES);
+  useEffect(() => {
+    if (value[0]?.startTime && value[0].endTime) lastTimes.current = { startTime: value[0].startTime, endTime: value[0].endTime };
+  }, [value]);
   const full = value.length >= AVAILABILITY_MAX;
+  const weekdays = value.flatMap((e) => (e.kind === "weekly" ? [e.weekday] : []));
 
   const sorted = (entries: AvailabilityValue) => [...entries].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   const same = (a: Entry, b: Entry) => a.kind === b.kind && sortKey(a) === sortKey(b);
+  const timesFor = (current: AvailabilityValue) => (current[0] ? { startTime: current[0].startTime, endTime: current[0].endTime } : lastTimes.current);
 
   function switchMode(next: "weekly" | "date") {
     if (next === mode) return;
@@ -109,13 +156,22 @@ export function AvailabilityPicker({
     onChange((current) => {
       if (current.some((e) => same(e, entry))) return current.filter((e) => !same(e, entry));
       if (current.length >= AVAILABILITY_MAX) return current;
-      const times = sameTime && current.length > 0 ? { startTime: current[0].startTime, endTime: current[0].endTime } : { startTime: "", endTime: "" };
-      return sorted([...current, { ...entry, ...times }]);
+      return sorted([...current, { ...entry, ...timesFor(current) }]);
     });
   }
 
-  function setTime(index: number | "all", key: "startTime" | "endTime", time: string) {
-    onChange((current) => current.map((e, i) => (index === "all" || i === index ? { ...e, [key]: time } : e)));
+  /** A shortcut chooses exactly those weekdays (keeping the times of days that stay); tapping the one in force clears them. */
+  function chooseDays(days: readonly number[]) {
+    onChange((current) => {
+      const now = current.flatMap((e) => (e.kind === "weekly" ? [e.weekday] : []));
+      if (sameDays(now, days)) return [];
+      const times = timesFor(current);
+      return sorted(days.map((weekday): Entry => current.find((e) => e.kind === "weekly" && e.weekday === weekday) ?? { kind: "weekly", weekday, ...times }));
+    });
+  }
+
+  function setTimes(index: number | "all", startTime: string, endTime: string) {
+    onChange((current) => current.map((e, i) => (index === "all" || i === index ? { ...e, startTime, endTime } : e)));
   }
 
   function setSame(on: boolean) {
@@ -124,10 +180,16 @@ export function AvailabilityPicker({
     if (on) onChange((current) => current.map((e) => ({ ...e, startTime: current[0].startTime, endTime: current[0].endTime })));
   }
 
-  const entryErrors = value.map((_, i) => errors[`availability.${i}`]).filter(Boolean);
+  const unit = mode === "weekly" ? "day" : "date";
+  // What the server would say, as it is typed; the server's own answer after a failed save stands in until the student changes something.
+  const problem = (entry: Entry, index: number) => timeProblem(entry, meetup) ?? errors[`availability.${index}`];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5 px-4 py-4">
+      <p aria-live="polite" className="rounded-lg bg-brand/10 px-3 py-2 text-sm font-medium text-brand-text">
+        {summarizeAvailability(value)}
+      </p>
+
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How you give your availability">
         {(["weekly", "date"] as const).map((m) => (
           <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => switchMode(m)} className={chip(mode === m)}>
@@ -137,23 +199,33 @@ export function AvailabilityPicker({
       </div>
 
       {mode === "weekly" ? (
-        <div className="flex flex-wrap gap-2" aria-label="Days of the week">
-          {WEEK_ORDER.map((weekday) => {
-            const on = value.some((e) => e.kind === "weekly" && e.weekday === weekday);
-            return (
-              <button
-                key={weekday}
-                type="button"
-                aria-pressed={on}
-                aria-label={WEEKDAY_LABEL[weekday]}
-                disabled={!on && full}
-                onClick={() => toggle({ kind: "weekly", weekday, startTime: "", endTime: "" })}
-                className={`${chip(on)} disabled:opacity-40`}
-              >
-                {SHORT_DAY[weekday]}
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Day shortcuts">
+            {DAY_SHORTCUTS.map((shortcut) => (
+              <button key={shortcut.id} type="button" aria-pressed={sameDays(weekdays, shortcut.days)} onClick={() => chooseDays(shortcut.days)} className={chip(sameDays(weekdays, shortcut.days))}>
+                {shortcut.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
+          {/* Seven chips share the width; the grid reaches a little into the margin so each stays close to a 44 px target on the narrowest phones. */}
+          <div className="-mx-2 grid grid-cols-7" role="group" aria-label="Days of the week">
+            {WEEK_ORDER.map((weekday) => {
+              const on = weekdays.includes(weekday);
+              return (
+                <button
+                  key={weekday}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={WEEKDAY_LABEL[weekday]}
+                  disabled={!on && full}
+                  onClick={() => toggle({ kind: "weekly", weekday, startTime: "", endTime: "" })}
+                  className="flex min-h-11 items-center justify-center disabled:opacity-40"
+                >
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium transition-colors duration-100 motion-reduce:transition-none ${on ? "border-brand bg-brand text-white" : "border-zinc-300 dark:border-zinc-700"}`}>{SHORT_DAY[weekday]}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -198,37 +270,25 @@ export function AvailabilityPicker({
 
       {value.length > 0 ? (
         <div className="flex flex-col gap-3">
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+          <label className="flex min-h-11 items-center justify-between gap-3 text-base font-medium">
+            Same time every {unit}
             <input className="h-5 w-5 shrink-0" type="checkbox" checked={sameTime} onChange={(e) => setSame(e.target.checked)} />
-            Same time for every {mode === "weekly" ? "day" : "date"}
           </label>
           {meetup ? <p className="text-xs text-zinc-500">Meet-ups are between 6:00 AM and 8:00 PM.</p> : null}
           {sameTime ? (
-            <div className="flex flex-col gap-1">
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">{value.map(entryLabel).join(", ")}</span>
-              <TimeRange
-                label="All"
-                start={shared.startTime}
-                end={shared.endTime}
-                onStart={(t) => setTime("all", "startTime", t)}
-                onEnd={(t) => setTime("all", "endTime", t)}
-                hours={meetup}
-                error={entryErrors[0]}
-              />
-            </div>
+            <TimeEditor
+              label="All"
+              start={value[0].startTime}
+              end={value[0].endTime}
+              onChange={(start, end) => setTimes("all", start, end)}
+              meetup={meetup}
+              error={problem(value[0], 0)}
+            />
           ) : (
             value.map((entry, i) => (
-              <div key={sortKey(entry) + entry.kind} className="flex flex-col gap-1">
+              <div key={sortKey(entry) + entry.kind} className="flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
                 <span className="text-sm font-medium">{entryLabel(entry)}</span>
-                <TimeRange
-                  label={entryLabel(entry)}
-                  start={entry.startTime}
-                  end={entry.endTime}
-                  onStart={(t) => setTime(i, "startTime", t)}
-                  onEnd={(t) => setTime(i, "endTime", t)}
-                  hours={meetup}
-                  error={errors[`availability.${i}`]}
-                />
+                <TimeEditor label={entryLabel(entry)} start={entry.startTime} end={entry.endTime} onChange={(start, end) => setTimes(i, start, end)} meetup={meetup} error={problem(entry, i)} compact />
               </div>
             ))
           )}
@@ -236,7 +296,7 @@ export function AvailabilityPicker({
       ) : null}
 
       <p className="text-xs text-zinc-500">
-        Philippine time. {value.length}/{AVAILABILITY_MAX} {mode === "weekly" ? "days" : "dates"} chosen.
+        Philippine time. {value.length}/{AVAILABILITY_MAX} {unit}s chosen.
       </p>
       {errors.availability ? (
         <p role="alert" className="text-sm text-red-600">

@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useSyncExternalStore } from "react";
+import { NewPostButton } from "@/components/post-chooser";
 
 const EVENT = "first-run-strip";
 
 /** One card above the feed for a member who has not posted or messaged yet. "Just looking" hides it for good on this device. */
-export function FirstRunStrip({ studentId, displayName }: { studentId: string; displayName: string }) {
+export function FirstRunStrip({ studentId, displayName, canSell = true }: { studentId: string; displayName: string; canSell?: boolean }) {
   const key = `studiskarte:first-run-dismissed:${studentId}`;
   const dismissed = useSyncExternalStore(
     (onChange) => {
@@ -41,9 +41,9 @@ export function FirstRunStrip({ studentId, displayName }: { studentId: string; d
   return (
     <section aria-label="Welcome" className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="font-medium">Hi, {displayName}. Selling something or looking for something?</p>
-      <Link href="/posts/new" className="flex h-12 items-center justify-center rounded-full bg-brand px-6 font-medium text-white active:opacity-80">
+      <NewPostButton canSell={canSell} className="flex h-12 items-center justify-center rounded-full bg-brand px-6 font-medium text-white active:opacity-80">
         Post your first item
-      </Link>
+      </NewPostButton>
       <button type="button" onClick={dismiss} className="flex h-11 items-center justify-center self-center px-4 text-sm font-medium underline">
         Just looking
       </button>

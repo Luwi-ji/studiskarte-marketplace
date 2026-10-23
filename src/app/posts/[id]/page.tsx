@@ -91,7 +91,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
   const bothButtons = canMessage && !studentsOnly && !detail.myTransaction && options.offer && options.reserve;
   const justCreated = (await searchParams).created === "1";
   // "Post another" opens the form with this post's kind, place and payment already filled in.
-  const again = new URLSearchParams({ kind: detail.kind });
+  const again = new URLSearchParams();
   if (detail.exchangeMeetup && detail.meetupLocation) again.set("place", detail.meetupLocation);
   if (detail.paymentModes.length > 0) again.set("pay", detail.paymentModes.join(","));
   // The seller is the first thing a stranger weighs, so the card sits under the price, not at the bottom.
@@ -108,7 +108,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2">
           <span className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</span>
-          <VerifiedBadge />
+          <VerifiedBadge interactive={false} />
         </p>
         {detail.seller.handle ? <p className="truncate text-sm text-zinc-500">@{detail.seller.handle}</p> : null}
         {/* The whole school name, on its own line: it is what tells one school from another. */}
@@ -123,7 +123,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
         <div role="status" className="flex flex-col gap-3 bg-brand/10 px-4 py-4">
           <p className="font-medium text-brand-text">Your post is live. Students at your school can see it now.</p>
           <div className="grid grid-cols-2 gap-2">
-            <Link href={`/posts/new?${again.toString()}`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white active:opacity-80">
+            <Link href={`/posts/new/${detail.kind}${again.size > 0 ? `?${again.toString()}` : ""}`} className="flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white active:opacity-80">
               Post another
             </Link>
             <Link href="/" className="flex h-12 items-center justify-center rounded-lg border border-zinc-300 bg-white font-medium dark:border-zinc-700 dark:bg-zinc-900">

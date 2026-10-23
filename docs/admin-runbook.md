@@ -17,6 +17,7 @@ You promised members (live Terms, Child Safety Standards): urgent and child safe
 - **Remove** a post: asks for a reason, which the poster reads. **Restore**: the reason is optional. **Dismiss reports**: nothing is shown to anyone. **Suspend** a person: asks for a reason (kept in the record); they are signed out everywhere and see "Your account is suspended" only if they give the right password.
 - Every decision is written to the admin record (who, what, why, when). Use plain reasons you would be happy for the person to read.
 - To find a post nobody reported, use Admin, Posts (search by title or owner).
+- **Take a listing off the public web:** shared listing links (`/s/<id>`) show only a photo, price, title and school, and only for a live listing. **Remove** or hide the post (Admin, Posts or the review queue), or suspend its owner, and the page says "This listing is no longer available" at once; the link-card picture that chat apps fetch is cached for 5 minutes, so it is gone within about 5 minutes. A copy already posted in someone's story or saved by a social network is theirs to delete.
 - **Appeals:** the person writes to `support@` from their account email. Answer within 7 days. To reverse: Restore the post, or Restore the person (Users tab or Suspended students list), with a short reason. A child safety removal is final.
 
 ## School abbreviations

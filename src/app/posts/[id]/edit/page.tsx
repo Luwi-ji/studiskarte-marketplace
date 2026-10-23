@@ -6,8 +6,9 @@ import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { listCategories } from "@/lib/posts/categories";
-import { CONDITIONS, PRICE_KINDS } from "@/lib/posts/schema";
+import { CONDITIONS } from "@/lib/posts/schema";
 import { getEditablePost } from "@/lib/posts/update";
+import { PostFormSkeleton } from "../../form-skeleton";
 import { PostForm } from "../../post-form";
 
 export const metadata = { title: "Edit post · Studiskarte Marketplace" };
@@ -19,7 +20,7 @@ export default function EditPostPage({ params }: PageProps<"/posts/[id]/edit">) 
     <>
       <PageHeader title="Edit post" back="/me" />
       <main className="mx-auto w-full max-w-md flex-1 px-4 pt-4">
-        <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
+        <Suspense fallback={<PostFormSkeleton />}>
           <Editor params={params} />
         </Suspense>
       </main>
@@ -53,13 +54,15 @@ async function Editor({ params }: { params: Promise<{ id: string }> }) {
       categories={await listCategories()}
       postId={post.id}
       kind={post.kind === "wishlist" ? "wishlist" : "showcase"}
+      wasNegotiable={post.priceKind === "negotiable"}
       initial={{
         title: post.title,
         description: post.description,
         categoryId: post.categoryId,
         // The database stores these as text; its CHECKs allow only these values.
         condition: CONDITIONS.find((value) => value === post.condition) ?? null,
-        priceKind: PRICE_KINDS.find((value) => value === post.priceKind) ?? "negotiable",
+        // The form no longer offers Negotiable: an old negotiable post asks for an amount (or Free) before it can be saved.
+        priceKind: post.priceKind === "free" ? "free" : "amount",
         priceAmount: post.priceAmount === null ? "" : String(post.priceAmount),
         quantity: post.quantity === null ? "1" : String(post.quantity),
         unlimited: post.quantity === null,

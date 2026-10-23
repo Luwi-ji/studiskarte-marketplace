@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { PostChooserSheet } from "@/components/post-chooser";
 import { useScrollDirection } from "@/components/use-scroll-direction";
 
 type Tab = { href: string; label: string; icon: string; primary?: boolean };
@@ -33,10 +34,11 @@ function isActive(tab: Tab, pathname: string, handle: string | null, hasPerks: b
  * first scroll up, at the top, and on every page change (see `useScrollDirection`).
  * While hidden it marks the page (`data-tab-bar-hidden`) so the floating category bar can follow it down.
  */
-export function BottomNav({ unread = 0, hasPerks = false, handle = null }: { unread?: number; hasPerks?: boolean; handle?: string | null }) {
+export function BottomNav({ unread = 0, hasPerks = false, handle = null, canSell = true }: { unread?: number; hasPerks?: boolean; handle?: string | null; canSell?: boolean }) {
   const tabs = hasPerks ? [FEED, MESSAGES, CREATE, PERKS, ME] : [FEED, MESSAGES, CREATE, MY_POSTS, ME];
   const pathname = usePathname();
   const { hidden, focusProps } = useScrollDirection();
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -45,41 +47,53 @@ export function BottomNav({ unread = 0, hasPerks = false, handle = null }: { unr
   }, [hidden]);
 
   return (
-    <nav
-      aria-label="Main"
-      inert={hidden}
-      aria-hidden={hidden || undefined}
-      {...focusProps}
-      className={`fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur will-change-transform motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out dark:border-zinc-800 ${hidden ? "translate-y-full" : ""}`}
-    >
+    <>
+      <nav
+        aria-label="Main"
+        inert={hidden}
+        aria-hidden={hidden || undefined}
+        {...focusProps}
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur will-change-transform motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out dark:border-zinc-800 ${hidden ? "translate-y-full" : ""}`}
+      >
       <ul className="mx-auto grid h-16 max-w-md grid-cols-5">
         {tabs.map((tab) => {
           const active = isActive(tab, pathname, handle, hasPerks);
+          const className = `press group flex h-full w-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`;
+          const body = (
+            <>
+              <span
+                className={`relative flex items-center justify-center transition-colors duration-100 ease-out motion-reduce:transition-none ${tab.primary ? "h-8 w-12 rounded-full bg-brand text-white group-active:bg-brand-strong" : "h-8 w-8 rounded-full group-active:bg-zinc-200 dark:group-active:bg-zinc-800"}`}
+              >
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d={tab.icon} />
+                </svg>
+                {tab.href === "/messages" && unread > 0 ? (
+                  <span aria-label={`${unread} unread messages`} className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                ) : null}
+              </span>
+              {tab.label}
+            </>
+          );
           return (
             <li key={tab.href}>
-              <Link
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`press group flex h-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
-              >
-                <span
-                  className={`relative flex items-center justify-center transition-colors duration-100 ease-out motion-reduce:transition-none ${tab.primary ? "h-8 w-12 rounded-full bg-brand text-white group-active:bg-brand-strong" : "h-8 w-8 rounded-full group-active:bg-zinc-200 dark:group-active:bg-zinc-800"}`}
-                >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d={tab.icon} />
-                  </svg>
-                  {tab.href === "/messages" && unread > 0 ? (
-                    <span aria-label={`${unread} unread messages`} className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
-                      {unread > 9 ? "9+" : unread}
-                    </span>
-                  ) : null}
-                </span>
-                {tab.label}
-              </Link>
+              {tab.primary ? (
+                // Create opens a small chooser (Showcase or Wishlist) over the page; each choice has its own page.
+                <button type="button" data-create-tab aria-haspopup="dialog" onClick={() => setCreating(true)} className={className}>
+                  {body}
+                </button>
+              ) : (
+                <Link href={tab.href} aria-current={active ? "page" : undefined} className={className}>
+                  {body}
+                </Link>
+              )}
             </li>
           );
         })}
       </ul>
-    </nav>
+      </nav>
+      <PostChooserSheet open={creating} onOpenChange={setCreating} canSell={canSell} returnFocusTo="[data-create-tab]" />
+    </>
   );
 }

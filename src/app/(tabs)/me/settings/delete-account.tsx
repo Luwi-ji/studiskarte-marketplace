@@ -12,9 +12,7 @@ export function DeleteAccount({ handle }: { handle: string }) {
   const matches = typed.trim().replace(/^@/, "").toLowerCase() === handle;
 
   return (
-    <details className="rounded-lg border border-red-300 px-3 dark:border-red-900">
-      <summary className="flex h-12 cursor-pointer items-center text-sm font-medium text-red-700 dark:text-red-400">Delete my account</summary>
-      <div className="flex flex-col gap-3 pb-3 text-sm">
+    <div className="flex flex-col gap-3 px-4 py-4 text-sm">
         <p className="text-zinc-700 dark:text-zinc-300">This is final and cannot be undone.</p>
         <ul className="list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-400">
           <li>Your profile, handle, picture and school email are erased, and you are signed out everywhere.</li>
@@ -60,7 +58,6 @@ export function DeleteAccount({ handle }: { handle: string }) {
             {step.error}
           </p>
         ) : null}
-      </div>
-    </details>
+    </div>
   );
 }

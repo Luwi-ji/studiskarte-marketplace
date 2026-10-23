@@ -146,7 +146,7 @@ async function PeopleResults({ meId, q }: { meId: string; q: string }) {
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2">
                 <span className="truncate font-medium">{person.displayName || `@${person.handle}`}</span>
-                <VerifiedBadge />
+                <VerifiedBadge interactive={false} />
               </p>
               <p className="truncate text-sm text-zinc-500">@{person.handle}</p>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">{person.school}</p>
