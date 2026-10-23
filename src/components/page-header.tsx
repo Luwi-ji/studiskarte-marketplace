@@ -21,7 +21,7 @@ function canGoBackInApp(): boolean {
  * go back to, such as a post opened from a shared link.
  * Pads for the notch with env(safe-area-inset-top).
  */
-export function PageHeader({ title, back, action, logo }: { title: string; back?: string; action?: ReactNode; logo?: boolean }) {
+export function PageHeader({ title, back, action, logo }: { title: ReactNode; back?: string; action?: ReactNode; logo?: boolean }) {
   const router = useRouter();
 
   function goBack(event: MouseEvent<HTMLAnchorElement>) {
@@ -36,7 +36,7 @@ export function PageHeader({ title, back, action, logo }: { title: string; back?
     <header className="sticky top-0 z-20 border-b border-zinc-200 bg-[var(--background)]/95 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-zinc-800">
       <div className="mx-auto flex h-14 w-full max-w-md items-center gap-1 px-2">
         {back ? (
-          <Link href={back} onClick={goBack} aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full text-2xl">
+          <Link href={back} onClick={goBack} aria-label="Back" className="press flex h-11 w-11 items-center justify-center rounded-full text-2xl">
             ‹
           </Link>
         ) : logo ? (

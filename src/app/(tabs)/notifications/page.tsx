@@ -6,6 +6,7 @@ import { listNotifications } from "@/lib/notifications/list";
 import { headline } from "@/lib/notifications/text";
 import { AlertsToggle } from "@/components/alerts-toggle";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
+import { NotificationsSkeleton } from "@/components/list-skeletons";
 import { NotificationList } from "../../notifications/notification-list";
 
 export const metadata = { title: "Notifications · Studiskarte Marketplace" };
@@ -23,7 +24,7 @@ export default function NotificationsPage() {
     <>
       <PageHeader title="Notifications" back="/" />
       <main className="mx-auto w-full max-w-md flex-1">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+        <Suspense fallback={<NotificationsSkeleton />}>
           <Notifications />
         </Suspense>
       </main>
@@ -41,7 +42,7 @@ async function Notifications() {
         {banner}
         <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
           <p className="text-zinc-600 dark:text-zinc-400">Nothing yet. New messages, reservations, handover reminders and hearts on your posts show up here.</p>
-          <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+          <Link href="/" className="press flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
             Browse the feed
           </Link>
         </div>

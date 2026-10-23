@@ -54,7 +54,8 @@ const TITLE: Record<Screen, string> = {
 };
 
 const hairline = "border-b border-zinc-200 dark:border-zinc-800";
-const headerButton = "flex h-11 min-w-11 items-center rounded-lg text-base font-medium disabled:text-zinc-400 disabled:dark:text-zinc-600";
+const headerButton = "flex h-11 min-w-11 items-center rounded-lg text-base font-medium active:opacity-60 disabled:text-zinc-400 disabled:dark:text-zinc-600";
+const pressed = "transition-colors duration-100 active:bg-zinc-100 dark:active:bg-zinc-800";
 
 function list(values: Record<string, string>, key: string): string[] {
   return (values[key] ?? "").split(",").filter(Boolean);
@@ -196,7 +197,7 @@ function FilterForm({ categories, schools, failed, values, keep, onApply, onClos
 
       <div ref={root} inert={screen !== "root"} className={`${layer} ${screen === "root" ? "" : "-translate-x-1/4"}`}>
         <div data-sheet-drag className={`grid shrink-0 touch-none grid-cols-[5rem_1fr_5rem] items-center px-2 ${hairline}`}>
-          <button type="button" onClick={onClose} aria-label="Close filters" className="flex h-11 w-11 items-center justify-center rounded-full">
+          <button type="button" onClick={onClose} aria-label="Close filters" className="flex h-11 w-11 items-center justify-center rounded-full active:opacity-60">
             <BackIcon />
           </button>
           <h2 id="filter-title-root" tabIndex={-1} className="text-center text-lg font-semibold outline-none">
@@ -206,10 +207,10 @@ function FilterForm({ categories, schools, failed, values, keep, onApply, onClos
             Reset all
           </button>
         </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto">
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {rows.map((row) => (
             <li key={row.screen} className={hairline}>
-              <button type="button" data-row={row.screen} onClick={() => open(row.screen)} className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2 text-left">
+              <button type="button" data-row={row.screen} onClick={() => open(row.screen)} className={`flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2 text-left ${pressed}`}>
                 <span className="flex min-w-0 flex-col">
                   <span className="text-base font-medium">{TITLE[row.screen]}</span>
                   <span className="truncate text-sm text-zinc-500">{row.value}</span>
@@ -220,7 +221,7 @@ function FilterForm({ categories, schools, failed, values, keep, onApply, onClos
           ))}
         </ul>
         <div className="shrink-0 border-t border-zinc-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 dark:border-zinc-800">
-          <button type="submit" className="h-12 w-full rounded-lg bg-brand text-base font-semibold text-white active:opacity-90">
+          <button type="submit" className="h-12 w-full rounded-lg bg-brand text-base font-semibold text-white transition-[background-color,scale] duration-100 active:scale-[0.98] active:bg-brand-strong motion-reduce:active:scale-100">
             Show
           </button>
         </div>
@@ -257,7 +258,7 @@ function SubScreen({ id, screen, onBack, onReset, canReset, children }: { id: Ex
   return (
     <div inert={screen !== id} className={`${layer} ${screen === id ? "" : "translate-x-full"}`}>
       <div data-sheet-drag className={`grid shrink-0 touch-none grid-cols-[5rem_1fr_5rem] items-center px-2 ${hairline}`}>
-        <button type="button" onClick={onBack} aria-label="Back to filters" className="flex h-11 w-11 items-center justify-center rounded-full">
+        <button type="button" onClick={onBack} aria-label="Back to filters" className="flex h-11 w-11 items-center justify-center rounded-full active:opacity-60">
           <BackIcon />
         </button>
         <h2 id={`filter-title-${id}`} tabIndex={-1} className="text-center text-lg font-semibold outline-none">
@@ -267,7 +268,7 @@ function SubScreen({ id, screen, onBack, onReset, canReset, children }: { id: Ex
           Reset
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">{children}</div>
     </div>
   );
 }
@@ -288,7 +289,7 @@ function ChevronIcon() {
   );
 }
 
-const choiceRow = `flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 py-2 text-base ${hairline}`;
+const choiceRow = `flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 py-2 text-base ${hairline} ${pressed}`;
 const control = "h-5 w-5 shrink-0";
 
 /** One answer; picking it goes back to the list. Arrow keys only move the choice, Enter confirms it. */

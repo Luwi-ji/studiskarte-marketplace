@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import type { ResultsKind } from "@/lib/discovery/results-kind";
+
 const block = "rounded bg-zinc-200 dark:bg-zinc-800";
 
 /** Two rows of grey cards where the grid will be, so the page does not jump when the posts arrive. */
@@ -69,6 +72,25 @@ export function CategoryListSkeleton() {
     </div>
   );
 }
+
+/** Where the one-line hint of People and Schools (with nothing typed) will be: two calm bars, no text. */
+export function HintSkeleton() {
+  return (
+    <div aria-hidden className="flex flex-col items-center gap-3 px-6 py-12 motion-safe:animate-pulse">
+      <div className={`h-4 w-3/5 ${block}`} />
+      <div className={`h-4 w-2/5 ${block}`} />
+    </div>
+  );
+}
+
+/** The skeleton of each kind of Search results, so every target of a tab tap has a matching one. */
+export const resultsSkeletons: Record<ResultsKind, ReactNode> = {
+  grid: <CardGridSkeleton />,
+  categories: <CategoryListSkeleton />,
+  people: <ListSkeleton kind="people" />,
+  schools: <ListSkeleton kind="schools" />,
+  hint: <HintSkeleton />,
+};
 
 /** A photo, a price, a title and a seller row where a post will be. */
 export function PostSkeleton() {

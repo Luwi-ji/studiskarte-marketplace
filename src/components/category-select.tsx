@@ -28,7 +28,7 @@ export function useCategorySelection(categories: Option[] | null, initial: reado
 
 /** A row's look; `on` tints it with the brand colour. */
 export function categoryRowClass(on: boolean) {
-  return `flex h-14 w-full items-center gap-3 rounded-lg px-2 text-left text-base active:opacity-80 ${on ? "bg-brand/8 font-semibold text-brand-text" : "text-zinc-900 active:bg-zinc-100 dark:text-zinc-50 dark:active:bg-zinc-800"}`;
+  return `flex h-14 w-full items-center gap-3 rounded-lg px-2 text-left text-base transition-[background-color,scale] duration-100 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 ${on ? "bg-brand/8 font-semibold text-brand-text active:bg-brand/20" : "text-zinc-900 active:bg-zinc-200 dark:text-zinc-50 dark:active:bg-zinc-700"}`;
 }
 
 /** The inside of a row: icon in a round chip, the name, and a check when chosen. */
@@ -116,7 +116,7 @@ export function SelectionBar({
       <button
         type="button"
         onClick={onClear}
-        className="flex h-12 items-center justify-center rounded-xl border border-zinc-300 bg-[var(--background)] text-base font-semibold text-zinc-900 shadow-lg active:opacity-80 dark:border-zinc-700 dark:text-zinc-50"
+        className="flex h-12 items-center justify-center rounded-xl border border-zinc-300 bg-[var(--background)] text-base font-semibold text-zinc-900 shadow-lg transition-[background-color,scale] duration-100 ease-out active:scale-[0.98] active:bg-zinc-200 motion-reduce:transition-none motion-reduce:active:scale-100 dark:border-zinc-700 dark:text-zinc-50 dark:active:bg-zinc-700"
       >
         Clear
       </button>
@@ -126,7 +126,7 @@ export function SelectionBar({
         id={id}
         prefetch={false}
         onClick={onShow}
-        className="col-span-2 flex h-12 items-center justify-center rounded-xl bg-brand text-base font-semibold text-white shadow-lg active:opacity-90"
+        className="col-span-2 flex h-12 items-center justify-center rounded-xl bg-brand text-base font-semibold text-white shadow-lg transition-[background-color,scale] duration-100 ease-out active:scale-[0.98] active:bg-brand-strong motion-reduce:transition-none motion-reduce:active:scale-100"
       >
         {`Show (${count})`}
       </PendingLink>

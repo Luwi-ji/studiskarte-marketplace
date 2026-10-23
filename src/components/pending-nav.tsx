@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useOptimistic, useState, useTransition, type MouseEventHandler, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useOptimistic, useRef, useState, useTransition, type MouseEventHandler, type ReactNode } from "react";
 import { resultsKindFor, type ResultsKind } from "@/lib/discovery/results-kind";
 
-/** A quick answer never shows a skeleton: it appears only if the new results take longer than this. The highlight is never delayed. */
+/** A quick answer to a tap that keeps the same kind of results never shows a skeleton: it appears only if the new results take longer than this. The highlight is never delayed, and neither is the skeleton when the kind of results changes. */
 const SKELETON_DELAY_MS = 120;
 
 type Go = (href: string, options?: { id?: string; replace?: boolean }) => void;
@@ -16,7 +16,7 @@ type PendingNavValue = {
   kind: ResultsKind | null;
   /** Where the navigation in flight is going; null when nothing is loading. */
   href: string | null;
-  /** A navigation has been in flight longer than the delay. */
+  /** A navigation has been in flight long enough for its skeleton to show: at once when the kind of results changes (the old ones would be plainly wrong), else after the delay. */
   slow: boolean;
   go: Go;
 };
@@ -25,7 +25,8 @@ const PendingNavContext = createContext<PendingNavValue | null>(null);
 
 /**
  * Wraps a page's header and results (around its Suspense) so that a tap is felt at once: `PendingTabLink`s show the
- * tapped tab as current immediately, and `PendingResults` swaps the results for a skeleton if the new ones are slow.
+ * tapped tab as current immediately, and `PendingResults` swaps the results for a skeleton: at once when the new page
+ * shows another kind of results (the old ones would be wrong), else only if the new ones are slow.
  * Every navigation from the page's header and results (tabs, search, Filters, Clear, Show) goes through `go`, so they all
  * behave the same. The navigation runs in a transition, so the old page stays until the new one is ready and both
  * states drop by themselves when it settles (or fails). Server-rendered children pass through untouched.
@@ -33,11 +34,16 @@ const PendingNavContext = createContext<PendingNavValue | null>(null);
 export function PendingNav({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [tapped, setTapped] = useOptimistic<{ id: string | null; kind: ResultsKind; href: string } | null>(null);
+  const [tapped, setTapped] = useOptimistic<{ id: string | null; kind: ResultsKind; href: string; immediate: boolean } | null>(null);
   const [elapsed, setElapsed] = useState(false);
+  // The kind of results the skeleton on screen stands for (null while real results are on screen), so a tap made while a skeleton shows is compared with what is actually visible.
+  const skeletonKind = useRef<ResultsKind | null>(null);
 
   useEffect(() => {
-    if (!pending) return;
+    if (!pending) {
+      skeletonKind.current = null;
+      return;
+    }
     const timer = setTimeout(() => setElapsed(true), SKELETON_DELAY_MS);
     return () => {
       clearTimeout(timer);
@@ -47,9 +53,15 @@ export function PendingNav({ children }: { children: ReactNode }) {
 
   const go = useCallback<Go>(
     (href, options) => {
+      const kind = resultsKindFor(href);
+      // What is on screen now: the skeleton of an earlier tap if one shows, else the page at the current address.
+      const onScreen = skeletonKind.current ?? resultsKindFor(window.location.pathname + window.location.search);
+      // A skeleton already on screen stays (swapping it for the old results again would be wrong too).
+      const immediate = skeletonKind.current !== null || kind !== onScreen;
+      skeletonKind.current = immediate ? kind : null;
       startTransition(() => {
         // The latest tap wins: a tap with no tab (Filters) clears an earlier tab's highlight too.
-        setTapped({ id: options?.id ?? null, kind: resultsKindFor(href), href });
+        setTapped({ id: options?.id ?? null, kind, href, immediate });
         if (options?.replace) router.replace(href);
         else router.push(href);
       });
@@ -58,7 +70,7 @@ export function PendingNav({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ tappedId: tapped?.id ?? null, kind: tapped?.kind ?? null, href: tapped?.href ?? null, slow: pending && elapsed, go }),
+    () => ({ tappedId: tapped?.id ?? null, kind: tapped?.kind ?? null, href: tapped?.href ?? null, slow: pending && (Boolean(tapped?.immediate) || elapsed), go }),
     [tapped, pending, elapsed, go],
   );
   return <PendingNavContext.Provider value={value}>{children}</PendingNavContext.Provider>;

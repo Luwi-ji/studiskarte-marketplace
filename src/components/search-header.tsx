@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { PendingTabLink } from "@/components/pending-nav";
+import { useSearchParams } from "next/navigation";
+import { PendingTabLink, useNavigate, useShownTab } from "@/components/pending-nav";
 import { FiltersButton } from "@/components/header-sheets";
 import { useProvideFilterOptions, type FilterOptions } from "@/components/filter-options";
 import { useScrollDirection } from "@/components/use-scroll-direction";
+import { SlidersIcon } from "@/app/feed/filter-sheet";
 import { SearchBox } from "@/app/feed/search-box";
+import { resultsSkeletons } from "@/components/skeletons";
+import { resultsKindFor, type ResultsKind } from "@/lib/discovery/results-kind";
 
 export type SearchNav = {
   tabs: { id: string; label: string; href: string; current: boolean }[];
-  /** Filters apply to Posts results only; null on People and Schools leaves the button out. Options: what the sheet lists, handed over so its first opening needs no fetch. */
+  /** Filters apply to Posts results only: null on People and Schools, where the button stays (so the field never changes width) but is dimmed and leads back to Posts. Options: what the sheet lists, handed over so its first opening needs no fetch. */
   filters: { options: FilterOptions; activeCount: number } | null;
 };
+
+const TAB_LABELS = [
+  { id: "posts", label: "Posts" },
+  { id: "people", label: "People" },
+  { id: "schools", label: "Schools" },
+] as const;
 
 const iconButton = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:opacity-80";
 // The top row (48 px) and the tab strip slide with `translateY` only; the header keeps its full height, so the page never jumps.
@@ -22,15 +32,44 @@ const tabBase =
 const tabOff = `${tabBase} text-zinc-600 after:scale-x-0 dark:text-zinc-400`;
 const tabOn = `${tabBase} font-semibold text-brand-text after:scale-x-100`;
 
+/** Where the Posts tab goes from a search with this query. */
+function postsHref(q: string) {
+  const params = new URLSearchParams(q ? { q, tab: "posts" } : { tab: "posts" });
+  return `/search?${params}`;
+}
+
+/**
+ * The Filters button where Filters do not apply (People and Schools). It keeps the Filters button's place and size, so
+ * the search field never changes width, but it is dimmed and opens no sheet: a tap goes to Posts with the same query,
+ * through the page's pending navigation, so the Posts tab lights up at once like any tab tap.
+ */
+function FiltersToPosts({ href }: { href: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      aria-disabled="true"
+      aria-label="Filters, for Posts only. Go to Posts"
+      onClick={() => navigate(href, { id: "posts", replace: true })}
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full opacity-50 transition-opacity duration-150 ease-out active:opacity-30 motion-reduce:transition-none"
+    >
+      <SlidersIcon size="h-6 w-6" />
+    </button>
+  );
+}
+
 /**
  * The Search page's pinned top: [back] [search field] [filters], then the Posts | People | Schools strip.
  * Back is a plain link to the feed, so it never steps through earlier searches or tabs (they replace each other in
  * the history). Without `nav` (while the page loads) the field and the Filters button are usable all the same (the
- * sheet is owned by `HeaderSheets`) and only the tabs are inert labels. The top row and the tab strip are separate
+ * sheet is owned by `HeaderSheets`) and the tabs are inert labels, the one for `tab` highlighted. The Filters button is
+ * always there: fully active on Posts, dimmed on People and Schools. The top row and the tab strip are separate
  * elements. `enter` fades the page in on arrival.
  */
 export function SearchHeader({ nav, q = "", tab = "posts", enter = false }: { nav?: SearchNav; q?: string; tab?: string; enter?: boolean }) {
   useProvideFilterOptions(nav?.filters?.options ?? null);
+  // The Filters button follows the tab just tapped, like the highlight, so nothing waits for the page.
+  const shownTab = useShownTab(tab);
   // A new search or another results tab brings the top row back.
   const { hidden, focusProps } = useScrollDirection(`${tab}:${q}`);
   return (
@@ -49,7 +88,7 @@ export function SearchHeader({ nav, q = "", tab = "posts", enter = false }: { na
             </svg>
           </Link>
           <SearchBox key={q} initial={q} tab={tab} />
-          {nav && !nav.filters ? null : <FiltersButton activeCount={nav?.filters?.activeCount} />}
+          {shownTab === "posts" ? <FiltersButton activeCount={nav?.filters?.activeCount} /> : <FiltersToPosts href={nav?.tabs.find((t) => t.id === "posts")?.href ?? postsHref(q)} />}
         </div>
       </div>
 
@@ -61,13 +100,40 @@ export function SearchHeader({ nav, q = "", tab = "posts", enter = false }: { na
                   {t.label}
                 </PendingTabLink>
               ))
-            : ["Posts", "People", "Schools"].map((label) => (
-                <span key={label} className={`${tabOff} opacity-60`}>
-                  {label}
+            : TAB_LABELS.map((t) => (
+                <span key={t.id} aria-current={t.id === tab ? "page" : undefined} className={t.id === tab ? tabOn : `${tabOff} opacity-60`}>
+                  {t.label}
                 </span>
               ))}
         </nav>
       </div>
     </header>
   );
+}
+
+const REAL_TABS: readonly string[] = TAB_LABELS.map((t) => t.id);
+
+/**
+ * What the Search page shows before its data is ready: the header (tab highlighted, Filters button in place) and the
+ * skeleton that matches the address (`kind`, from the whole query string: filters count too). A People link never
+ * starts as cards. With no props it is the plain Posts page, which is what the prerendered shell shows.
+ */
+export function SearchLoading({ tab = "posts", q = "", kind = "categories", enter = false }: { tab?: string; q?: string; kind?: ResultsKind; enter?: boolean }) {
+  return (
+    <>
+      <SearchHeader tab={tab} q={q} enter={enter} />
+      <main className={`mx-auto w-full max-w-3xl flex-1 px-3 py-3 ${enter ? "transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none" : ""}`}>
+        {resultsSkeletons[kind]}
+      </main>
+    </>
+  );
+}
+
+/** `SearchLoading` for the address of the page being opened. Needs its own Suspense (the address is not known to the prerendered shell). */
+export function SearchLoadingFromUrl() {
+  const params = useSearchParams();
+  const tab = params.get("tab") ?? "";
+  // Words typed are trimmed and spaces collapsed, as the page itself reads them.
+  const q = (params.get("q") ?? "").replace(/\s+/g, " ").trim();
+  return <SearchLoading tab={REAL_TABS.includes(tab) ? tab : "posts"} q={q} kind={resultsKindFor(`/search?${params}`)} />;
 }

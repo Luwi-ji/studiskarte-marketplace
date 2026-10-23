@@ -72,8 +72,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  /* No grey flash on tap; no double-tap-to-zoom delay on buttons and links. */
-  -webkit-tap-highlight-color: transparent;
+  /* No double-tap-to-zoom delay on buttons and links (the grey tap flash is switched off for every element, below). */
   touch-action: manipulation;
   /* The page, not the browser chrome, handles pull past the edges. */
   overscroll-behavior-y: none;
@@ -98,4 +97,101 @@ input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [typ
 textarea,
 select {
   border-color: var(--field-border);
+}
+
+@layer base {
+  /* iOS paints a grey box on every tap by default; the pressed states below replace it. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /*
+   * Focus rings show for the keyboard only. A tap or click never leaves a ring behind (the sticky blue outline on iOS);
+   * keyboard focus gets one brand-coloured ring in both modes.
+   */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand-text);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Every plain button answers a press: a little less opaque (and 2% smaller where motion is welcome). Transform and
+   * opacity only, so nothing around it moves. A utility class on a button (active:opacity-80...) overrides this.
+   */
+  button {
+    transition:
+      scale 100ms ease-out,
+      opacity 100ms ease-out;
+  }
+  button:not(:disabled):active {
+    opacity: 0.85;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    button:not(:disabled):active {
+      scale: 0.98;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button {
+      transition: none;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * `.press`: a tappable control (tab bar item, icon link, filled button) shrinks to 97% while the finger is down and
+   * springs back, in 100 ms. `.press-row`: a full-width tappable row tints while pressed. Neither changes layout.
+   * With reduced motion the shrink becomes a dip in opacity.
+   */
+  .press {
+    transition:
+      scale 100ms ease-out,
+      opacity 100ms ease-out,
+      background-color 100ms ease-out;
+  }
+  .press:active {
+    scale: 0.97;
+  }
+  .press-row {
+    transition: background-color 100ms ease-out;
+  }
+  .press-row:active {
+    background-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press,
+    .press-row {
+      transition: none;
+    }
+    .press:active {
+      scale: none;
+      opacity: 0.8;
+    }
+  }
+
+  /* The heart in the header pops once when it fills (150 ms). */
+  .heart-pop {
+    animation: heart-pop 150ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .heart-pop {
+      animation: none;
+    }
+  }
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
 }

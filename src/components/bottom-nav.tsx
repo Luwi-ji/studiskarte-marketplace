@@ -60,10 +60,10 @@ export function BottomNav({ unread = 0, hasPerks = false, handle = null }: { unr
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
+                className={`press group flex h-full flex-col items-center justify-center gap-0.5 text-xs ${active ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}
               >
                 <span
-                  className={`relative flex items-center justify-center ${tab.primary ? "h-8 w-12 rounded-full bg-brand text-white" : "h-8 w-8"}`}
+                  className={`relative flex items-center justify-center transition-colors duration-100 ease-out motion-reduce:transition-none ${tab.primary ? "h-8 w-12 rounded-full bg-brand text-white group-active:bg-brand-strong" : "h-8 w-8 rounded-full group-active:bg-zinc-200 dark:group-active:bg-zinc-800"}`}
                 >
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d={tab.icon} />

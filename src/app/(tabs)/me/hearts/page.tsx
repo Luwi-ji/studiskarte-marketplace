@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { HeartButton } from "@/components/heart-button";
+import { HeartedTitle } from "@/components/header-icon-links";
+import { HeartedSkeleton } from "@/components/list-skeletons";
 import { PostGrid } from "@/components/post-grid";
 import { requireActiveStudent } from "@/lib/access";
 import { listHeartedBy } from "@/lib/discovery/feed";
@@ -12,9 +14,9 @@ export const metadata = { title: "Hearted · Studiskarte Marketplace" };
 export default function HeartedPage() {
   return (
     <>
-      <PageHeader title="Hearted posts" back="/me/settings" />
+      <PageHeader title={<HeartedTitle />} back="/me/settings" />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
+        <Suspense fallback={<HeartedSkeleton />}>
           <Hearted />
         </Suspense>
       </main>
@@ -33,7 +35,7 @@ async function Hearted() {
     return (
       <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
         <p className="text-zinc-500">No hearts yet. Tap the heart on a post to save it here. Only you can see them.</p>
-        <Link href="/" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+        <Link href="/" className="press flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
           Browse the feed
         </Link>
       </div>

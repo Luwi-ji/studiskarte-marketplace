@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { SearchHeader, type SearchNav } from "@/components/search-header";
+import { SearchHeader, SearchLoading, SearchLoadingFromUrl, type SearchNav } from "@/components/search-header";
 import { CategoryPicker } from "@/components/category-picker";
 import { PostGrid } from "@/components/post-grid";
-import { ListSkeleton, CardGridSkeleton, CategoryListSkeleton } from "@/components/skeletons";
+import { resultsSkeletons } from "@/components/skeletons";
 import { PendingNav, PendingResults } from "@/components/pending-nav";
 import { HeaderSheets } from "@/components/header-sheets";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -30,14 +30,12 @@ export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
     <PendingNav>
       <HeaderSheets action="/search">
+        {/* The prerendered shell shows the plain Posts page; once the address is known (the Suspense inside) the header and skeleton match it. */}
         <Suspense
           fallback={
-            <>
-              <SearchHeader enter />
-              <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3 transition-opacity duration-150 ease-out starting:opacity-0 motion-reduce:transition-none">
-                <CardGridSkeleton />
-              </main>
-            </>
+            <Suspense fallback={<SearchLoading enter />}>
+              <SearchLoadingFromUrl />
+            </Suspense>
           }
         >
           <Search searchParams={searchParams} />
@@ -84,11 +82,8 @@ async function Search({ searchParams }: { searchParams: Promise<Record<string, s
     <>
       <SearchHeader nav={nav} q={q} tab={tab} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
-        {/* A navigation that is slow shows the skeleton of what it will show: cards, the category list, or a list of people or schools (also where the new tab shows only a hint). */}
-        <PendingResults
-          skeleton={<CardGridSkeleton />}
-          skeletonFor={{ categories: <CategoryListSkeleton />, people: <ListSkeleton kind="people" />, schools: <ListSkeleton kind="schools" /> }}
-        >
+        {/* A navigation shows the skeleton of what it will show (cards, the category list, a list of people or schools, or the hint): at once when that is another kind than what is on screen, else if it is slow. */}
+        <PendingResults skeleton={resultsSkeletons.grid} skeletonFor={resultsSkeletons}>
           {tab === "posts" ? (
             q === "" && activeFilterCount(filters) === 0 ? (
               <CategoryPicker categories={options.categories} />

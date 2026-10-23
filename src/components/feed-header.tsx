@@ -6,6 +6,7 @@ import { PendingTabLink, useShownTab } from "@/components/pending-nav";
 import { CategoriesButton, FiltersButton } from "@/components/header-sheets";
 import { useScrollDirection } from "@/components/use-scroll-direction";
 import { useProvideFilterOptions, type FilterOptions } from "@/components/filter-options";
+import { HeartLink } from "@/components/header-icon-links";
 
 export type FeedTab = { id: string; label: string; href: string; current: boolean };
 
@@ -17,7 +18,6 @@ export type FeedNav = {
   filters: { options: FilterOptions; activeCount: number };
 };
 
-const iconButton = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:opacity-80";
 // The top row (48 px) and the tab strip slide with `translateY` only; the header keeps its full height, so the page never jumps.
 const pinned = "pointer-events-auto bg-[var(--background)] will-change-transform motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out";
 // The underline is always there, collapsed; the current tab grows it (under 150 ms, not at all with reduced motion).
@@ -62,11 +62,7 @@ export function FeedHeader({ bell, nav }: { bell: ReactNode; nav?: FeedNav }) {
             </svg>
             <span className="truncate">Search</span>
           </Link>
-          <Link href="/me/hearts" aria-label="Hearted posts" className={iconButton}>
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z" />
-            </svg>
-          </Link>
+          <HeartLink />
           {bell}
         </div>
       </div>
