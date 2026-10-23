@@ -46,6 +46,7 @@ export function CategoryDrawer({ open, onOpenChange, session, categories, failed
     <dialog
       ref={drawer}
       aria-label="Browse by categories"
+      data-slide="left"
       {...dialogProps}
       className="group/drawer fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(20rem,85vw)] max-w-none touch-pan-y bg-[var(--background)] p-0 text-[var(--foreground)] shadow-xl outline-none backdrop:bg-black/50 backdrop:opacity-0 backdrop:transition-opacity backdrop:duration-150 data-[shown=true]:backdrop:opacity-100 motion-reduce:backdrop:transition-none"
     >

@@ -103,21 +103,21 @@ export function useSlideDialog(ref: RefObject<HTMLDialogElement | null>, { open,
     if (open) {
       if (!el.open) {
         openedAt.current = performance.now();
-        el.style.transition = "none";
-        el.style.transform = HIDDEN[edge];
+        // Opening is declarative: no inline transform at all, so nothing can leave the panel parked off screen. The slide
+        // is a CSS keyframe animation on `dialog[open]` (globals.css); a browser that skips it just shows the panel.
+        el.style.transition = "";
+        el.style.transform = "";
         showDialog(el, edge);
-        void el.offsetWidth; // commit the start position so the slide has something to animate from
         // Pointer users: the dialog itself holds focus, so no button shows a ring.
         if (!keyboard.current) el.focus({ preventScroll: true });
       }
       el.dataset.shown = "true";
-      el.style.transition = slide;
-      el.style.transform = SHOWN[edge];
       // If the slide never happened (a browser that skips it), make sure the panel is where it should be.
       check = window.setTimeout(() => {
         if (!el.open) return;
         const box = el.getBoundingClientRect();
         if (edge === "bottom" ? box.top >= window.innerHeight - 1 : box.right <= 1) {
+          el.style.animation = "none";
           el.style.transition = "none";
           el.style.transform = SHOWN[edge];
         }

@@ -195,3 +195,33 @@ select {
     transform: scale(1);
   }
 }
+
+/* Sheets and drawers slide in with a keyframe animation on the open dialog: declarative, so nothing depends on inline
+   styles and a browser that skips the animation still shows the panel in its final place. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+dialog[data-slide="bottom"][open] {
+  animation: sheet-up 220ms ease-out;
+}
+dialog[data-slide="left"][open] {
+  animation: drawer-in 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[data-slide][open] {
+    animation: none;
+  }
+}
