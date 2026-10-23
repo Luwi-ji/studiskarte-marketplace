@@ -19,6 +19,10 @@ You promised members (live Terms, Child Safety Standards): urgent and child safe
 - To find a post nobody reported, use Admin, Posts (search by title or owner).
 - **Appeals:** the person writes to `support@` from their account email. Answer within 7 days. To reverse: Restore the post, or Restore the person (Users tab or Suspended students list), with a short reason. A child safety removal is final.
 
+## School abbreviations
+
+Listing cards show a short school name such as TUP-M instead of the full name. Open Admin, **Schools**: every school is listed with the name cards use now. Until you set one, the card shows the capital letters of the full name (grey in the list). Type an abbreviation (1 to 12 characters) and press **Save**; empty the box and press **Clear** to go back to the automatic one. It shows on feed cards after the next page load. This is a low-risk edit and is not written to the admin record.
+
 ## Child safety report: the first hour
 
 A report with the child safety reason hides the post at once, and you get an email.

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { HeartButton } from "@/components/heart-button";
-import { PageHeader } from "@/components/page-header";
 import { SellerTrust } from "@/components/seller-trust";
 import { PostSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -17,9 +16,13 @@ import { audienceRefusal } from "@/lib/posts/audience";
 import { PAYMENT_LABEL } from "@/lib/payment";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
 import { PhotoCarousel } from "./photo-carousel";
+import { BackButton } from "./back-button";
 import { BuyerShortcuts } from "./buyer-shortcuts";
+import { ListingMenu } from "./listing-menu";
 import { ViewTracker } from "./view-tracker";
-import { ReportControl } from "@/app/safety/report-control";
+import { ShareButton } from "@/app/posts/[id]/share-button";
+import { MorePosts } from "@/app/posts/[id]/more-posts";
+import { REPORT_REASONS } from "@/lib/safety/report";
 
 export const metadata = { title: "Post · Studiskarte Marketplace" };
 
@@ -35,12 +38,19 @@ function formatDay(date: Date): string {
 
 export default function PostPage({ params, searchParams }: PageProps<"/posts/[id]">) {
   return (
-    <>
-      <PageHeader title="Post" back="/" />
-      <Suspense fallback={<PostSkeleton />}>
-        <Post params={params} searchParams={searchParams} />
-      </Suspense>
-    </>
+    <Suspense fallback={<PostSkeleton />}>
+      <Post params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+/** Two grey cards where "More from this seller" will be, so the page does not jump. */
+function MorePostsSkeleton() {
+  return (
+    <div aria-hidden className="grid grid-cols-2 gap-2 px-4 py-4 motion-safe:animate-pulse">
+      <div className="aspect-square rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+      <div className="aspect-square rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+    </div>
   );
 }
 
@@ -122,7 +132,18 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
         </div>
       ) : null}
       {detail.isOwner ? null : <ViewTracker postId={detail.id} />}
-      <PhotoCarousel photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))} title={detail.title} />
+      <PhotoCarousel
+        photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))}
+        title={detail.title}
+        left={<BackButton href="/" />}
+        right={
+          <>
+            {detail.isOwner || detail.status === "withdrawn" ? null : <HeartButton postId={detail.id} initial={detail.hearted} variant="overlay" />}
+            <ShareButton postId={detail.id} title={detail.title} />
+            {detail.isOwner ? null : <ListingMenu postId={detail.id} sellerHandle={detail.seller.handle} sellerName={detail.seller.displayName || `@${detail.seller.handle}`} reasons={REPORT_REASONS} />}
+          </>
+        }
+      />
 
       <div className="flex flex-col px-4">
         {detail.isOwner && detail.status === "open" && expiryNotice(detail.expiresAt).warn ? (
@@ -145,15 +166,12 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
           </p>
         ) : null}
 
-        <div className="flex items-start gap-3 py-4">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-2xl font-bold">
-              {wishlist && detail.priceKind === "amount" ? "Budget " : ""}
-              {formatPrice(detail.priceKind, detail.priceAmount)}
-            </p>
-            <h1 className="text-xl font-semibold leading-snug">{detail.title}</h1>
-          </div>
-          {detail.isOwner || detail.status === "withdrawn" ? null : <HeartButton postId={detail.id} initial={detail.hearted} />}
+        <div className="flex flex-col gap-1 py-4">
+          <p className="text-2xl font-bold">
+            {wishlist && detail.priceKind === "amount" ? "Budget " : ""}
+            {formatPrice(detail.priceKind, detail.priceAmount)}
+          </p>
+          <h1 className="text-xl font-semibold leading-snug">{detail.title}</h1>
         </div>
         <div className="flex flex-col gap-1 pb-4">
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
@@ -246,8 +264,11 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
           {detail.heartCount !== null ? ` · ${detail.heartCount} ${detail.heartCount === 1 ? "heart" : "hearts"}` : ""}
           {detail.pendingOffers ? ` · ${detail.pendingOffers} ${detail.pendingOffers === 1 ? "offer" : "offers"} waiting` : ""}
         </p>
-        {detail.isOwner ? null : <ReportControl target={{ kind: "post", postId: detail.id }} label="Report this post" />}
       </div>
+
+      <Suspense fallback={<MorePostsSkeleton />}>
+        <MorePosts viewerId={me.id} postId={detail.id} ownerId={detail.ownerId} categoryId={detail.categoryId} />
+      </Suspense>
 
       {canMessage ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
-import { NewPill } from "@/components/seller-trust";
+import { NewPill, SoldCount } from "@/components/seller-trust";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { IdCheckedBadge } from "@/components/id-checked-badge";
@@ -33,7 +33,7 @@ const TABS: { id: PostKind; label: string }[] = [
 export default function ProfilePage({ params, searchParams }: PageProps<"/u/[handle]">) {
   return (
     <>
-      <Suspense fallback={<PageHeader title="Profile" back="/" />}>
+      <Suspense fallback={<PageHeader title="Profile" logo />}>
         <ProfileHeader params={params} />
       </Suspense>
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4">
@@ -52,7 +52,7 @@ async function ProfileHeader({ params }: { params: Promise<{ handle: string }> }
   return (
     <PageHeader
       title="Profile"
-      back="/"
+      logo
       action={
         own ? (
           <Link href="/me/settings" aria-label="Settings" className="flex h-11 w-11 items-center justify-center rounded-full">
@@ -108,15 +108,10 @@ async function Profile({
         )}
         <div className="flex min-w-0 max-w-full flex-col items-center gap-1">
           <h2 className="max-w-full truncate text-xl font-semibold">{profile.displayName}</h2>
-          <p className="max-w-full truncate text-zinc-500">@{profile.handle}</p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <VerifiedBadge />
-            {profile.idChecked ? <IdCheckedBadge /> : null}
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</span>
-          </div>
-          <p className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="min-w-0 max-w-full truncate text-base text-zinc-500">@{profile.handle}</p>
             {rep.rating ? (
-              <Link href={`${base}/reviews`} className="inline-flex min-h-11 items-center" aria-label={`Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews`}>
+              <Link href={`${base}/reviews`} className="press inline-flex min-h-11 items-center" aria-label={`Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews`}>
                 <Stars average={rep.rating.average} count={rep.rating.count} />
               </Link>
             ) : rep.sold === 0 && rep.granted === 0 ? (
@@ -130,21 +125,30 @@ async function Profile({
             )}
             {/* A count of zero would be a link to an empty list, so it is left out. */}
             {rep.sold > 0 ? (
-              <Link href={`${base}/sold`} className="inline-flex min-h-11 items-center underline">
-                Sold {rep.sold}
+              <Link href={`${base}/sold`} className="press inline-flex min-h-11 items-center" aria-label={`${rep.sold} sold, see the list`}>
+                <SoldCount count={rep.sold} />
               </Link>
             ) : null}
-            {rep.granted > 0 ? (
-              <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
-                Given free {rep.granted}
-              </Link>
-            ) : null}
-            {profile.isSelf && rep.bought > 0 ? (
-              <Link href={`${base}/bought`} className="inline-flex min-h-11 items-center underline">
-                Bought {rep.bought}
-              </Link>
-            ) : null}
-          </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <VerifiedBadge />
+            {profile.idChecked ? <IdCheckedBadge /> : null}
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</span>
+          </div>
+          {rep.granted > 0 || (profile.isSelf && rep.bought > 0) ? (
+            <p className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-zinc-600 dark:text-zinc-400">
+              {rep.granted > 0 ? (
+                <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
+                  Given free {rep.granted}
+                </Link>
+              ) : null}
+              {profile.isSelf && rep.bought > 0 ? (
+                <Link href={`${base}/bought`} className="inline-flex min-h-11 items-center underline">
+                  Bought {rep.bought}
+                </Link>
+              ) : null}
+            </p>
+          ) : null}
           {reply ? <p className="text-xs text-zinc-500">Typically replies {REPLY_LABEL[reply]}</p> : null}
         </div>
         {profile.isSelf ? (

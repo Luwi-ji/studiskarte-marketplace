@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
+import { SoldCount } from "@/components/seller-trust";
 import { Stars } from "@/components/stars";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
@@ -107,7 +108,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
                 <p className="flex flex-wrap items-center gap-x-2">
                   <span>{profile.school}</span>
                   {profile.rating ? <Stars average={profile.rating.average} count={profile.rating.count} /> : <span className="font-medium text-brand-text">New</span>}
-                  {profile.sold > 0 ? <span>{profile.sold} sold</span> : null}
+                  {profile.sold > 0 ? <SoldCount count={profile.sold} /> : null}
                 </p>
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   {profile.schoolEmailChecked ? <VerifiedBadge /> : null}

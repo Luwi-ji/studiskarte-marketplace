@@ -7,12 +7,32 @@ import { useAction } from "./use-action";
 
 const DETAILS_MAX = 500;
 /** The reason id that CHILD_SAFETY_REASON names on the server (that module reads the database, so the browser cannot import it). */
-const CHILD_SAFETY_ID = "child_safety";
+export const CHILD_SAFETY_ID = "child_safety";
 const button = "h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700";
 const primary = "h-11 rounded-lg bg-brand font-medium text-white disabled:opacity-60";
 const blockStyle = "h-11 w-full rounded-lg border border-red-300 text-sm font-medium text-red-600 dark:border-red-900";
 
 export type ReportTarget = { kind: "post"; postId: string } | { kind: "student"; handle: string };
+
+/** What the reporter sees once the report is in: when the owner reads it, the safety line, and a way to block. */
+export function ReportSent({ target, childSafety }: { target: ReportTarget; childSafety: boolean }) {
+  return (
+    <div role="status" className="flex flex-col gap-2 rounded-xl border border-zinc-300 p-3 text-left text-sm dark:border-zinc-700">
+      <p>
+        <span className="font-semibold">Report sent.</span>{" "}
+        {childSafety
+          ? "The owner aims to read child safety reports within 24 hours."
+          : "The owner aims to read urgent reports within 24 hours and others within 3 working days."}{" "}
+        The other student is not told who reported. If you are in danger now, leave the place and call 911.
+      </p>
+      {target.kind === "student" ? (
+        <BlockButton handle={target.handle} label="Block this student" className={blockStyle} />
+      ) : (
+        <BlockButton postId={target.postId} label="Block the person who posted this" className={blockStyle} />
+      )}
+    </div>
+  );
+}
 
 /** A button that opens a small form to report a post or a student to the admins. The reasons come from the server component that renders it. */
 export function ReportButton({ target, reasons, label = "Report", className }: { target: ReportTarget; reasons: readonly { id: string; label: string }[]; label?: string; className?: string }) {
@@ -20,24 +40,7 @@ export function ReportButton({ target, reasons, label = "Report", className }: {
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState<{ childSafety: boolean } | null>(null);
 
-  if (sent) {
-    return (
-      <div role="status" className="flex flex-col gap-2 rounded-xl border border-zinc-300 p-3 text-left text-sm dark:border-zinc-700">
-        <p>
-          <span className="font-semibold">Report sent.</span>{" "}
-          {sent.childSafety
-            ? "The owner aims to read child safety reports within 24 hours."
-            : "The owner aims to read urgent reports within 24 hours and others within 3 working days."}{" "}
-          The other student is not told who reported. If you are in danger now, leave the place and call 911.
-        </p>
-        {target.kind === "student" ? (
-          <BlockButton handle={target.handle} label="Block this student" className={blockStyle} />
-        ) : (
-          <BlockButton postId={target.postId} label="Block the person who posted this" className={blockStyle} />
-        )}
-      </div>
-    );
-  }
+  if (sent) return <ReportSent target={target} childSafety={sent.childSafety} />;
 
   return (
     <div className="flex flex-col gap-2">

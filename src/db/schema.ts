@@ -26,9 +26,12 @@ export const school = pgTable(
   {
     domain: text("domain").primaryKey(),
     name: text("name"),
+    /** What cards show instead of the full name ("TUP-M"); an admin sets it. */
+    shortName: text("short_name"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("school_short_name_length", sql`${t.shortName} is null or char_length(btrim(${t.shortName})) between 1 and 12`),
     check("school_domain_shape", sql`${t.domain} ~ '^([a-z0-9-]+\\.)+edu\\.ph$'`),
     check("school_name_length", sql`${t.name} is null or char_length(btrim(${t.name})) between 1 and 120`),
   ],

@@ -19,6 +19,12 @@ export type FeedItem = {
   ownerHandle: string | null;
   /** The school's name, or its email domain until the owner names it. */
   school: string;
+  /** The abbreviation an admin gave the school ("TUP-M"), or null until one is set. */
+  schoolShort: string | null;
+  /** Where the seller offers to meet; null for delivery-only posts. */
+  meetupLocation: string | null;
+  /** Whether the viewer has hearted it. */
+  hearted: boolean;
   thumbKey: string;
 };
 
@@ -30,7 +36,7 @@ export const FEED_PAGE_SIZE = 30;
  * Every list of posts (feed, profile, hearted) starts here; `extra` adds
  * columns a list needs for its own ordering.
  */
-function visibleCards<E extends Record<string, SQL>>(extra: E) {
+export function visibleCards<E extends Record<string, SQL>>(viewerId: string, extra: E) {
   return getDb()
     .select({
       id: post.id,
@@ -42,6 +48,9 @@ function visibleCards<E extends Record<string, SQL>>(extra: E) {
       listedAt: post.listedAt,
       ownerHandle: student.handle,
       school: sql<string>`coalesce(${school.name}, ${school.domain}, ${NO_SCHOOL_LABEL})`,
+      schoolShort: school.shortName,
+      meetupLocation: sql<string | null>`case when ${post.exchangeMeetup} then ${post.meetupLocation} end`,
+      hearted: sql<boolean>`exists (select 1 from ${heart} where ${heart.postId} = ${post.id} and ${heart.studentId} = ${viewerId})`,
       thumbKey: image.thumbKey,
       ...extra,
     })
@@ -127,7 +136,7 @@ export async function listFeed(
   const cursor = decodeCursor(options.cursor);
   const { key, dir } = orderFor(filters.sort, filters.query !== undefined, viewerId);
 
-  const rows = await visibleCards({ sortKey: sql<number>`${key}`, listedKey: sql<string>`${post.listedAt}::text` })
+  const rows = await visibleCards(viewerId, { sortKey: sql<number>`${key}`, listedKey: sql<string>`${post.listedAt}::text` })
     .where(and(visibleToOthers(viewerId), allFilterConditions(filters), cursor ? after(key, dir, cursor) : undefined))
     .orderBy(dir === "asc" ? asc(key) : desc(key), desc(post.listedAt), desc(post.id))
     .limit(limit + 1);
@@ -144,6 +153,9 @@ export async function listFeed(
     listedAt: row.listedAt,
     ownerHandle: row.ownerHandle,
     school: row.school,
+    schoolShort: row.schoolShort,
+    meetupLocation: row.meetupLocation,
+    hearted: row.hearted,
     thumbKey: row.thumbKey,
   }));
   return {
@@ -154,7 +166,7 @@ export async function listFeed(
 
 /** A student's active listings as the viewer may see them, newest first (their public profile). */
 export async function listPostsBy(viewerId: string, ownerId: string, limit = 60): Promise<FeedItem[]> {
-  return visibleCards({})
+  return visibleCards(viewerId, {})
     .where(and(visibleToOthers(viewerId), eq(post.ownerId, ownerId)))
     .orderBy(desc(post.listedAt), desc(post.id))
     .limit(limit);
@@ -162,7 +174,7 @@ export async function listPostsBy(viewerId: string, ownerId: string, limit = 60)
 
 /** Posts a student hearted that are still available, most recently hearted first. */
 export async function listHeartedBy(studentId: string): Promise<FeedItem[]> {
-  return visibleCards({})
+  return visibleCards(studentId, {})
     .innerJoin(heart, and(eq(heart.postId, post.id), eq(heart.studentId, studentId)))
     .where(visibleToOthers(studentId))
     .orderBy(desc(heart.createdAt), desc(post.id));

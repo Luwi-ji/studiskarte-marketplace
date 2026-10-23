@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 type Photo = { url: string; caption: string | null };
 
@@ -15,7 +15,7 @@ function indexIn(list: HTMLElement): number {
  * continues on a black background. The counter and the caption follow the
  * photo in view, in both.
  */
-export function PhotoCarousel({ photos, title }: { photos: Photo[]; title: string }) {
+export function PhotoCarousel({ photos, title, left, right }: { photos: Photo[]; title: string; left?: ReactNode; right?: ReactNode }) {
   const track = useRef<HTMLUListElement>(null);
   const fullTrack = useRef<HTMLUListElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -64,7 +64,7 @@ export function PhotoCarousel({ photos, title }: { photos: Photo[]; title: strin
         </ul>
         {photos.length > 1 ? (
           <>
-            <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white">
+            <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 text-xs text-white">
               {index + 1}/{photos.length}
             </span>
             <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5" aria-hidden>
@@ -74,6 +74,10 @@ export function PhotoCarousel({ photos, title }: { photos: Photo[]; title: strin
             </div>
           </>
         ) : null}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] [&>*]:pointer-events-auto">
+          <div className="flex gap-2">{left}</div>
+          <div className="flex gap-2">{right}</div>
+        </div>
       </div>
       {hasCaptions ? (
         <p className="min-h-11 whitespace-pre-line border-b border-zinc-200 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-800 dark:text-zinc-300" aria-live="polite">

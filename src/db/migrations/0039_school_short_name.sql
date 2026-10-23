@@ -1,0 +1,2 @@
+ALTER TABLE "school" ADD COLUMN "short_name" text;--> statement-breakpoint
+ALTER TABLE "school" ADD CONSTRAINT "school_short_name_length" CHECK ("school"."short_name" is null or char_length(btrim("school"."short_name")) between 1 and 12);

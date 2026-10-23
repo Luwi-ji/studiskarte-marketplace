@@ -17,6 +17,7 @@ import type { Availability } from "@/lib/posts/schema";
 /** Everything the post page shows. The seller's email is never selected. */
 export type PostDetail = {
   id: string;
+  ownerId: string;
   kind: string;
   /** A showcase's seller lets faculty, staff, alumni and visitors message, offer and reserve. */
   allowNonStudents: boolean;
@@ -137,6 +138,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
 
   return {
     id: row.id,
+    ownerId: row.ownerId,
     kind: row.kind,
     allowNonStudents: row.allowNonStudents,
     status: row.status,
