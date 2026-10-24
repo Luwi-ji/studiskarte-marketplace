@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { deletePostAction, withdrawPostAction } from "@/app/posts/actions";
+import { ConfirmSheet } from "@/components/confirm-sheet";
 
 type Props = { postId: string; title: string; status: string; editLocked: boolean };
 
@@ -16,9 +17,11 @@ const danger = `${item} text-red-600 disabled:opacity-60`;
  */
 export function PostMenu({ postId, title, status, editLocked }: Props) {
   const [open, setOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState<"withdraw" | "delete" | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -38,13 +41,31 @@ export function PostMenu({ postId, title, status, editLocked }: Props) {
 
   if (status !== "open" && status !== "expired" && status !== "withdrawn") return null;
 
-  async function run(action: (id: string) => Promise<{ ok: boolean; error?: string }>, confirmText: string, fallback: string) {
-    if (!window.confirm(confirmText)) return;
+  function ask(action: "withdraw" | "delete") {
+    setOpen(false);
+    setFailed(null);
+    trigger.current?.focus({ preventScroll: true });
+    setConfirmation(action);
+  }
+
+  function closeConfirmation() {
+    if (busy) return;
+    setConfirmation(null);
+    trigger.current?.focus({ preventScroll: true });
+  }
+
+  async function run() {
+    if (!confirmation || busy) return;
+    const action = confirmation === "withdraw" ? withdrawPostAction : deletePostAction;
+    const fallback = `Could not ${confirmation}. Try again.`;
     setBusy(true);
     setFailed(null);
     try {
       const { ok, error } = await action(postId);
-      if (ok) setOpen(false);
+      if (ok) {
+        setConfirmation(null);
+        trigger.current?.focus({ preventScroll: true });
+      }
       else setFailed(error ?? fallback);
     } catch {
       setFailed(fallback);
@@ -54,8 +75,10 @@ export function PostMenu({ postId, title, status, editLocked }: Props) {
   }
 
   return (
+    <>
     <div ref={root} className="absolute right-1 top-1">
       <button
+        ref={trigger}
         type="button"
         aria-label={`Options for ${title}`}
         aria-haspopup="menu"
@@ -85,7 +108,7 @@ export function PostMenu({ postId, title, status, editLocked }: Props) {
                 role="menuitem"
                 disabled={busy}
                 className={danger}
-                onClick={() => run(withdrawPostAction, `Withdraw "${title}"? It leaves the feed for good and cannot be relisted.`, "Could not withdraw. Try again.")}
+                onClick={() => ask("withdraw")}
               >
                 {busy ? "Withdrawing…" : "Withdraw"}
               </button>
@@ -102,18 +125,32 @@ export function PostMenu({ postId, title, status, editLocked }: Props) {
               role="menuitem"
               disabled={busy}
               className={danger}
-              onClick={() => run(deletePostAction, `Delete "${title}" from your list? Messages about it stay in your conversations.`, "Could not delete. Try again.")}
+              onClick={() => ask("delete")}
             >
               {busy ? "Deleting…" : "Delete"}
             </button>
           ) : null}
-          {failed ? (
-            <p role="alert" className="px-3 pb-2 text-xs text-red-600">
-              {failed}
-            </p>
-          ) : null}
         </div>
       ) : null}
     </div>
+      {confirmation ? (
+        <ConfirmSheet
+          open
+          onOpenChange={(nextOpen) => { if (!nextOpen) closeConfirmation(); }}
+          title={confirmation === "withdraw" ? "Withdraw this post?" : "Delete this post?"}
+          confirmLabel={busy ? (confirmation === "withdraw" ? "Withdrawing…" : "Deleting…") : (confirmation === "withdraw" ? "Withdraw" : "Delete")}
+          cancelLabel="Cancel"
+          onConfirm={() => void run()}
+          busy={busy}
+          error={failed}
+          danger
+        >
+          <p className="mb-2 break-words font-medium">{title}</p>
+          {confirmation === "withdraw"
+            ? "It leaves the feed for good and cannot be relisted. You can delete it from your list afterwards."
+            : "It is removed from your list. Messages about it stay in your conversations. This cannot be undone."}
+        </ConfirmSheet>
+      ) : null}
+    </>
   );
 }

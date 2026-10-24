@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
+import { BackToTop } from "@/components/back-to-top";
 import { BoughtCount, FollowersCount, FollowingCount, NewPill, SoldCount, STAT_LINK, STAT_ROW } from "@/components/seller-trust";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -29,6 +30,7 @@ import { profileOrigin } from "./origin";
 export const metadata = { title: "Profile · Studiskarte Marketplace" };
 
 const PICTURE_LINK_SECONDS = 5 * 60;
+const PROFILE_LIST_LIMIT = 60;
 
 const TABS: { id: PostKind; label: string }[] = [
   { id: "showcase", label: "Showcase" },
@@ -95,15 +97,17 @@ async function Profile({
   // Your own profile lists everything you posted, with its controls; anyone else's lists what is open.
   const [own, others, pictureUrl, rep, reply] = await Promise.all([
     profile.isSelf ? listOwnPosts(profile.id) : null,
-    profile.isSelf ? null : listPostsBy(me.id, profile.id),
+    profile.isSelf ? null : listPostsBy(me.id, profile.id, PROFILE_LIST_LIMIT + 1),
     profile.avatarKey ? getObjectStore().signedUrl(profile.avatarKey, PICTURE_LINK_SECONDS) : null,
     getReputation(profile.id),
     getReplyTime(profile.id),
   ]);
   const shownOwn = own?.filter((p) => p.kind === tab) ?? [];
-  const shownOthers = others?.filter((p) => p.kind === tab) ?? [];
+  // The extra row detects a capped public list without calling it complete.
+  const publicPosts = others && others.length > PROFILE_LIST_LIMIT ? others.slice(0, PROFILE_LIST_LIMIT) : others ?? [];
+  const shownOthers = publicPosts.filter((p) => p.kind === tab);
   const countOf = (kind: PostKind) =>
-    (own ?? others ?? []).filter((p) => p.kind === kind).length;
+    (own ?? publicPosts).filter((p) => p.kind === kind).length;
   const openCount = own?.filter((p) => p.status === "open").length ?? 0;
   const noun = tab === "wishlist" ? "wishlist posts" : "showcase posts";
 
@@ -123,7 +127,7 @@ async function Profile({
     ) : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-2">
       <section className="mx-auto flex w-full max-w-md flex-col gap-2 px-1">
         <div className="flex items-center gap-4">
           {pictureUrl ? (
@@ -231,6 +235,12 @@ async function Profile({
           ) : (
             <PostGrid items={shownOthers} />
           )}
+          {(profile.isSelf ? shownOwn.length > 0 : shownOthers.length > 0 && (others?.length ?? 0) <= PROFILE_LIST_LIMIT) ? (
+            <div className="flex flex-col items-center gap-1 py-3 text-zinc-500">
+              <p className="text-sm">You&apos;ve seen everything</p>
+              <BackToTop />
+            </div>
+          ) : null}
         </PendingResults>
       </section>
 

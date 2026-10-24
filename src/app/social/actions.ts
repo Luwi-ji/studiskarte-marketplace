@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
 import { getPublicProfile } from "@/lib/identity/profile";
@@ -40,6 +40,6 @@ export async function setHeartAction(postId: unknown, heart: unknown): Promise<{
   } else {
     await unheartPost(me.id, id.data);
   }
-  refresh();
+  revalidatePath("/", "layout");
   return { ok: true };
 }

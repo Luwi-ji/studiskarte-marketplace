@@ -15,22 +15,22 @@ export function TypeStripSkeleton() {
           </span>
         ))}
       </div>
+      <div aria-hidden className="mx-auto flex h-11 w-full max-w-3xl items-center gap-2 overflow-hidden px-3 motion-safe:animate-pulse">
+        {[14, 20, 24, 20, 24].map((w, i) => (
+          <div key={i} className="h-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800" style={{ width: `${w * 4}px` }} />
+        ))}
+      </div>
     </div>
   );
 }
 
-/** The usage line and the status pills where they will be. */
+/** The usage line below the sticky type and status strips. */
 export function StatusRowSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-1 motion-safe:animate-pulse">
       <div className="flex h-11 flex-col justify-center gap-2">
         <div className={`h-3 w-2/5 ${block}`} />
         <div className={`h-1.5 w-full rounded-full bg-zinc-200 dark:bg-zinc-800`} />
-      </div>
-      <div className="flex h-11 items-center gap-2">
-        {[14, 20, 24, 20, 24].map((w, i) => (
-          <div key={i} className="h-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800" style={{ width: `${w * 4}px` }} />
-        ))}
       </div>
     </div>
   );

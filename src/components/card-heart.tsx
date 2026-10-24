@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useTransition } from "react";
 import { setHeartAction } from "@/app/social/actions";
 
 /**
@@ -9,21 +9,18 @@ import { setHeartAction } from "@/app/social/actions";
  * (as it does for your own post).
  */
 export function CardHeart({ postId, initial }: { postId: string; initial: boolean }) {
-  const [hearted, setHearted] = useState(initial);
-  const [busy, setBusy] = useState(false);
+  const [hearted, setHearted] = useOptimistic(initial);
+  const [busy, startTransition] = useTransition();
 
-  async function toggle() {
-    const next = !hearted;
-    setHearted(next);
-    setBusy(true);
-    try {
-      const result = await setHeartAction(postId, next);
-      if (!result.ok) setHearted(!next);
-    } catch {
-      setHearted(!next);
-    } finally {
-      setBusy(false);
-    }
+  function toggle() {
+    startTransition(async () => {
+      setHearted(!hearted);
+      try {
+        await setHeartAction(postId, !hearted);
+      } catch {
+        // The optimistic state rolls back when the transition finishes.
+      }
+    });
   }
 
   return (

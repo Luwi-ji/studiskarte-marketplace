@@ -43,6 +43,15 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 - The page may rubber-band. Sheets, drawers, dialogs and scroll rows use `overscroll-behavior: contain` (set globally on `dialog`, `.overflow-y-auto`, `.overflow-x-auto`, axis by axis) so a swipe at the end of a panel never drags the page or the browser chrome behind it.
 - Sideways rows use `snap-x snap-mandatory`, hide the scrollbar, and pad with `scroll-px-*` so the first card lines up with the page edge.
 
+## Profile, My posts, and Notifications
+
+- Profile Showcase/Wishlist tabs stay directly below the safe-area page header. Keep the bio intact and use a compact gap between profile details and listing tabs.
+- My posts keeps type tabs and horizontally scrolling status filters together in one sticky strip below the header; the open-slot summary scrolls with the list.
+- Nonempty, complete profile and My posts lists end with “You've seen everything” and the shared scroll-to-top arrow (instant with reduced motion). Do not show the completion message for a capped public profile or before the feed's final pagination cursor is exhausted.
+- Profile listing Withdraw/Delete closes the action menu before opening one shared confirmation sheet, never a browser confirm or stacked sheets. Cancel/Escape dismiss without changing the post; the existing server action runs only on confirmation and failures stay visible for retry.
+- Notifications places accessible mark-all-read and device-alert controls in the page header. Keep pending feedback and actionable errors visible; device alerts continue to use the existing notification settings sheet.
+- Hearts (`CardHeart`, `HeartButton`) show the change at once with `useOptimistic` and take the server's state after `setHeartAction` revalidates the app, so the feed, a listing, and Hearted posts agree. A refused or failed heart rolls back.
+
 ## Sheets
 
 - Use `BottomSheet` or `useSlideDialog`: a native `<dialog>`, slide-in at most 220 ms ease-out (none with reduced motion), Escape and tap-outside close, swipe down closes from the handle.
