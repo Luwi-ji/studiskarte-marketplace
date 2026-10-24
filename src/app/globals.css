@@ -243,6 +243,8 @@ select {
     transition: background-color 100ms ease-out;
   }
   .press-row:active {
+    /* Safari before 16.2 has no color-mix(): a neutral tint that reads on both the light and the dark page. */
+    background-color: rgb(128 128 128 / 0.12);
     background-color: color-mix(in oklab, var(--foreground) 8%, transparent);
   }
   @media (prefers-reduced-motion: reduce) {
@@ -279,6 +281,34 @@ select {
   }
 }
 
+/* Pull-to-refresh indicator (pull-to-refresh.tsx): the ring turns while the page refreshes, then a check draws in. */
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ptr-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.ptr-spin {
+  animation: ptr-spin 800ms linear infinite;
+}
+.ptr-check {
+  stroke-dasharray: 1;
+  animation: ptr-check 240ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ptr-spin,
+  .ptr-check {
+    animation: none;
+  }
+}
+
 /* Sheets and drawers slide in with a keyframe animation on the open dialog: declarative, so nothing depends on inline
    styles and a browser that skips the animation still shows the panel in its final place. */
 @keyframes sheet-up {
@@ -297,7 +327,14 @@ select {
     transform: translateX(0);
   }
 }
+/* A closed dialog is hidden by the browser's own style sheet; this keeps it so where that sheet is missing (no <dialog> support). */
+dialog:not([open]) {
+  display: none;
+}
+/* The sheet is a flex column while open. Written here, not as Tailwind's `open:flex`, which compiles to
+   `:is([open], :popover-open, :open)` and so depends on the browser skipping the selectors it does not know. */
 dialog[data-slide="bottom"][open] {
+  display: flex;
   animation: sheet-up 220ms ease-out;
 }
 dialog[data-slide="left"][open] {
@@ -308,11 +345,32 @@ dialog[data-slide="left"][open] {
     animation: none;
   }
 }
+/* Browsers without dynamic viewport units (before iOS 15.4) ignore `max-h-[90dvh]` on the sheet: cap it in vh instead.
+   A plain `max-height: 90vh` line before the dvh one would be stripped by the CSS minifier, so it lives in @supports. */
+@supports not (height: 1dvh) {
+  dialog[data-slide="bottom"],
+  [data-sheet-overlay] {
+    max-height: 90vh;
+  }
+}
+/* The dimmed page behind a dialog reads Tailwind's `--color-black`, but Safari before 17.4 does not pass custom
+   properties on to `::backdrop`: `backdrop:bg-black/50` then became transparent (iOS 16.2 to 17.3 showed no dimming). */
+::backdrop {
+  --color-black: #000;
+}
 
 /* A confirmation step slides in from the right inside the same bar or sheet. */
 @keyframes step-in {
   from {
     opacity: 0;
     transform: translateX(24px);
+  }
+}
+
+/* A message or card that arrives in an open conversation eases up into place. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
 }

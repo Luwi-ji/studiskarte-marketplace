@@ -28,7 +28,7 @@ export async function unfollowStudent(followerId: string, followeeId: string): P
 }
 
 /** One person in a Followers or Following list. */
-export type FollowListItem = { handle: string; displayName: string; school: string; avatarThumbKey: string | null };
+export type FollowListItem = { handle: string; displayName: string; school: string; isGuest: boolean; avatarThumbKey: string | null };
 
 /** How many people a list shows at first, and how many more each "Show more" adds. */
 export const FOLLOW_LIST_STEP = 30;
@@ -89,6 +89,7 @@ function toItems(rows: { handle: string | null; displayName: string; schoolName:
             handle: row.handle,
             displayName: row.displayName,
             school: row.schoolName ? shortSchool(row.schoolName, row.schoolShort) : (row.schoolDomain ?? NO_SCHOOL_LABEL),
+            isGuest: row.schoolDomain === null,
             avatarThumbKey: row.avatarThumbKey,
           },
         ]

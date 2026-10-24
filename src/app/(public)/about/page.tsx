@@ -23,7 +23,7 @@ export default function AboutPage() {
         <p>
           Studiskarte Marketplace is an installable mobile web app for students in the Philippines. Students sell what
           they no longer need, offer services such as tutoring or design work, and post a wishlist of what they are
-          looking for. Faculty, staff, alumni and other visitors can join too.
+          looking for. Faculty, staff, alumni and other guests can join too.
         </p>
       </section>
 

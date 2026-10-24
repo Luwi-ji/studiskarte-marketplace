@@ -7,6 +7,7 @@ import { resultsSkeletons } from "@/components/skeletons";
 import { PendingNav, PendingResults } from "@/components/pending-nav";
 import { HeaderSheets } from "@/components/header-sheets";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { GuestBadge } from "@/components/guest-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { listFeed } from "@/lib/discovery/feed";
 import { activeFilterCount, firstValues, parseFilters, toSearchParams } from "@/lib/discovery/filters";
@@ -146,7 +147,7 @@ async function PeopleResults({ meId, q }: { meId: string; q: string }) {
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2">
                 <span className="truncate font-medium">{person.displayName || `@${person.handle}`}</span>
-                <VerifiedBadge interactive={false} />
+                {person.isGuest ? <GuestBadge interactive={false} /> : <VerifiedBadge interactive={false} />}
               </p>
               <p className="truncate text-sm text-zinc-500">@{person.handle}</p>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">{person.school}</p>

@@ -34,13 +34,21 @@ function describeWindows(windows: Availability[]): string {
 
 /** What a reservation with both handover confirmations still waits for, from the viewer's side. */
 function waitingFor(payment: NonNullable<DealCardData["payment"]>): string {
-  if (payment.stage === "cash_agreed") {
-    return payment.viewerPays ? "Waiting for the cash: tap \"I gave the cash\" above when you hand it over." : "Waiting for the cash: they say when they gave it, then you confirm you received it.";
+  const pays = payment.viewerPays;
+  switch (payment.stage) {
+    case "cash_agreed":
+      return pays ? "Waiting for the cash: tap \"I gave the cash\" above when you hand it over." : "Waiting for them to say they gave you the cash at the handover, then you confirm you received it.";
+    case "cash_given":
+      return pays ? "Waiting for them to confirm they received the cash." : "Confirm above that you received the cash.";
+    case "paid":
+      return pays ? "Waiting for them to confirm they received your payment." : "Confirm above that you received the payment.";
+    case "cash_requested":
+      return payment.cashAskedBy === "payee" ? (pays ? "Answer their cash request above." : "Waiting for them to agree to cash in person.") : pays ? "Waiting for them to agree to cash in person." : "Answer their cash request above.";
+    case "asked":
+      return pays ? "Pay them above, or offer cash in person, to settle the payment." : "Waiting for them to pay.";
+    default:
+      return pays ? "Pay them above, or offer cash in person, to settle the payment." : "Ask them to pay above, or wait for them to pay.";
   }
-  if (payment.stage === "cash_given") {
-    return payment.viewerPays ? "Waiting for them to confirm they received the cash." : "Confirm above that you received the cash.";
-  }
-  return "Waiting for the payment to be settled.";
 }
 
 const button = "h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700";
@@ -289,7 +297,7 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
 
       {deal.payment ? (
         <p className="border-l-4 border-amber-500 pl-3 text-sm">
-          <span className="font-medium">Do not pay before you and {them} have agreed a time and place for the handover.</span> Studiskarte does not hold or move money: you pay each other directly.
+          <span className="font-medium">Do not pay before you and {them} have agreed a time and place for the handover.</span> After that, either of you can start the payment. Studiskarte does not hold or move money: you pay each other directly.
         </p>
       ) : null}
 

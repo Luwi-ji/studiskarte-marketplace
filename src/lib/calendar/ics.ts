@@ -1,4 +1,4 @@
-/** What a calendar app shows as the calendar's own name, in a feed and in a downloaded file. */
+/** What a calendar app shows as the calendar's own name in a subscribed feed. */
 export const CALENDAR_NAME = "Studiskarte transactions";
 
 export type CalendarEvent = {
@@ -55,7 +55,12 @@ function fold(line: string): string[] {
   return lines;
 }
 
-export function buildCalendar(args: { name: string; events: CalendarEvent[]; now?: Date }): string {
+/**
+ * The calendar text. By default it is a feed a calendar app keeps subscribed to (it is told the calendar's name
+ * and to look again every hour). With `once` it is a file to import a single time: no calendar name and no
+ * refresh hints, so the phone offers "Add to Calendar" for the event and nothing else.
+ */
+export function buildCalendar(args: { name: string; events: CalendarEvent[]; now?: Date; once?: boolean }): string {
   const now = args.now ?? new Date();
   const lines = [
     "BEGIN:VCALENDAR",
@@ -63,9 +68,7 @@ export function buildCalendar(args: { name: string; events: CalendarEvent[]; now
     "PRODID:-//Studiskarte Marketplace//Handovers//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeText(args.name)}`,
-    "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
-    "X-PUBLISHED-TTL:PT1H",
+    ...(args.once ? [] : [`X-WR-CALNAME:${escapeText(args.name)}`, "REFRESH-INTERVAL;VALUE=DURATION:PT1H", "X-PUBLISHED-TTL:PT1H"]),
   ];
   for (const e of args.events) {
     lines.push(
@@ -87,3 +90,14 @@ export function buildCalendar(args: { name: string; events: CalendarEvent[]; now
   lines.push("END:VCALENDAR");
   return lines.flatMap(fold).join("\r\n") + "\r\n";
 }
+
+/**
+ * Headers for one event opened from a link. The file is shown inline, not sent as an attachment: an iPhone opens its
+ * "Add to Calendar" sheet for a file the page opens, while an attachment goes to the download manager, which does not
+ * import it. No `no-store`, which iOS can refuse when it hands a file on to another app.
+ */
+export const EVENT_FILE_HEADERS = {
+  "Content-Type": "text/calendar; charset=utf-8",
+  "Content-Disposition": 'inline; filename="handover.ics"',
+  "Cache-Control": "private, max-age=0, must-revalidate",
+} as const;

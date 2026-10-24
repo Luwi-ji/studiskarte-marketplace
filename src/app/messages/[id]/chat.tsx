@@ -5,6 +5,8 @@ import { markReadAction, sendMessageAction } from "../actions";
 import { ProductCard } from "@/components/product-card";
 import { Composer } from "../composer";
 import { OfferCardView, type OfferCardData } from "./offer-card";
+import { LiveStrip } from "./live-strip";
+import { useArrivals, useKeepPlace } from "./thread-motion";
 import { useLiveThread } from "./use-live-thread";
 import type { ListingCardData } from "./transactions";
 
@@ -22,6 +24,8 @@ export type ChatMessageData = {
 
 // Within this many pixels of the bottom counts as reading the newest messages.
 const AT_BOTTOM_PX = 120;
+// A message or card that arrives while the thread is open eases in (keyframes in globals.css).
+const ARRIVE = "motion-safe:animate-[arrive_220ms_ease-out]";
 
 function scrollToBottom() {
   window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
@@ -68,7 +72,7 @@ export function Chat({
   const behind = lastId !== undefined && seenId !== lastId && !lastMine;
 
   const pinnedKey = pinned.map((o) => `${o.id}:${o.deal?.activityAt}:${o.deal?.status}`).join("|");
-  const liveStatus = useLiveThread(conversationId, `${lastId}|${unread}|${pinnedKey}`);
+  const liveStatus = useLiveThread(conversationId, `${lastId}|${unread}|${pinnedKey}`, otherName);
 
   // Track whether the reader is at the bottom.
   useEffect(() => {
@@ -94,6 +98,25 @@ export function Chat({
     if (following.current) scrollToBottom();
   }, [pinnedKey]);
 
+  // Anything above the screen that changes height (a card moving down the thread) leaves the reader where they were.
+  useKeepPlace(following);
+
+  // The bar under the thread grows and shrinks (the status strip, a longer message being typed): at the bottom,
+  // stay at the bottom with it, so the newest message is never left behind it.
+  const bar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = bar.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let height = el.offsetHeight;
+    const watch = new ResizeObserver(() => {
+      if (el.offsetHeight === height) return;
+      height = el.offsetHeight;
+      if (following.current) scrollToBottom();
+    });
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+
   // Messages from the other person that are on screen are read.
   useEffect(() => {
     if (unread > 0) void markReadAction(conversationId).catch(() => {});
@@ -110,21 +133,32 @@ export function Chat({
   // before it, above those sent after. Each step moves it down; chat then goes on below it. The offer's own
   // card in the list only points to it.
   const pinnedDealIds = new Set(pinned.flatMap((o) => (o.deal ? [o.deal.id] : [])));
-  const timeline: ({ kind: "message"; m: ChatMessageData; index: number } | { kind: "card"; offer: OfferCardData })[] = [];
+  const timeline: ({ kind: "message"; key: string; m: ChatMessageData; index: number } | { kind: "card"; key: string; offer: OfferCardData })[] = [];
   const cards = [...pinned].sort((a, b) => Date.parse(a.deal?.activityAt ?? "") - Date.parse(b.deal?.activityAt ?? ""));
   let next = 0;
   messages.forEach((m, index) => {
-    while (next < cards.length && Date.parse(cards[next].deal?.activityAt ?? "") < Date.parse(m.createdAt)) timeline.push({ kind: "card", offer: cards[next++] });
-    timeline.push({ kind: "message", m, index });
+    while (next < cards.length && Date.parse(cards[next].deal?.activityAt ?? "") < Date.parse(m.createdAt)) {
+      const offer = cards[next++];
+      timeline.push({ kind: "card", key: `deal-${offer.id}`, offer });
+    }
+    timeline.push({ kind: "message", key: `m-${m.id}`, m, index });
   });
-  while (next < cards.length) timeline.push({ kind: "card", offer: cards[next++] });
+  while (next < cards.length) {
+    const offer = cards[next++];
+    timeline.push({ kind: "card", key: `deal-${offer.id}`, offer });
+  }
+  // What arrives while the thread is open eases in; what was there when it opened does not.
+  const arrived = useArrivals(
+    conversationId,
+    timeline.map((entry) => entry.key),
+  );
   return (
     <>
       <ul className="flex flex-col gap-1.5 px-3 py-3" aria-label="Messages">
         {timeline.map((entry) => {
           if (entry.kind === "card") {
             return (
-              <li key={`deal-${entry.offer.id}`} className="flex">
+              <li key={entry.key} className={`flex ${arrived.has(entry.key) ? ARRIVE : ""}`}>
                 <OfferCardView offer={entry.offer} responderName={otherName} placement="pinned" />
               </li>
             );
@@ -134,7 +168,7 @@ export function Chat({
           const day = days[index];
           const divider = index === 0 || day !== days[index - 1];
           return (
-            <li key={m.id} className="flex flex-col gap-1.5">
+            <li key={entry.key} data-place={m.id} className={`flex flex-col gap-1.5 ${arrived.has(entry.key) ? ARRIVE : ""}`}>
               {divider ? <p className="py-1 text-center text-xs text-zinc-500">{day}</p> : null}
               <div className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"}`}>
                 {m.pictures.length > 0 ? (
@@ -174,7 +208,7 @@ export function Chat({
       {/* Pushes the message box to the bottom of a short thread. */}
       <div className="flex flex-1 flex-col" />
 
-      <div className="sticky bottom-0 z-10 border-t border-zinc-200 bg-[var(--background)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 dark:border-zinc-800">
+      <div ref={bar} className="sticky bottom-0 z-10 border-t border-zinc-200 bg-[var(--background)] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 dark:border-zinc-800">
         {behind ? (
           <button
             type="button"
@@ -184,14 +218,7 @@ export function Chat({
             New message ↓
           </button>
         ) : null}
-        {liveStatus ? (
-          <p role="status" className="mb-2 flex min-h-9 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm dark:bg-zinc-800">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 animate-spin fill-none stroke-current motion-reduce:animate-none" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-              <path d="M12 3a9 9 0 1 1-9 9" />
-            </svg>
-            {liveStatus}
-          </p>
-        ) : null}
+        <LiveStrip status={liveStatus} />
         {readOnlyReason ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">{readOnlyReason}</p>
         ) : (

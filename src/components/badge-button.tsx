@@ -6,6 +6,8 @@ const TONES = {
   // School email is blue, ID checked is green (the owner's colours), in light and dark.
   blue: { chip: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200", bare: "text-blue-700 dark:text-blue-300" },
   green: { chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200", bare: "text-emerald-700 dark:text-emerald-300" },
+  // A guest has no school email: neutral grey, not a colour that says "verified".
+  grey: { chip: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", bare: "text-zinc-600 dark:text-zinc-400" },
 };
 
 /**

@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { deal, image, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { formatHandoverTime } from "@/lib/deals/handover";
-import { isSecured, paymentStage, type PaymentFields, type PaymentStage } from "@/lib/deals/slot";
+import { cashAskedBy, isSecured, paymentStage, type PaymentFields, type PaymentStage } from "@/lib/deals/slot";
 
 /**
  * Where a transaction is: an offer waiting for an answer, a reservation being carried out, or over (completed,
@@ -77,7 +77,7 @@ function dealState(d: PaymentFields & {
   const secure: Record<PaymentStage, [string, string]> = {
     // [if the viewer pays, if the viewer is paid]
     free: ["", ""],
-    open: [" · waiting for them to ask you to pay", " · ask them to pay to secure the slot"],
+    open: [" · pay to secure the slot, or wait for them to ask", " · ask them to pay to secure the slot"],
     asked: [" · pay to secure the slot", " · waiting for them to pay"],
     cash_requested: [" · waiting for them to agree to cash", " · answer their cash request"],
     paid: [" · paid, waiting for them to confirm", " · confirm the payment you received"],
@@ -87,7 +87,9 @@ function dealState(d: PaymentFields & {
     cash_received: ["", ""],
   };
   const stage = paymentStage(d);
-  const payment = secure[stage][viewerPays ? 0 : 1];
+  let payment = secure[stage][viewerPays ? 0 : 1];
+  // The other way round when the one being paid is the one who asked for cash.
+  if (stage === "cash_requested" && cashAskedBy(d) === "payee") payment = viewerPays ? " · answer their cash request" : " · waiting for them to agree to cash";
   const mine = d.viewerIsOwner ? d.ownerConfirmedAt : d.responderConfirmedAt;
   const theirs = d.viewerIsOwner ? d.responderConfirmedAt : d.ownerConfirmedAt;
   const when = d.scheduledAt ? formatHandoverTime(d.scheduledAt) : "";

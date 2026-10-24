@@ -1,37 +1,48 @@
 import type { NotificationType } from "@/lib/notifications/text";
 
 /**
- * What an open conversation says, while it updates, when the other person just did something.
- * Reminders are left out: they are not something the other person did.
+ * What an open conversation says, while it updates, when the other person just did something: the sentence about
+ * what happened, with their name where it says who did it. Reminders are left out: they are not something the other
+ * person did.
  */
-const LIVE_LABEL: Partial<Record<NotificationType, string>> = {
-  message: "New message. Updating…",
-  offer_received: "They made an offer. Updating…",
-  offer_accepted: "They accepted. Updating…",
-  offer_declined: "They declined. Updating…",
-  offer_expired: "The offer expired. Updating…",
-  deal_cancelled: "They cancelled. Updating…",
-  deal_proposed: "They proposed a time. Updating…",
-  deal_scheduled: "Time agreed. Updating…",
-  deal_confirmed: "They confirmed the handover. Updating…",
-  deal_handover_rejected: "They say it did not happen. Updating…",
-  deal_proposal_declined: "They declined the time. Updating…",
-  deal_completed: "Handover complete. Updating…",
-  deal_expired: "Cancelled for inactivity. Updating…",
-  deal_paid: "They marked it paid. Updating…",
-  deal_payment_confirmed: "Payment confirmed. Updating…",
-  deal_payment_requested: "They asked you to pay. Updating…",
-  deal_cash_requested: "They asked to pay cash. Updating…",
-  deal_cash_answered: "They answered the cash request. Updating…",
-  deal_cash_given: "They gave the cash. Updating…",
-  deal_cash_received: "Cash received. Confirming…",
-  deal_payment_rejected: "They say the payment was not received. Updating…",
-  deal_reported: "A problem was reported. Updating…",
-  deal_disputed: "Marked as disputed. Updating…",
+const LIVE_LABEL: Partial<Record<NotificationType, (who: string) => string>> = {
+  message: (who) => `${who} sent a message`,
+  offer_received: (who) => `${who} made an offer`,
+  offer_accepted: (who) => `${who} accepted your offer`,
+  offer_declined: (who) => `${who} declined your offer`,
+  offer_expired: () => "The offer expired",
+  deal_cancelled: (who) => `${who} cancelled the reservation`,
+  deal_proposed: (who) => `${who} proposed a time`,
+  deal_scheduled: () => "Time agreed",
+  deal_confirmed: (who) => `${who} confirmed the handover`,
+  deal_handover_rejected: (who) => `${who} says it did not happen`,
+  deal_proposal_declined: (who) => `${who} declined the time`,
+  deal_completed: () => "Handover complete",
+  deal_expired: () => "Cancelled for inactivity",
+  deal_paid: (who) => `${who} marked it paid`,
+  deal_payment_confirmed: () => "Payment confirmed",
+  deal_payment_requested: (who) => `${who} asked you to pay`,
+  deal_cash_requested: (who) => `${who} asked to pay cash`,
+  deal_cash_answered: (who) => `${who} answered the cash request`,
+  deal_cash_given: (who) => `${who} gave the cash`,
+  deal_cash_received: () => "Cash received",
+  deal_payment_rejected: (who) => `${who} says the payment was not received`,
+  deal_reported: (who) => `${who} reported a problem`,
+  deal_disputed: () => "Marked as disputed",
 };
 
-/** The status line for a device alert's tag ("<type>:<url>"), or null when the alert is not about a step. */
-export function liveLabel(tag: string): string | null {
+/** A long name is cut so the line stays short on a phone. */
+const MAX_NAME = 24;
+
+/**
+ * The status line for a device alert's tag ("<type>:<url>"): what happened and that the page is catching up
+ * ("Sam accepted your offer. Updating…"), or null when the alert is not about a step.
+ */
+export function liveLabel(tag: string, who: string): string | null {
   const type = tag.split(":", 1)[0] as NotificationType;
-  return LIVE_LABEL[type] ?? null;
+  const what = LIVE_LABEL[type];
+  if (!what) return null;
+  const letters = [...who];
+  const name = letters.length > MAX_NAME ? `${letters.slice(0, MAX_NAME - 1).join("")}…` : who;
+  return `${what(name)}. ${type === "deal_cash_received" ? "Confirming…" : "Updating…"}`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCalendar, CALENDAR_NAME, HANDOVER_MINUTES, type CalendarEvent } from "@/lib/calendar/ics";
+import { buildCalendar, CALENDAR_NAME, EVENT_FILE_HEADERS, HANDOVER_MINUTES, type CalendarEvent } from "@/lib/calendar/ics";
 
 const now = new Date("2030-01-01T00:00:00Z");
 const event = (extra: Partial<CalendarEvent> = {}): CalendarEvent => ({
@@ -77,5 +77,49 @@ describe("the calendar text", () => {
     expect(cancelled).not.toContain("STATUS:CONFIRMED");
     expect(cancelled).toContain("UID:deal-1@studiskarte\r\n");
     expect(sequence(cancelled)).toBeGreaterThan(sequence(confirmed));
+  });
+});
+
+describe("the single-event file opened from the conversation", () => {
+  const file = (extra: Partial<CalendarEvent> = {}) => buildCalendar({ name: CALENDAR_NAME, events: [event(extra)], now, once: true });
+
+  it("is one complete event with every property a phone needs to import it", () => {
+    const lines = file({ summary: "Studiskarte: Notes, set A; vol. 2", description: "Meet\nthere" }).split("\r\n");
+    expect(lines.pop()).toBe(""); // ends with CRLF
+    expect(lines.filter((l) => l.includes("\n") || l.includes("\r"))).toEqual([]);
+    expect(lines.slice(0, 6)).toEqual(["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Studiskarte Marketplace//Handovers//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "BEGIN:VEVENT"]);
+    expect(lines.slice(-2)).toEqual(["END:VEVENT", "END:VCALENDAR"]);
+    const unfolded = unfold(lines.join("\r\n"));
+    for (const property of ["UID:deal-1@studiskarte", "DTSTAMP:20300101T000000Z", "DTSTART:20300107T013000Z", "DTEND:20300107T023000Z", "SEQUENCE:", "STATUS:CONFIRMED"]) {
+      expect(unfolded).toContain(`\r\n${property}`);
+    }
+    // Text is escaped: comma, semicolon and newline never appear raw in a TEXT value.
+    expect(unfolded).toContain("SUMMARY:Studiskarte: Notes\\, set A\\; vol. 2\r\n");
+    expect(unfolded).toContain("DESCRIPTION:Meet\\nthere\r\n");
+    expect(unfolded.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+    expect(unfolded.match(/END:VEVENT/g)).toHaveLength(1);
+  });
+
+  it("is not a subscription: no calendar name and no refresh hints", () => {
+    const text = file();
+    expect(text).not.toContain("X-WR-CALNAME");
+    expect(text).not.toContain("REFRESH-INTERVAL");
+    expect(text).not.toContain("X-PUBLISHED-TTL");
+    expect(calendar([event()])).toContain("X-WR-CALNAME");
+  });
+
+  it("keeps the deal's UID and raises SEQUENCE when the deal changed, so a re-import updates the same event", () => {
+    const sequence = (text: string) => Number(/SEQUENCE:(\d+)/.exec(text)?.[1]);
+    const first = file({ updatedAt: new Date("2030-01-02T00:00:00Z") });
+    const later = file({ updatedAt: new Date("2030-01-02T00:05:00Z"), start: new Date("2030-01-08T01:30:00Z") });
+    expect(first).toContain("UID:deal-1@studiskarte\r\n");
+    expect(later).toContain("UID:deal-1@studiskarte\r\n");
+    expect(sequence(later)).toBeGreaterThan(sequence(first));
+  });
+
+  it("is served inline as text/calendar so the phone opens its Add to Calendar sheet", () => {
+    expect(EVENT_FILE_HEADERS["Content-Type"]).toBe("text/calendar; charset=utf-8");
+    expect(EVENT_FILE_HEADERS["Content-Disposition"]).toMatch(/^inline;/);
+    expect(EVENT_FILE_HEADERS["Cache-Control"]).not.toContain("no-store");
   });
 });

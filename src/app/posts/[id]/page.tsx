@@ -6,6 +6,7 @@ import { HeartButton } from "@/components/heart-button";
 import { SellerStats } from "@/components/seller-trust";
 import { PostSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { GuestBadge } from "@/components/guest-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
@@ -109,7 +110,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2">
           <span className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</span>
-          <VerifiedBadge interactive={false} />
+          {detail.seller.isGuest ? <GuestBadge interactive={false} /> : <VerifiedBadge interactive={false} />}
         </p>
         {/* Stars and units sold sit beside the handle; the whole card is one link, so they are not links themselves. */}
         <div className="flex min-w-0 items-center gap-x-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -147,7 +148,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
         right={
           <>
             {detail.isOwner || detail.status === "withdrawn" ? null : <HeartButton postId={detail.id} initial={detail.hearted} variant="overlay" />}
-            <ShareButton postId={detail.id} title={detail.title} />
+            <ShareButton postId={detail.id} />
             {detail.isOwner ? null : <ListingMenu postId={detail.id} sellerHandle={detail.seller.handle} sellerName={detail.seller.displayName || `@${detail.seller.handle}`} reasons={REPORT_REASONS} />}
           </>
         }

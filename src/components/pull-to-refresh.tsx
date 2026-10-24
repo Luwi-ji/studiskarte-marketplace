@@ -16,6 +16,11 @@ const SLOP = 6;
 /** The spinner stays at least this long (ms), so a quick refresh is still seen. */
 const MIN_SPIN_MS = 600;
 const FADE_MS = 200;
+/** The check stays this long (ms) before the indicator fades out. */
+const DONE_MS = 450;
+/** The progress ring's arc (of 100): empty, and the short arc that turns while refreshing. */
+const ARC_EMPTY = "0 100";
+const ARC_REFRESHING = "28 72";
 /** How far the page stays open while it refreshes (px). */
 const REST_Y = 48;
 
@@ -54,9 +59,10 @@ function place(disc: HTMLElement, y: number, opacity: number, animate: boolean) 
 /**
  * Pull down from the top of any page to refresh it, the way native apps do (a Home Screen app has no browser to do it).
  * One finger, from a page that is scrolled to the very top, moving down more than sideways: a round indicator follows
- * the finger with growing resistance and turns as it goes; let go past the threshold and it spins while the page
- * really refreshes (`router.refresh()`: the server data is fetched again and the page re-rendered, keeping client state
- * such as typed text) until the new page is in. With reduced motion the indicator does not move or turn.
+ * the finger with growing resistance, its ring filling as you pull; let go past the threshold and the ring turns while
+ * the page really refreshes (`router.refresh()`: the server data is fetched again and the page re-rendered, keeping
+ * client state such as typed text) until the new page is in, then a check shows briefly. With reduced motion the
+ * indicator does not move, scale or turn.
  *
  * It stays out of the way of: a sheet or dialog that is open, text fields, a text selection, rows that scroll sideways
  * (photo strips, card rows), panels scrolled down, a second finger, and anything inside `data-no-pull`.
@@ -67,16 +73,18 @@ function place(disc: HTMLElement, y: number, opacity: number, animate: boolean) 
 export function PullToRefresh() {
   const router = useRouter();
   const [refreshing, startTransition] = useTransition();
-  const [phase, setPhase] = useState<"idle" | "refreshing">("idle");
+  const [phase, setPhase] = useState<"idle" | "refreshing" | "done">("idle");
   const disc = useRef<HTMLDivElement>(null);
-  const icon = useRef<HTMLDivElement>(null);
+  const face = useRef<HTMLDivElement>(null);
+  const arc = useRef<SVGCircleElement>(null);
   const busy = useRef(false);
   const startedAt = useRef(0);
 
   useEffect(() => {
     const el = disc.current;
-    const turn = icon.current;
-    if (!el || !turn) return;
+    const turn = face.current;
+    const ring = arc.current;
+    if (!el || !turn || !ring) return;
 
     let finger: { x: number; y: number; base: number | null; crossed: boolean } | null = null;
     let pull = 0;
@@ -106,7 +114,7 @@ export function PullToRefresh() {
     }
 
     function onMove(event: TouchEvent) {
-      if (!finger || !el || !turn) return;
+      if (!finger || !el || !turn || !ring) return;
       if (event.touches.length !== 1 || window.scrollY > 0) {
         stop(true);
         return;
@@ -124,11 +132,12 @@ export function PullToRefresh() {
       if (event.cancelable) event.preventDefault();
       pull = resist(Math.max(0, y - finger.base));
       const progress = Math.min(1, pull / THRESHOLD);
+      ring.style.strokeDasharray = `${Math.round(progress * 100)} 100`;
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         place(el, pull > 0 ? REST_Y : 0, pull > 0 ? 1 : 0, false);
       } else {
         place(el, pull, Math.min(1, pull / 24), false);
-        turn.style.transform = `rotate(${progress * 270}deg)`;
+        turn.style.transform = `scale(${0.8 + 0.2 * progress})`;
       }
       const past = pull >= THRESHOLD;
       if (past && !finger.crossed) haptic("select");
@@ -161,48 +170,60 @@ export function PullToRefresh() {
     };
   }, [router, startTransition]);
 
-  // While refreshing the indicator rests at the threshold and spins.
+  // While refreshing the indicator rests at the threshold with a short arc that turns.
   useEffect(() => {
-    if (phase === "refreshing" && disc.current) place(disc.current, REST_Y, 1, true);
+    if (phase !== "refreshing" || !disc.current) return;
+    place(disc.current, REST_Y, 1, true);
+    if (face.current) face.current.style.transform = "";
+    if (arc.current) arc.current.style.strokeDasharray = ARC_REFRESHING;
   }, [phase]);
 
-  // When the new page is in: let lists that keep their own pages start over, then leave once the spinner has been seen long enough.
+  // When the new page is in: let lists that keep their own pages start over, show the check once the spinner has been seen long enough.
   useEffect(() => {
     if (phase !== "refreshing" || refreshing) return;
     window.dispatchEvent(new Event(PAGE_REFRESHED_EVENT));
-    const timer = setTimeout(
-      () => {
-        busy.current = false;
-        setPhase("idle");
-        if (disc.current) place(disc.current, 0, 0, true);
-        if (icon.current) icon.current.style.transform = "";
-      },
-      Math.max(0, MIN_SPIN_MS - (performance.now() - startedAt.current)),
-    );
+    const timer = setTimeout(() => setPhase("done"), Math.max(0, MIN_SPIN_MS - (performance.now() - startedAt.current)));
     return () => clearTimeout(timer);
   }, [phase, refreshing]);
 
+  // The check shows briefly, then the indicator fades out and the page closes the gap.
+  useEffect(() => {
+    if (phase !== "done") return;
+    const timer = setTimeout(() => {
+      busy.current = false;
+      setPhase("idle");
+      if (disc.current) place(disc.current, 0, 0, true);
+      if (face.current) face.current.style.transform = "";
+      if (arc.current) arc.current.style.strokeDasharray = ARC_EMPTY;
+    }, DONE_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  const done = phase === "done";
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-[70] flex justify-center" aria-live="polite">
-      <div
-        ref={disc}
-        style={{ transform: "translateY(calc(env(safe-area-inset-top) + var(--ptr, 0px) / 2 - 1.25rem))" }}
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-brand opacity-0 shadow-md dark:border-zinc-700 dark:bg-zinc-800"
-      >
-        <div ref={icon}>
+      <div ref={disc} style={{ transform: "translateY(calc(env(safe-area-inset-top) + var(--ptr, 0px) / 2 - 1.125rem))" }} className="opacity-0">
+        <div
+          ref={face}
+          className="relative flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-brand-text shadow-[0_2px_10px_rgba(11,16,26,0.16)] dark:border-zinc-700 dark:bg-zinc-800 dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+        >
           <svg
             viewBox="0 0 24 24"
-            className={`h-6 w-6 fill-none stroke-current ${phase === "refreshing" ? "animate-spin motion-reduce:animate-none" : ""}`}
-            strokeWidth="2"
+            className={`h-6 w-6 fill-none transition-opacity duration-150 motion-reduce:transition-none ${phase === "refreshing" ? "ptr-spin" : ""} ${done ? "opacity-0" : "opacity-100"}`}
+            strokeWidth="2.5"
             strokeLinecap="round"
-            strokeLinejoin="round"
             aria-hidden
           >
-            <path d="M20 12a8 8 0 1 1-2.34-5.66" />
-            <path d="M20 4v5h-5" />
+            <circle cx="12" cy="12" r="9" pathLength="100" className="stroke-zinc-200 dark:stroke-zinc-700" />
+            <circle ref={arc} cx="12" cy="12" r="9" pathLength="100" transform="rotate(-90 12 12)" className="stroke-current" style={{ strokeDasharray: ARC_EMPTY }} />
           </svg>
+          {done ? (
+            <svg viewBox="0 0 24 24" className="absolute h-6 w-6 fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M7.5 12.5l3 3 6-7" pathLength="1" className="ptr-check" />
+            </svg>
+          ) : null}
         </div>
-        {phase === "refreshing" ? <span className="sr-only">Refreshing</span> : null}
+        {phase === "refreshing" ? <span className="sr-only">Refreshing</span> : done ? <span className="sr-only">Refreshed</span> : null}
       </div>
     </div>
   );

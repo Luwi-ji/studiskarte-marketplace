@@ -34,7 +34,7 @@ function isActive(tab: Tab, pathname: string, handle: string | null, hasPerks: b
  * first scroll up, at the top, and on every page change (see `useScrollDirection`).
  * While hidden it marks the page (`data-tab-bar-hidden`) so the floating category bar can follow it down.
  */
-export function BottomNav({ unread = 0, hasPerks = false, handle = null, canSell = true }: { unread?: number; hasPerks?: boolean; handle?: string | null; canSell?: boolean }) {
+export function BottomNav({ unread = 0, hasPerks = false, handle = null, canSell = true, studentId }: { unread?: number; hasPerks?: boolean; handle?: string | null; canSell?: boolean; studentId?: string }) {
   const tabs = hasPerks ? [FEED, MESSAGES, CREATE, PERKS, ME] : [FEED, MESSAGES, CREATE, MY_POSTS, ME];
   const pathname = usePathname();
   const { hidden, focusProps } = useScrollDirection();
@@ -93,7 +93,7 @@ export function BottomNav({ unread = 0, hasPerks = false, handle = null, canSell
         })}
       </ul>
       </nav>
-      <PostChooserSheet open={creating} onOpenChange={setCreating} canSell={canSell} returnFocusTo="[data-create-tab]" />
+      <PostChooserSheet open={creating} onOpenChange={setCreating} canSell={canSell} studentId={studentId} returnFocusTo="[data-create-tab]" />
     </>
   );
 }

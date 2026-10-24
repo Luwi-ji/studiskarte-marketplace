@@ -39,6 +39,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   // Only page loads. Data, images and scripts go straight to the network.
   if (event.request.mode !== "navigate") return;
+  // A calendar event is a file for the Calendar app, not a page: the browser loads it itself (an iPhone can fail to
+  // open a file whose navigation a service worker answered), and there is no offline page for it.
+  const { pathname } = new URL(event.request.url);
+  if (pathname.startsWith("/api/calendar/") || pathname.startsWith("/calendar/")) return;
   event.respondWith(
     (async () => {
       try {

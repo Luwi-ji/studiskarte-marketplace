@@ -15,7 +15,6 @@ import {
   giveCash,
   markPaid,
   NEEDS_SLOT,
-  NOT_ASKED,
   NOT_PAID_YET,
   NOT_PAYEE,
   NOT_PAYER,
@@ -162,8 +161,7 @@ describe("securing the slot by online payment", () => {
     await answerProposal({ actorId: ana, dealId, agree: true });
     await db.delete(notification).where(inArray(notification.recipientId, people));
 
-    // Paying comes after being asked, and only the right person does each step.
-    expect(await markPaid({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_ASKED });
+    // Only the right person does each step.
     expect(await askToPay({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
     expect(await confirmPayment({ actorId: seller, dealId })).toEqual({ ok: false, error: NOT_PAID_YET });
     expect(await askToPay({ actorId: seller, dealId })).toMatchObject({ ok: true });
@@ -183,14 +181,30 @@ describe("securing the slot by online payment", () => {
     expect(await noticesFor(ana)).toEqual(["deal_payment_confirmed", "deal_payment_requested"]);
   });
 
-  it("asks by one of the online ways the post takes, and cash is never asked for", async () => {
+  it("asks by any way the post takes: online, others or cash in person", async () => {
     const { dealId } = await scheduled(ana, await newPost({ cash: true, online: true, other: true }));
     expect(await askToPay({ actorId: seller, dealId })).toMatchObject({ ok: false, error: expect.stringContaining("Choose") });
-    expect(await askToPay({ actorId: seller, dealId, input: { method: "cash" } })).toMatchObject({ ok: false });
     expect(await askToPay({ actorId: seller, dealId, input: { method: "other" } })).toMatchObject({ ok: true });
     expect((await dealRow(dealId)).paymentAskMethod).toBe("other");
-    const cashOnly = await scheduled(ben, await newPost({ cash: true }));
-    expect(await askToPay({ actorId: seller, dealId: cashOnly.dealId })).toMatchObject({ ok: false, error: expect.stringContaining("cash only") });
+    const noCash = await scheduled(ben, await newPost({ cash: false, online: true }));
+    expect(await askToPay({ actorId: seller, dealId: noCash.dealId, input: { method: "cash" } })).toMatchObject({ ok: false, error: expect.stringContaining("does not take cash") });
+    expect(await askToPay({ actorId: seller, dealId: noCash.dealId, input: { method: "other" } })).toMatchObject({ ok: false, error: expect.stringContaining("does not take that way") });
+  });
+
+  it("lets the payer pay without being asked, by a way the post takes, and the payee confirms", async () => {
+    const { dealId } = await scheduled(ana, await newPost({ cash: false, online: true, other: true }));
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+    expect(await markPaid({ actorId: ana, dealId })).toMatchObject({ ok: false, error: expect.stringContaining("Choose") });
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "cash" } })).toMatchObject({ ok: false });
+    expect(await markPaid({ actorId: seller, dealId, input: { method: "other" } })).toEqual({ ok: false, error: NOT_PAYER });
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "other" } })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ paymentMethod: "other", paymentAskedAt: null });
+    expect(await noticesFor(seller)).toEqual(["deal_paid"]);
+    // Saying it twice changes nothing and tells nobody again.
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "online" } })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ paymentMethod: "other" });
+    expect(await noticesFor(seller)).toEqual(["deal_paid"]);
+    expect(await confirmPayment({ actorId: seller, dealId })).toMatchObject({ ok: true });
   });
 
   it("says nothing was received: that undoes the paid, the slot is open again, and the payer is told", async () => {
@@ -279,6 +293,56 @@ describe("securing the slot with cash in person", () => {
     expect(await receiveCash({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: true });
     expect(await noticesFor(ana)).toEqual(["deal_completed"]);
     expect(await dealRow(dealId)).toMatchObject({ status: "completed" });
+  });
+
+  it("can be asked by the one being paid, and then only the payer answers", async () => {
+    const { dealId } = await scheduled(ana, await newPost({ cash: true }));
+    await db.delete(notification).where(inArray(notification.recipientId, people));
+    expect(await askToPay({ actorId: ana, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
+    expect(await askToPay({ actorId: seller, dealId })).toMatchObject({ ok: true });
+    expect(await noticesFor(ana)).toEqual(["deal_payment_requested"]);
+    expect(await dealRow(dealId)).toMatchObject({ cashAgreedAt: null });
+    // Asking again changes nothing; the one who asked cannot answer their own ask.
+    expect(await askToPay({ actorId: seller, dealId })).toMatchObject({ ok: true });
+    expect(await answerCash({ actorId: seller, dealId, agree: true })).toEqual({ ok: false, error: NOT_PAYER });
+    // Declined: back to open, not secured.
+    expect(await answerCash({ actorId: ana, dealId, agree: false })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ cashRequestedAt: null, cashAgreedAt: null, paymentAskedAt: null, paymentAskMethod: null });
+    expect(await noticesFor(seller)).toEqual(["deal_cash_answered"]);
+    // Asked again and agreed: secured, and the cash handshake goes on as usual.
+    await askToPay({ actorId: seller, dealId });
+    expect(await answerCash({ actorId: ana, dealId, agree: true })).toMatchObject({ ok: true, completed: false });
+    expect(await cancelDeal({ actorId: seller, dealId })).toEqual({ ok: false, error: SECURED_NO_CANCEL });
+    expect(await askToPay({ actorId: seller, dealId })).toEqual({ ok: false, error: ALREADY_SECURED });
+    expect(await giveCash({ actorId: ana, dealId })).toMatchObject({ ok: true });
+    await confirmHandover({ actorId: ana, dealId, now: after });
+    await confirmHandover({ actorId: seller, dealId, now: after });
+    expect(await receiveCash({ actorId: seller, dealId })).toMatchObject({ ok: true, completed: true });
+
+    // The same on a Wishlist, where the one who posted it pays.
+    const wish = await scheduled(ana, await newPost({ wishlist: true, cash: true }));
+    expect(await askToPay({ actorId: ana, dealId: wish.dealId })).toMatchObject({ ok: true });
+    expect(await answerCash({ actorId: ana, dealId: wish.dealId, agree: true })).toEqual({ ok: false, error: NOT_PAYER });
+    expect(await answerCash({ actorId: seller, dealId: wish.dealId, agree: true })).toMatchObject({ ok: true });
+    expect((await dealRow(wish.dealId)).cashAgreedAt).not.toBeNull();
+  });
+
+  it("keeps who asked for cash straight, and paying online drops the payee's cash ask", async () => {
+    const { dealId, conversationId } = await scheduled(ana, await newPost({ cash: true, online: true }));
+    const card = async (who: string) => (await getConversation(who, conversationId))?.messages[0].offer?.deal?.payment;
+    // The payer offers cash after an online ask: the payee answers; declining goes back to the online ask.
+    await askToPay({ actorId: seller, dealId, input: { method: "online" } });
+    await requestCash({ actorId: ana, dealId });
+    expect(await card(ana)).toMatchObject({ stage: "cash_requested", cashAskedBy: "payer" });
+    expect(await answerCash({ actorId: ana, dealId, agree: true })).toEqual({ ok: false, error: NOT_PAYEE });
+    expect(await answerCash({ actorId: seller, dealId, agree: false })).toMatchObject({ ok: true });
+    expect(await card(ana)).toMatchObject({ stage: "asked", askMethod: "online", cashAskedBy: null });
+    // The payee then asks for cash: the payer answers. Paying online instead ends that ask.
+    expect(await askToPay({ actorId: seller, dealId, input: { method: "cash" } })).toMatchObject({ ok: true });
+    expect(await card(seller)).toMatchObject({ stage: "cash_requested", cashAskedBy: "payee", askMethod: null });
+    expect(await markPaid({ actorId: ana, dealId, input: { method: "online" } })).toMatchObject({ ok: true });
+    expect(await dealRow(dealId)).toMatchObject({ paidAt: expect.any(Date), paymentMethod: "online", cashRequestedAt: null, paymentAskedAt: null, paymentAskMethod: null });
+    expect(await card(seller)).toMatchObject({ stage: "paid", cashAskedBy: null });
   });
 
   it("is only possible when the post takes cash, and works for a delivery as well as a meet-up", async () => {

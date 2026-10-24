@@ -103,17 +103,17 @@ export const confirmHandoverAction = async (dealId: unknown) => act("confirm", d
 /** The other person says the handover happened and this one says it did not: their confirmation is taken back. */
 export const rejectHandoverAction = async (dealId: unknown) => act("handover-rejected", dealId, rejectHandover);
 
-/** The one being paid asks the other to pay (online or others), once a time and place are agreed. */
+/** The one being paid asks the other to pay (online, others or cash in person), once a time and place are agreed. */
 export const askToPayAction = async (dealId: unknown, input: unknown) => act("ask", dealId, (a) => askToPay({ ...a, input }));
-/** The one paying says they paid, the way they were asked. This secures the slot. */
-export const markPaidAction = async (dealId: unknown) => act("paid", dealId, markPaid);
+/** The one paying says they paid (the way asked, or one they choose, with or without being asked). This secures the slot. */
+export const markPaidAction = async (dealId: unknown, input?: unknown) => act("paid", dealId, (a) => markPaid({ ...a, input }));
 /** The one being paid confirms they received it. */
 export const confirmPaymentAction = async (dealId: unknown) => act("payment-received", dealId, confirmPayment);
 /** The one being paid says they did not receive it. */
 export const rejectPaymentAction = async (dealId: unknown) => act("payment-rejected", dealId, rejectPayment);
 /** The one paying asks to pay cash in person. */
 export const requestCashAction = async (dealId: unknown) => act("cash-request", dealId, requestCash);
-/** The one being paid agrees to or declines paying cash in person. */
+/** The other side of a cash request agrees to or declines it: the payee for the payer's offer, the payer for the payee's ask. */
 export const answerCashAction = async (dealId: unknown, agree: unknown) => act("cash-answer", dealId, (a) => answerCash({ ...a, agree: agree === true }));
 /** The one paying says they gave the cash, as it changes hands at the handover. */
 export const giveCashAction = async (dealId: unknown) => act("cash-given", dealId, giveCash);

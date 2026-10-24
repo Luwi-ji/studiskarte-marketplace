@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { BEFORE_REMINDERS, CONFIRM_REMINDER_DAYS } from "@/lib/deals/handover";
 import { noticeDetail } from "@/lib/deals/notice-detail";
 import { payerOf } from "@/lib/deals/payment";
+import { cashAskedBy } from "@/lib/deals/slot";
 import { recordNotification, type AlertSink } from "@/lib/notifications/record";
 
 const MINUTE_MS = 60_000;
@@ -91,6 +92,7 @@ export async function sendHandoverReminders(now = new Date(), alert?: AlertSink)
       postKind: post.kind,
       ownerConfirmedAt: deal.ownerConfirmedAt,
       responderConfirmedAt: deal.responderConfirmedAt,
+      paymentAskedAt: deal.paymentAskedAt,
       cashRequestedAt: deal.cashRequestedAt,
       cashAgreedAt: deal.cashAgreedAt,
       cashGivenAt: deal.cashGivenAt,
@@ -119,8 +121,9 @@ export async function sendHandoverReminders(now = new Date(), alert?: AlertSink)
     if (!days) continue;
     const payer = payerOf({ postKind: d.postKind, ownerId: d.ownerId, responderId: d.responderId });
     const payee = payer === d.ownerId ? d.responderId : d.ownerId;
-    // Whoever the next money step waits on: the payee when cash was given (confirm it), a payment was made (confirm it) or a cash request is open (answer it); else the payer.
-    const waitingOn = d.cashGivenAt || d.paidAt || (d.cashRequestedAt && !d.cashAgreedAt) ? payee : payer;
+    // Whoever the next money step waits on: the payee when cash was given or a payment was made (confirm it); the one who did not ask when a cash request is open (answer it); else the payer.
+    const cashOpen = d.cashRequestedAt && !d.cashAgreedAt;
+    const waitingOn = d.cashGivenAt || d.paidAt ? payee : cashOpen ? (cashAskedBy(d) === "payee" ? payer : payee) : payer;
     await tell(d, waitingOn, "deal_confirm_reminder", `pay-remind:${days}d:${bothAt}`);
   }
   return sent;

@@ -66,7 +66,7 @@ export function FollowingCount({ count }: { count: number }) {
 }
 
 /** The row the profile's counts sit in, and each count's 44 px link. */
-export const STAT_ROW = "-mx-2 flex flex-wrap items-center";
+export const STAT_ROW = "-mx-2 flex flex-wrap items-center gap-x-1";
 export const STAT_LINK = "press inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2";
 
 /**

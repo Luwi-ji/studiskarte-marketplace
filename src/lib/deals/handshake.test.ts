@@ -15,7 +15,6 @@ import {
   confirmPayment,
   giveCash,
   markPaid,
-  NOT_ASKED,
   NOT_PAID_YET,
   NOT_PAYEE,
   NOT_PAYER,
@@ -163,7 +162,6 @@ describe.each(kinds)("$kind: the online handshake", ({ wishlist, payer, payee })
     expect(payerOf({ postKind: wishlist ? "wishlist" : "showcase", ownerId: row.ownerId, responderId: row.responderId })).toBe(payer);
     await clearNotices();
 
-    expect(await markPaid({ actorId: payer, dealId })).toEqual({ ok: false, error: NOT_ASKED });
     expect(await askToPay({ actorId: payer, dealId })).toEqual({ ok: false, error: NOT_PAYEE });
     expect(await askToPay({ actorId: payee, dealId })).toMatchObject({ ok: true });
     expect(await noticesFor(payer)).toEqual(["deal_payment_requested"]);
@@ -181,6 +179,26 @@ describe.each(kinds)("$kind: the online handshake", ({ wishlist, payer, payee })
     await clearNotices();
     expect(await confirmPayment({ actorId: payee, dealId })).toMatchObject({ ok: true, completed: false });
     expect(await noticesFor(payer)).toEqual(["deal_payment_confirmed"]);
+  });
+
+  it("can also start with the payer paying unasked, or the payee asking for cash, each told to the other side", async () => {
+    const paid = await scheduled(await newPost({ wishlist, cash: true, online: true }));
+    await clearNotices();
+    expect(await markPaid({ actorId: payer, dealId: paid.dealId })).toMatchObject({ ok: true });
+    expect(await dealRow(paid.dealId)).toMatchObject({ paymentMethod: "online", paymentAskedAt: null });
+    expect(await noticesFor(payee)).toEqual(["deal_paid"]);
+    expect(await noticesFor(payer)).toEqual([]);
+    expect(await confirmPayment({ actorId: payee, dealId: paid.dealId })).toMatchObject({ ok: true });
+
+    const cash = await scheduled(await newPost({ wishlist, cash: true, online: true }));
+    await clearNotices();
+    expect(await askToPay({ actorId: payee, dealId: cash.dealId, input: { method: "cash" } })).toMatchObject({ ok: true });
+    expect(await noticesFor(payer)).toEqual(["deal_payment_requested"]);
+    expect(await answerCash({ actorId: payee, dealId: cash.dealId, agree: true })).toEqual({ ok: false, error: NOT_PAYER });
+    await clearNotices();
+    expect(await answerCash({ actorId: payer, dealId: cash.dealId, agree: true })).toMatchObject({ ok: true });
+    expect(await noticesFor(payee)).toEqual(["deal_cash_answered"]);
+    expect(await cancelDeal({ actorId: payee, dealId: cash.dealId })).toEqual({ ok: false, error: SECURED_NO_CANCEL });
   });
 
   it("completes only once both handover confirmations and the payment confirmation exist, in any order", async () => {

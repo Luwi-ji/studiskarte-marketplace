@@ -23,7 +23,9 @@ import {
   type PostFields,
   type PostKind,
 } from "@/lib/posts/schema";
+import { DRAFT_DEBOUNCE_MS, clearDraft, loadDraft, saveDraft, savedAgo, type LoadedDraft } from "@/lib/posts/draft";
 import { createPostAction, relistPostAction, updatePostAction } from "./actions";
+import { checkDraftPhotosAction } from "./draft-actions";
 import { AvailabilityPicker } from "./availability-picker";
 import { ChoiceList, CheckRow, DrillRow, FieldError, FormSheet, RowGroup, fieldClass, hintClass, labelClass } from "./form-parts";
 import { PhotoField, type FormPhoto, type UploadingPhoto } from "./photo-field";
@@ -92,7 +94,7 @@ function fileSize(bytes: number): string {
 type SheetId = "category" | "condition" | "quantity" | "handover" | "payment" | "audience" | "availability";
 
 type Props =
-  | { mode: "create"; kind: PostKind; categories: Category[]; prefill?: Partial<PostFormValues> }
+  | { mode: "create"; kind: PostKind; categories: Category[]; prefill?: Partial<PostFormValues>; studentId: string }
   | { mode: "edit"; categories: Category[]; postId: string; kind: PostKind; initial: PostFormValues; relist: boolean; wasNegotiable?: boolean };
 
 export function PostForm(props: Props) {
@@ -110,8 +112,44 @@ export function PostForm(props: Props) {
   const [sheet, setSheet] = useState<SheetId | null>(null);
   // Set once the post is saved, so going to its page does not ask whether to leave.
   const saved = useRef(false);
+  // A new post keeps a draft on this device, per student and kind. `offer`: undefined while the saved draft is being looked for, null when there is nothing to ask about, else a draft waiting for Continue or Start over.
+  const create = props.mode === "create";
+  const studentId = props.mode === "create" ? props.studentId : null;
+  const [offer, setOffer] = useState<{ draft: LoadedDraft; ago: string } | null | undefined>(props.mode === "create" ? undefined : null);
+  const [continuing, setContinuing] = useState(false);
 
   const dirty = JSON.stringify(values) !== startJson;
+
+  useEffect(() => {
+    if (!create) return;
+    const now = Date.now();
+    const draft = loadDraft(studentId, kind, now);
+    setOffer(draft ? { draft, ago: savedAgo(draft.savedAt, now) } : null);
+  }, [create, studentId, kind]);
+
+  // Saved shortly after each change, and at once when the page is hidden or closed. Not while an older draft is still waiting for an answer, so it is never replaced unasked. Back to the starting values: nothing worth keeping.
+  useEffect(() => {
+    if (!create || offer !== null) return;
+    if (!dirty) {
+      clearDraft(studentId, kind);
+      return;
+    }
+    const write = () => {
+      if (!saved.current) saveDraft(studentId, kind, values);
+    };
+    const hide = () => {
+      if (document.visibilityState === "hidden") write();
+    };
+    const timer = setTimeout(write, DRAFT_DEBOUNCE_MS);
+    document.addEventListener("visibilitychange", hide);
+    window.addEventListener("pagehide", write);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", hide);
+      window.removeEventListener("pagehide", write);
+    };
+  }, [create, offer, dirty, values, studentId, kind]);
+
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -224,17 +262,62 @@ export function PostForm(props: Props) {
     setSaving(false);
     if (!result.ok) {
       setDetailsChoice(null);
-      setErrors(result.errors);
+      let problems = result.errors;
+      // A photo the server no longer has (a draft kept it after the upload was cleaned up): drop it and say so.
+      if (props.mode === "create" && problems.photos && photos.length > 0) {
+        try {
+          const usable = new Set((await checkDraftPhotosAction(photos.map((photo) => photo.id))).map((photo) => photo.id));
+          const gone = photos.length - photos.filter((photo) => usable.has(photo.id)).length;
+          if (gone > 0) {
+            setValues((current) => ({ ...current, photos: current.photos.filter((photo) => usable.has(photo.id)) }));
+            problems = { ...problems, photos: gone === 1 ? "A photo you added earlier is no longer available and was removed. Add it again." : `${gone} photos you added earlier are no longer available and were removed. Add them again.` };
+          }
+        } catch {
+          // Offline: the server's own message stands.
+        }
+      }
+      setErrors(problems);
       return;
     }
     saved.current = true;
     // Next.js keeps this page alive after navigating away; start fresh next time.
     if (props.mode === "create") {
+      clearDraft(studentId, kind);
       setValues(startValues);
       router.push(`/posts/${result.id}?created=1`);
       return;
     }
     router.push(`/me?tab=${kind}`);
+  }
+
+  async function continueDraft() {
+    if (!offer) return;
+    setContinuing(true);
+    const stored = offer.draft.values;
+    let photos = stored.photos ?? [];
+    let gone = 0;
+    if (photos.length > 0) {
+      try {
+        const fresh = new Map((await checkDraftPhotosAction(photos.map((photo) => photo.id))).map((photo) => [photo.id, photo.thumbUrl]));
+        const kept = photos.filter((photo) => fresh.has(photo.id)).map((photo) => ({ ...photo, thumbUrl: fresh.get(photo.id) ?? photo.thumbUrl }));
+        gone = photos.length - kept.length;
+        photos = kept;
+      } catch {
+        // Offline: keep them as saved; Post checks them again.
+      }
+    }
+    const merged: PostFormValues = { ...startValues, ...stored, photos: photos.slice(0, PHOTOS_MAX) };
+    merged.condition = CONDITIONS.find((value) => value === merged.condition) ?? null;
+    if (!props.categories.some((c) => c.id === merged.categoryId)) merged.categoryId = "";
+    setValues(merged);
+    setErrors(gone > 0 ? { photos: gone === 1 ? "A saved photo is no longer available and was removed. Add it again." : `${gone} saved photos are no longer available and were removed. Add them again.` } : {});
+    setOffer(null);
+    setContinuing(false);
+  }
+
+  function startOver() {
+    clearDraft(studentId, kind);
+    setOffer(null);
   }
 
   const quantityLabel = wishlist ? "How many do you need" : "How many are available";
@@ -244,12 +327,46 @@ export function PostForm(props: Props) {
 
   return (
     <>
-      <LeaveGuard active={dirty && !saving} />
+      <LeaveGuard
+        active={dirty && !saving}
+        draft={
+          create
+            ? {
+                onSave: () => {
+                  saveDraft(studentId, kind, values);
+                  setOffer(null);
+                },
+                // A draft still waiting for an answer is not this form's, so it stays.
+                onDiscard: () => {
+                  if (offer === null) clearDraft(studentId, kind);
+                  setValues(startValues);
+                },
+              }
+            : undefined
+        }
+      />
       <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
         {props.mode === "edit" && props.relist ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
             This post expired. Check the details, then relist it for another 30 days.
           </p>
+        ) : null}
+
+        {offer ? (
+          <section aria-label="Saved draft" className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-sm font-medium">Continue your draft - saved {offer.ago}</p>
+              {offer.draft.values.title ? <p className="truncate text-sm text-zinc-600 dark:text-zinc-400">{offer.draft.values.title}</p> : null}
+            </div>
+            <div className="flex gap-2">
+              <button type="button" disabled={continuing} onClick={continueDraft} className="press flex h-11 flex-1 items-center justify-center rounded-lg bg-brand px-3 font-medium text-white disabled:opacity-60">
+                {continuing ? "Loading…" : "Continue"}
+              </button>
+              <button type="button" disabled={continuing} onClick={startOver} className="press flex h-11 flex-1 items-center justify-center rounded-lg border border-zinc-300 px-3 font-medium disabled:opacity-60 dark:border-zinc-700">
+                Start over
+              </button>
+            </div>
+          </section>
         ) : null}
 
         <PhotoField
@@ -543,7 +660,7 @@ export function PostForm(props: Props) {
           name="Who can buy"
           options={[
             { value: "students", label: "Students only", hint: "Only students can contact you about this post." },
-            { value: "everyone", label: "Students and others", hint: "Faculty, staff, alumni and visitors can also message, make offers and reserve." },
+            { value: "everyone", label: "Students and others", hint: "Faculty, staff, alumni and guests can also message, make offers and reserve." },
           ]}
           value={values.allowNonStudents ? "everyone" : "students"}
           onPick={(value) => {

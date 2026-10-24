@@ -20,6 +20,9 @@ import { FollowControls } from "./follow-controls";
 import { MenuSheet } from "@/app/safety/menu-sheet";
 import { REPORT_REASONS } from "@/lib/safety/report";
 import { OwnPosts } from "./own-posts";
+import { ProfileTabs } from "./profile-tabs";
+import { PendingNav, PendingResults } from "@/components/pending-nav";
+import { GuestBadge } from "@/components/guest-badge";
 import { NewPostButton } from "@/components/post-chooser";
 import { profileOrigin } from "./origin";
 
@@ -39,9 +42,11 @@ export default function ProfilePage({ params, searchParams }: PageProps<"/u/[han
         <ProfileHeader params={params} searchParams={searchParams} />
       </Suspense>
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4">
-        <Suspense fallback={<CardGridSkeleton />}>
-          <Profile params={params} searchParams={searchParams} />
-        </Suspense>
+        <PendingNav>
+          <Suspense fallback={<CardGridSkeleton />}>
+            <Profile params={params} searchParams={searchParams} />
+          </Suspense>
+        </PendingNav>
       </main>
     </>
   );
@@ -118,8 +123,8 @@ async function Profile({
     ) : null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="mx-auto flex w-full max-w-md flex-col gap-3 px-1">
+    <div className="flex flex-col gap-5">
+      <section className="mx-auto flex w-full max-w-md flex-col gap-2 px-1">
         <div className="flex items-center gap-4">
           {pictureUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -130,7 +135,14 @@ async function Profile({
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <h2 className="line-clamp-2 break-words text-xl font-semibold leading-tight">{profile.displayName}</h2>
+            {/* The badges sit after the name on the same line; the name gives way first. Tapping a badge opens its name in place. */}
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="min-w-0 truncate text-xl font-semibold leading-tight">{profile.displayName}</h2>
+              <span className="flex shrink-0 items-center gap-2">
+                {profile.isGuest ? <GuestBadge /> : <VerifiedBadge />}
+                {profile.idChecked ? <IdCheckedBadge /> : null}
+              </span>
+            </div>
             {/* The star rating sits beside the handle. Its link keeps a 44 px target without making the line taller. */}
             <div className="flex min-w-0 items-center gap-x-2 text-sm text-zinc-500">
               <p className="min-w-0 truncate">@{profile.handle}</p>
@@ -146,16 +158,18 @@ async function Profile({
                 )}
               </span>
             </div>
-            {/* Badges: tapping one opens its name in place. */}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <VerifiedBadge />
-              {profile.idChecked ? <IdCheckedBadge /> : null}
-            </div>
+            {profile.isGuest ? null : (
+              <p className="flex min-w-0 items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400" title={profile.school}>
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6" />
+                </svg>
+                <span className="truncate">{profile.schoolShort}</span>
+              </p>
+            )}
           </div>
         </div>
 
         {profile.bio ? <p className="break-words text-sm leading-snug text-zinc-600 dark:text-zinc-400">{profile.bio}</p> : null}
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</p>
 
         {profile.isSelf ? (
           // Who you follow is private: the count and its list exist only on your own profile.
@@ -188,39 +202,36 @@ async function Profile({
       </section>
 
       <section className="flex flex-col gap-3">
-        <nav aria-label="Listings" className="grid grid-cols-2 border-b border-zinc-200 dark:border-zinc-800">
-          {TABS.map((t) => (
-            <Link
-              key={t.id}
-              href={t.id === "showcase" ? (suffix ? `${base}?${suffix}` : base) : `${base}?tab=${t.id}${suffix ? `&${suffix}` : ""}`}
-              replace
-              aria-current={t.id === tab ? "page" : undefined}
-              className={`flex h-11 items-center justify-center gap-1.5 border-b-2 text-sm ${t.id === tab ? "border-zinc-900 font-semibold dark:border-zinc-50" : "border-transparent text-zinc-500"}`}
-            >
-              {t.label}
-              <span className="text-xs text-zinc-500">{countOf(t.id)}</span>
-            </Link>
-          ))}
-        </nav>
-        {profile.isSelf ? (
-          <p className="px-1 text-sm text-zinc-500">
-            {openCount} of {OPEN_POSTS_MAX} open posts used.
-          </p>
-        ) : null}
-        {(profile.isSelf ? shownOwn : shownOthers).length === 0 ? (
-          <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
-            <p className="text-zinc-500">{profile.isSelf ? `You have no ${noun} yet.` : `No ${noun} open right now.`}</p>
-            {profile.isSelf ? (
-              <NewPostButton canSell={me.role === "student"} className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
-                Create a post
-              </NewPostButton>
-            ) : null}
-          </div>
-        ) : profile.isSelf ? (
-          <OwnPosts posts={shownOwn} />
-        ) : (
-          <PostGrid items={shownOthers} />
-        )}
+        <ProfileTabs
+          current={tab}
+          tabs={TABS.map((t) => ({
+            id: t.id,
+            label: t.label,
+            count: countOf(t.id),
+            href: t.id === "showcase" ? (suffix ? `${base}?${suffix}` : base) : `${base}?tab=${t.id}${suffix ? `&${suffix}` : ""}`,
+          }))}
+        />
+        <PendingResults skeleton={<CardGridSkeleton />} className="flex flex-col gap-3">
+          {profile.isSelf ? (
+            <p className="px-1 text-sm text-zinc-500">
+              {openCount} of {OPEN_POSTS_MAX} open posts used.
+            </p>
+          ) : null}
+          {(profile.isSelf ? shownOwn : shownOthers).length === 0 ? (
+            <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+              <p className="text-zinc-500">{profile.isSelf ? `You have no ${noun} yet.` : `No ${noun} open right now.`}</p>
+              {profile.isSelf ? (
+                <NewPostButton canSell={me.role === "student"} className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
+                  Create a post
+                </NewPostButton>
+              ) : null}
+            </div>
+          ) : profile.isSelf ? (
+            <OwnPosts posts={shownOwn} />
+          ) : (
+            <PostGrid items={shownOthers} />
+          )}
+        </PendingResults>
       </section>
 
       {profile.isSelf ? null : (

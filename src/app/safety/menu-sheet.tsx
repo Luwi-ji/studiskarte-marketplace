@@ -87,7 +87,7 @@ function Row({ icon, detail, danger, onClick, children }: { icon: string; detail
 /** The top of a step: a Back arrow (or a Close on the first step) and the title. Dragging it down closes the sheet. */
 function Header({ title, back, close }: { title: string; back?: () => void; close?: () => void }) {
   return (
-    <div data-sheet-drag className="flex min-h-12 shrink-0 items-center gap-1 px-2">
+    <div data-sheet-drag className="flex min-h-12 shrink-0 touch-none items-center gap-1 px-2">
       {back ? (
         <button type="button" onClick={back} aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full">
           <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -320,7 +320,7 @@ export function MenuSheet({
           {trigger.text}
         </button>
       )}
-      <BottomSheet open={open} onOpenChange={onOpenChange} label={title} returnFocusTo={`.${MENU_BUTTON}`}>
+      <BottomSheet open={open} onOpenChange={onOpenChange} label={title} returnFocusTo={`.${MENU_BUTTON}`} portal>
         {body}
       </BottomSheet>
     </>

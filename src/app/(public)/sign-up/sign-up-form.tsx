@@ -7,7 +7,7 @@ import { requestCode, verifyCode, type Mode, type SignUpState } from "./actions"
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
   { value: "school", label: "School email", hint: "For students, faculty, staff and alumni" },
-  { value: "visitor", label: "Visitor", hint: "Any other email" },
+  { value: "visitor", label: "Guest", hint: "Any other email" },
 ];
 
 /** `visitors` is false while sign-up without a school email is closed (ALLOW_VISITORS). */

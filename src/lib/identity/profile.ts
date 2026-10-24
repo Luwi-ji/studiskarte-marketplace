@@ -10,6 +10,7 @@ import {
   nextHandleChangeAt,
 } from "@/lib/identity/names";
 import type { ObjectStore } from "@/lib/images/store";
+import { shortSchool } from "@/lib/discovery/cards";
 import { NO_SCHOOL_LABEL, type SchoolRole } from "@/lib/identity/roles";
 import { discardImage, storeImage } from "@/lib/images/upload";
 import { currentLegal } from "@/lib/legal/documents";
@@ -18,7 +19,7 @@ import { idCheckIsCurrent } from "@/lib/verification/config";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 import { countFollowers, countFollowing } from "@/lib/social/follow";
 
-/** What a student sees about themselves. Never includes the school email. `school` reads "Visitor" when there is no school email. */
+/** What a student sees about themselves. Never includes the school email. `school` reads "Guest" when there is no school email. */
 export type OwnProfile = {
   handle: string | null;
   displayName: string;
@@ -66,12 +67,16 @@ export type PublicProfile = {
   /** The short line the student wrote about themselves, or null. */
   bio: string | null;
   school: string;
+  /** The school as a small line names it: the admin's abbreviation, else initials, else the full name. */
+  schoolShort: string;
   avatarKey: string | null;
   /** How many active, visible people follow this student. */
   followerCount: number;
   /** How many people the student follows. Set only on the viewer's own profile; `null` for everyone else, whose following is never shown. */
   followingCount: number | null;
   isSelf: boolean;
+  /** Signed up with a personal email, not a school email (role "visitor"). */
+  isGuest: boolean;
   /** The owner checked a school ID and the check has not lapsed. */
   idChecked: boolean;
   /** Whether the viewer follows this student. */
@@ -94,9 +99,11 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
       bio: student.bio,
       schoolName: school.name,
       schoolDomain: school.domain,
+      schoolShortName: school.shortName,
       avatarKey: image.key,
       idCheckedAt: student.idCheckedAt,
       idCheckExpiresAt: student.idCheckExpiresAt,
+      schoolEmail: student.schoolEmail,
     })
     .from(student)
     .leftJoin(school, eq(school.domain, student.schoolDomain))
@@ -116,10 +123,12 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     bio: row.bio,
     displayName: row.displayName,
     school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
+    schoolShort: shortSchool(row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL, row.schoolShortName),
     avatarKey: row.avatarKey,
     followerCount,
     followingCount: row.id === viewerId ? await countFollowing(viewerId, row.id) : null,
     isSelf: row.id === viewerId,
+    isGuest: row.schoolEmail === null,
     idChecked: idCheckIsCurrent(row.idCheckedAt, row.idCheckExpiresAt),
     isFollowing: mine.n > 0,
   };

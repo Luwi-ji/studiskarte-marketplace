@@ -12,43 +12,82 @@ const QUIET_AFTER_MS = 60_000;
 const IDLE_AFTER_MS = 5 * 60_000;
 // A second look shortly after an alert, in case the first one beat the server's write.
 const AGAIN_MS = 2_500;
-// The status line stays this long after the page has updated, so it can be read, and never longer than the cap.
-const SHOW_MS = 1_200;
+// "Updated" stays this long once the page has caught up, so it can be seen. The status never stays longer than the cap.
+const SHOW_MS = 1_000;
 const CAP_MS = 8_000;
+// A refresh that has not finished by now no longer holds the next one back.
+const STUCK_MS = 10_000;
+
+/**
+ * What the strip above the message box shows. Closing (`open` false) keeps `text` and `done`, so the strip slides away
+ * still showing what it showed.
+ */
+export type LiveStatus = { open: boolean; done: boolean; text: string };
+
+const IDLE: LiveStatus = { open: false, done: false, text: "" };
 
 /**
  * Keeps an open conversation current:
  * - refreshes at once when the device receives an alert about this conversation (the service worker passes it on),
- *   and shows what happened while it does;
+ *   and says what happened while it does, then "Updated" for a moment. Alerts that come close together share one
+ *   status that follows the latest sentence;
  * - refreshes when the app comes back to the front (focus, visible again, back online);
  * - polls every few seconds while visible: faster after recent activity, slower as it goes quiet, paused when hidden.
+ * Only one refresh runs at a time, so a burst of alerts or a slow connection never piles up requests.
  * `activityKey` changes whenever the conversation did, which keeps the polling quick.
  */
-export function useLiveThread(conversationId: string, activityKey: string): string | null {
+export function useLiveThread(conversationId: string, activityKey: string, otherName: string): LiveStatus {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<LiveStatus>(IDLE);
   const lastChange = useRef(0);
   const lastRefresh = useRef(0);
+  // A refresh is running, and another was asked for while it did.
+  const running = useRef(false);
+  const queued = useRef(false);
+  // The page has not caught up with an alert that has a sentence yet.
   const waiting = useRef(false);
-  const clearTimer = useRef<number | undefined>(undefined);
+  const doneTimer = useRef<number | undefined>(undefined);
+  const capTimer = useRef<number | undefined>(undefined);
+  const name = useRef(otherName);
+  useEffect(() => {
+    name.current = otherName;
+  });
 
-  const refresh = useCallback(() => {
-    lastRefresh.current = Date.now();
-    startTransition(() => router.refresh());
-  }, [router]);
+  // `again` asks for one more run after the current one (an alert may have come after it started); polling does not.
+  const refresh = useCallback(
+    (again = false) => {
+      if (running.current && Date.now() - lastRefresh.current < STUCK_MS) {
+        if (again) queued.current = true;
+        return;
+      }
+      running.current = true;
+      lastRefresh.current = Date.now();
+      startTransition(() => router.refresh());
+    },
+    [router],
+  );
 
   useEffect(() => {
     lastChange.current = Date.now();
   }, [activityKey]);
 
-  // The status line goes once the refreshed page is in.
+  // The refreshed page is in: run the queued refresh, or show "Updated" for a moment and let the strip go.
   useEffect(() => {
-    if (pending || !waiting.current) return;
+    if (pending) return;
+    running.current = false;
+    if (queued.current) {
+      queued.current = false;
+      refresh(false);
+      return;
+    }
+    if (!waiting.current) return;
     waiting.current = false;
-    window.clearTimeout(clearTimer.current);
-    clearTimer.current = window.setTimeout(() => setStatus(null), SHOW_MS);
-  }, [pending]);
+    window.clearTimeout(capTimer.current);
+    window.clearTimeout(doneTimer.current);
+    setStatus({ open: true, done: true, text: "Updated" });
+    doneTimer.current = window.setTimeout(() => setStatus((s) => ({ ...s, open: false })), SHOW_MS);
+  }, [pending, refresh]);
 
   useEffect(() => {
     let timer: number | undefined;
@@ -89,36 +128,43 @@ export function useLiveThread(conversationId: string, activityKey: string): stri
   // An alert for this conversation reached the device (public/sw.js passes it to the open pages).
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    let again: number | undefined;
-    let cap: number | undefined;
+    let second: number | undefined;
     function onMessage(event: MessageEvent) {
       const data: unknown = event.data;
       if (!data || typeof data !== "object" || !("type" in data) || data.type !== "alert") return;
       if (!("url" in data) || data.url !== `/messages/${conversationId}`) return;
       lastChange.current = Date.now();
-      const label = "tag" in data && typeof data.tag === "string" ? liveLabel(data.tag) : null;
+      const label = "tag" in data && typeof data.tag === "string" ? liveLabel(data.tag, name.current) : null;
       if (label) {
-        setStatus(label);
+        // One strip for a burst of alerts: it takes the latest sentence and stays up until the page has caught up.
         waiting.current = true;
-        window.clearTimeout(clearTimer.current);
-        window.clearTimeout(cap);
-        cap = window.setTimeout(() => {
+        window.clearTimeout(doneTimer.current);
+        window.clearTimeout(capTimer.current);
+        setStatus({ open: true, done: false, text: label });
+        capTimer.current = window.setTimeout(() => {
           waiting.current = false;
-          setStatus(null);
+          setStatus((s) => ({ ...s, open: false }));
         }, CAP_MS);
       }
-      refresh();
-      window.clearTimeout(again);
-      again = window.setTimeout(refresh, AGAIN_MS);
+      refresh(true);
+      window.clearTimeout(second);
+      second = window.setTimeout(() => refresh(true), AGAIN_MS);
     }
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => {
       navigator.serviceWorker.removeEventListener("message", onMessage);
-      window.clearTimeout(again);
-      window.clearTimeout(cap);
-      window.clearTimeout(clearTimer.current);
+      window.clearTimeout(second);
     };
   }, [conversationId, refresh]);
+
+  // Nothing outlives the conversation on screen.
+  useEffect(
+    () => () => {
+      window.clearTimeout(doneTimer.current);
+      window.clearTimeout(capTimer.current);
+    },
+    [],
+  );
 
   return status;
 }

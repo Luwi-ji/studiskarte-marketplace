@@ -68,33 +68,43 @@ function blameText(r: { mine: boolean; blames: "me" | "them" | null }, otherName
 
 type Props = { deal: DealCardData; viewerIsOwner: boolean; otherName: string };
 
+/** How a way of paying reads in a list of choices: cash is always in person, at the handover. */
+const wayName = (m: PaymentMode) => (m === "cash" ? "Cash in person" : PAYMENT_LABEL[m]);
+
+const muted = "text-sm text-zinc-600 dark:text-zinc-400";
+
 /**
  * Settling the payment, once a time and place are agreed: payments only exist
- * for a scheduled reservation, so nothing shows before that. Online or others:
- * the one being paid asks, the payer says they paid, the payee confirms. Cash:
- * the payer asks to pay cash in person and the payee agrees; at the handover,
- * when the cash really changes hands, the payer says they gave it and the payee
- * confirms they received it. From "paid" or "cash agreed" on, neither person
- * can cancel.
+ * for a scheduled reservation, so nothing shows before that. Either person can
+ * start it, and each sees what they do next and what the other is waiting on:
+ * - The one being paid asks to be paid (online, others or cash in person); the
+ *   one paying pays without being asked, or offers cash in person.
+ * - Online or others: the payer says they paid, the payee confirms (or says not received).
+ * - Cash: one asks for cash in person and the other agrees; at the handover, when
+ *   the cash really changes hands, the payer says they gave it and the payee
+ *   confirms they received it.
+ * From "paid" or "cash agreed" on, neither person can cancel.
  */
 export function PaymentSteps({ deal, otherName }: Props) {
   const payment = deal.payment;
   const step = useStep();
   const [ask, setAsk] = useState<PaymentMode | "">("");
+  const [payWay, setPayWay] = useState<PaymentMode | "">("");
   if (!payment || deal.status !== "scheduled") return null;
-  const waysOnline = payment.modes.filter((m) => m !== "cash");
+  const ways = payment.modes.filter((m): m is "online" | "other" => m !== "cash");
   const cashTaken = payment.modes.includes("cash");
   const askLabel = payment.askMethod ? PAYMENT_LABEL[payment.askMethod].toLowerCase() : "";
   const paidLabel = payment.method ? PAYMENT_LABEL[payment.method].toLowerCase() : "";
   const who = otherName;
   const total = formatPrice("amount", payment.total);
+  const busy = step.busy !== null;
 
   const header = (
     <div>
       <p className="text-sm font-medium">
         Payment: {total} · {payment.modes.map((m) => PAYMENT_LABEL[m]).join(", ")}
       </p>
-      {payment.note ? <p className="text-sm text-zinc-600 dark:text-zinc-400">{payment.note}</p> : null}
+      {payment.note ? <p className={muted}>{payment.note}</p> : null}
     </div>
   );
 
@@ -104,9 +114,23 @@ export function PaymentSteps({ deal, otherName }: Props) {
       <p className="text-sm">
         {payment.viewerPays
           ? "Meet in a public place and check the item first. Once you say you paid, or cash in person is agreed, neither of you can cancel this reservation."
-          : `Meet in a public place. Once ${who} says they paid, or you agree to cash in person, neither of you can cancel this reservation.`}
+          : `Meet in a public place. Once ${who} says they paid, or cash in person is agreed, neither of you can cancel this reservation.`}
       </p>
     ) : null;
+
+  /** A pair of buttons: the no first, the yes (the main one) second. */
+  const pair = (no: { kind: string; label: string; busyLabel: string; run: () => Promise<{ ok: boolean; error?: string }> }, yes: typeof no) => (
+    <div className="grid grid-cols-2 gap-2">
+      <button type="button" className={button} disabled={busy} onClick={() => step.run(no.kind, no.run)}>
+        {step.busy === no.kind ? no.busyLabel : no.label}
+      </button>
+      <button type="button" className={primary} disabled={busy} onClick={() => step.run(yes.kind, yes.run)}>
+        {step.busy === yes.kind ? yes.busyLabel : yes.label}
+      </button>
+    </div>
+  );
+
+  const cashAgreedNote = <p className="text-sm font-medium text-green-600">Cash in person agreed. Neither of you can cancel now.</p>;
 
   let body: React.ReactNode;
   if (payment.stage === "confirmed") {
@@ -119,35 +143,31 @@ export function PaymentSteps({ deal, otherName }: Props) {
     ) : (
       <>
         <p className="text-sm">{who} says they gave you the cash. Confirm only if you really have it.</p>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("cash-reject", () => rejectCashAction(deal.id))}>
-            {step.busy === "cash-reject" ? "Saving…" : "Not received"}
-          </button>
-          <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("cash-receive", () => receiveCashAction(deal.id))}>
-            {step.busy === "cash-receive" ? "Confirming…" : "I received the cash"}
-          </button>
-        </div>
+        {pair(
+          { kind: "cash-reject", label: "Not received", busyLabel: "Saving…", run: () => rejectCashAction(deal.id) },
+          { kind: "cash-receive", label: "I received the cash", busyLabel: "Confirming…", run: () => receiveCashAction(deal.id) },
+        )}
       </>
     );
   } else if (payment.stage === "cash_agreed") {
     body = payment.viewerPays ? (
       <>
-        <p className="text-sm font-medium text-green-600">Cash in person agreed. Neither of you can cancel now.</p>
+        {cashAgreedNote}
         <p className="text-sm">When you hand over the cash at the handover, tap the button. {who} then confirms they received it.</p>
-        <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("cash-give", () => giveCashAction(deal.id))}>
+        <button type="button" className={primary} disabled={busy} onClick={() => step.run("cash-give", () => giveCashAction(deal.id))}>
           {step.busy === "cash-give" ? "Saving…" : "I gave the cash"}
         </button>
       </>
     ) : (
       <>
-        <p className="text-sm font-medium text-green-600">Cash in person agreed. Neither of you can cancel now.</p>
-        <p className="text-sm">{who} hands you the cash at the handover and says so in the app. Then you confirm you received it.</p>
+        {cashAgreedNote}
+        <p className="text-sm">Waiting for {who} to hand you the cash at the handover and say so here. Then you confirm you received it.</p>
       </>
     );
   } else if (payment.stage === "paid") {
     body = payment.viewerPays ? (
       <p className="text-sm">
-        You said you paid{paidLabel ? ` by ${paidLabel}` : ""}. Neither of you can cancel now. Waiting for {who} to confirm.
+        You said you paid{paidLabel ? ` by ${paidLabel}` : ""}. Neither of you can cancel now. Waiting for {who} to confirm they received your payment.
       </p>
     ) : (
       <>
@@ -155,98 +175,123 @@ export function PaymentSteps({ deal, otherName }: Props) {
           {who} says they paid{paidLabel ? ` by ${paidLabel}` : ""}. Confirm when you have it.
         </p>
         <p className="text-sm font-medium">Check your GCash or bank transactions, not a screenshot.</p>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("reject", () => rejectPaymentAction(deal.id))}>
-            {step.busy === "reject" ? "Saving…" : "Not received"}
-          </button>
-          <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("receive", () => confirmPaymentAction(deal.id))}>
-            {step.busy === "receive" ? "Confirming…" : "Payment received"}
-          </button>
-        </div>
+        {pair(
+          { kind: "reject", label: "Not received", busyLabel: "Saving…", run: () => rejectPaymentAction(deal.id) },
+          { kind: "receive", label: "Confirm received", busyLabel: "Confirming…", run: () => confirmPaymentAction(deal.id) },
+        )}
       </>
     );
-  } else if (payment.stage === "cash_requested") {
+  } else if (payment.stage === "cash_requested" && payment.cashAskedBy === "payer") {
+    // The payer offered cash: the payee answers.
     body = payment.viewerPays ? (
-      <p className="text-sm">You asked to pay cash in person at the handover. Waiting for {who} to agree.</p>
+      <p className="text-sm">You offered to pay cash in person at the handover. Waiting for {who} to agree.</p>
     ) : (
       <>
-        <p className="text-sm">{who} asks to pay cash in person at the handover.</p>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("cash-no", () => answerCashAction(deal.id, false))}>
-            {step.busy === "cash-no" ? "Saving…" : "Not this time"}
-          </button>
-          <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("cash-yes", () => answerCashAction(deal.id, true))}>
-            {step.busy === "cash-yes" ? "Agreeing…" : "Agree"}
-          </button>
-        </div>
+        <p className="text-sm">{who} offers to pay cash in person at the handover.</p>
+        {pair(
+          { kind: "cash-no", label: "Decline", busyLabel: "Saving…", run: () => answerCashAction(deal.id, false) },
+          { kind: "cash-yes", label: "Agree", busyLabel: "Agreeing…", run: () => answerCashAction(deal.id, true) },
+        )}
       </>
     );
   } else if (payment.viewerPays) {
-    // open or asked
+    // The payer, before anything is paid or agreed: open, asked, or the payee asked for cash.
+    const asked = payment.stage === "asked" ? payment.askMethod : null;
+    const way: PaymentMode | "" = ways.length === 1 ? ways[0] : payWay || (ways.find((m) => m === asked) ?? "");
+    const askedForCash = payment.stage === "cash_requested";
     body = (
       <>
-        {payment.stage === "asked" ? (
+        {askedForCash ? (
+          <p className="text-sm">{who} asks you to pay cash in person at the handover.</p>
+        ) : payment.stage === "asked" ? (
           <p className="text-sm">
             {who} asks you to pay{askLabel ? ` by ${askLabel}` : ""}.
           </p>
         ) : (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Waiting for {who} to ask you to pay{cashTaken ? ", or you can ask to pay cash in person" : ""}.
+          <p className={muted}>
+            {ways.length > 0 ? `Pay ${who} now, ${cashTaken ? "offer to pay cash in person, " : ""}or wait for them to ask you to pay.` : `This post takes cash only. Offer to pay cash in person, or wait for ${who} to ask you.`}
           </p>
         )}
-        {payment.stage === "asked" ? (
-          <button type="button" className={primary} disabled={step.busy !== null} onClick={() => step.run("pay", () => markPaidAction(deal.id))}>
-            {step.busy === "pay" ? "Saving…" : "I've paid"}
-          </button>
+        {askedForCash
+          ? pair(
+              { kind: "cash-no", label: "Decline", busyLabel: "Saving…", run: () => answerCashAction(deal.id, false) },
+              { kind: "cash-yes", label: "Agree", busyLabel: "Agreeing…", run: () => answerCashAction(deal.id, true) },
+            )
+          : null}
+        {!askedForCash && ways.length > 0 ? (
+          <>
+            <p className={muted}>Pay {who} yourself (Studiskarte does not move money), then tap the button.</p>
+            {ways.length > 1 ? (
+              <label className="flex flex-col gap-1 text-sm">
+                Paid by
+                <select value={way} onChange={(event) => setPayWay(ways.find((m) => m === event.target.value) ?? "")} className={field}>
+                  <option value="" disabled>
+                    Choose
+                  </option>
+                  {ways.map((m) => (
+                    <option key={m} value={m}>
+                      {PAYMENT_LABEL[m]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <button
+              type="button"
+              className={primary}
+              disabled={busy || way === "" || way === "cash"}
+              onClick={() => step.run("pay", () => markPaidAction(deal.id, { method: way === "" ? undefined : way }))}
+            >
+              {step.busy === "pay" ? "Saving…" : "I've paid"}
+            </button>
+          </>
         ) : null}
-        {cashTaken ? (
-          <button type="button" className={button} disabled={step.busy !== null} onClick={() => step.run("cash-ask", () => requestCashAction(deal.id))}>
-            {step.busy === "cash-ask" ? "Asking…" : payment.stage === "asked" ? "Pay cash in person instead" : "Ask to pay cash in person"}
+        {!askedForCash && cashTaken ? (
+          <button type="button" className={ways.length > 0 ? button : primary} disabled={busy} onClick={() => step.run("cash-offer", () => requestCashAction(deal.id))}>
+            {step.busy === "cash-offer" ? "Offering…" : "Offer to pay cash in person"}
           </button>
         ) : null}
       </>
     );
   } else {
-    // the payee, open or asked
-    body =
-      waysOnline.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Only cash is taken. Waiting for {who} to ask to pay cash in person.</p>
-      ) : (
-        <>
-          {payment.stage === "asked" ? (
-            <p className="text-sm">You asked {who} to pay{askLabel ? ` by ${askLabel}` : ""}. Waiting for them.</p>
-          ) : (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">To secure the slot, ask {who} to pay{cashTaken ? ", or wait for them to ask to pay cash in person" : ""}.</p>
-          )}
-          {payment.stage === "open" || waysOnline.length > 1 ? (
-            <>
-              {waysOnline.length > 1 ? (
-                <label className="flex flex-col gap-1 text-sm">
-                  Pay by
-                  <select value={ask} onChange={(event) => setAsk(waysOnline.find((m) => m === event.target.value) ?? "")} className={field}>
-                    <option value="" disabled>
-                      Choose
-                    </option>
-                    {waysOnline.map((m) => (
-                      <option key={m} value={m}>
-                        {PAYMENT_LABEL[m]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <button
-                type="button"
-                className={button}
-                disabled={step.busy !== null || (waysOnline.length > 1 && ask === "")}
-                onClick={() => step.run("ask", () => askToPayAction(deal.id, { method: ask === "" ? undefined : ask }))}
-              >
-                {step.busy === "ask" ? "Asking…" : payment.stage === "asked" ? "Ask again" : `Ask ${who} to pay`}
-              </button>
-            </>
-          ) : null}
-        </>
-      );
+    // The payee, before anything is paid or agreed: open, asked, or they asked for cash and wait for the answer.
+    const modes = payment.modes;
+    const choice: PaymentMode | "" = modes.length === 1 ? modes[0] : ask;
+    const alreadyAsked = payment.stage === "asked" || payment.stage === "cash_requested";
+    body = (
+      <>
+        {payment.stage === "cash_requested" ? (
+          <p className="text-sm">You asked {who} to pay cash in person at the handover. Waiting for them to agree.</p>
+        ) : payment.stage === "asked" ? (
+          <p className="text-sm">You asked {who} to pay{askLabel ? ` by ${askLabel}` : ""}. Waiting for them to pay.</p>
+        ) : (
+          <p className={muted}>To secure the slot, ask {who} to pay. {who} can also pay now or offer cash in person without being asked.</p>
+        )}
+        {modes.length > 1 ? (
+          <label className="flex flex-col gap-1 text-sm">
+            Ask to pay by
+            <select value={choice} onChange={(event) => setAsk(modes.find((m) => m === event.target.value) ?? "")} className={field}>
+              <option value="" disabled>
+                Choose
+              </option>
+              {modes.map((m) => (
+                <option key={m} value={m}>
+                  {wayName(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <button
+          type="button"
+          className={alreadyAsked ? button : primary}
+          disabled={busy || choice === ""}
+          onClick={() => step.run("ask", () => askToPayAction(deal.id, { method: choice === "" ? undefined : choice }))}
+        >
+          {step.busy === "ask" ? "Asking…" : alreadyAsked ? "Ask again" : "Ask to pay"}
+        </button>
+      </>
+    );
   }
 
   return (

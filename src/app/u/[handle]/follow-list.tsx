@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { GuestBadge } from "@/components/guest-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getPublicProfile } from "@/lib/identity/profile";
 import { getObjectStore } from "@/lib/images/store";
@@ -74,7 +75,7 @@ export async function FollowList({
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2">
                   <span className="truncate font-medium">{person.displayName || `@${person.handle}`}</span>
-                  <VerifiedBadge interactive={false} />
+                  {person.isGuest ? <GuestBadge interactive={false} /> : <VerifiedBadge interactive={false} />}
                 </p>
                 <p className="truncate text-sm text-zinc-500">
                   @{person.handle} · {person.school}

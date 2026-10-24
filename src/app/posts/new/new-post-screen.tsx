@@ -44,5 +44,5 @@ async function Guarded({ kind, searchParams }: { kind: PostKind; searchParams: P
   }
   const prefill = prefillFrom(await searchParams);
   // A new key starts a fresh form even when Next.js has kept an earlier one alive.
-  return <PostForm key={prefill ? JSON.stringify(prefill) : "blank"} mode="create" kind={kind} categories={await listCategories()} prefill={prefill} />;
+  return <PostForm key={prefill ? JSON.stringify(prefill) : "blank"} mode="create" kind={kind} categories={await listCategories()} prefill={prefill} studentId={me.id} />;
 }

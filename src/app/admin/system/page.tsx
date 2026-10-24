@@ -125,7 +125,7 @@ async function Status() {
             caption={`Active accounts that accepted it${s.legal.version === null ? "" : ` (${formatShare(s.legal.accepted)})`}. Others are asked at their next visit.`}
           />
           <Stat
-            label="Visitors can sign up"
+            label="Guests can sign up"
             value={s.visitorsAllowed ? "Yes" : "No"}
             caption="People without a school email. Set by ALLOW_VISITORS in the Vercel environment."
           />

@@ -12,7 +12,7 @@ export type SignUpState =
   | { step: "email"; mode: Mode; error?: string }
   | { step: "code"; mode: Mode; email: string; error?: string };
 
-const SCHOOL_HINT = "Use your school email address ending in .edu.ph. No school email? Continue as a visitor.";
+const SCHOOL_HINT = "Use your school email address ending in .edu.ph. No school email? Continue as a guest.";
 const VISITOR_HINT = "That is a school email. Choose School email instead.";
 const VISITORS_CLOSED = "Sign-up without a school email is not open yet. Use your school email.";
 const TRY_LATER = "Too many attempts. Try again later.";

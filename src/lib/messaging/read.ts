@@ -11,7 +11,7 @@ import { asMethod, type HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
 import { isBlockedEitherWay } from "@/lib/safety/block";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
-import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
+import { canReport, cashAskedBy, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
 
 /** Messages shown in a conversation: the latest this many. */
 export const MESSAGES_SHOWN = 200;
@@ -76,6 +76,8 @@ export type DealCard = {
     stage: PaymentStage;
     /** The online or other way the payer was asked to pay by. */
     askMethod: PaymentMode | null;
+    /** Who asked for cash in person, while it is asked or agreed: the payer offers it, the payee asks for it. */
+    cashAskedBy: "payer" | "payee" | null;
     /** The way it was paid, once paid. */
     method: PaymentMode | null;
   } | null;
@@ -127,7 +129,7 @@ export type ConversationView = {
   /** The other person, with their student id (for blocking and reporting them). */
   other: Person & { id: string };
   /** What the thread header says about them: the school's abbreviation and whether a school email was checked. */
-  profile: { schoolShort: string; schoolEmailChecked: boolean };
+  profile: { schoolShort: string; schoolEmailChecked: boolean; isGuest: boolean };
   messages: ChatMessage[];
   /** Every listing the two have dealt about, the one with the newest message first. */
   listings: ThreadListing[];
@@ -392,7 +394,8 @@ function dealCard(o: DealRow, viewerIsOwner: boolean, viewerId: string, windows:
             note: o.paymentNote,
             total: o.dealAmount * o.dealQuantity,
             stage: stage,
-            askMethod: asMode(o.paymentAskMethod),
+            askMethod: stage === "asked" ? asMode(o.paymentAskMethod) : null,
+            cashAskedBy: cashAskedBy(o),
             method: asMode(o.paymentMethod),
           },
     secured: isSecured(fields),
@@ -427,6 +430,7 @@ async function otherProfile(studentId: string): Promise<ConversationView["profil
   return {
     schoolShort: row?.schoolDomain ? shortSchool(row.schoolName ?? row.schoolDomain, row.schoolShort) : NO_SCHOOL_LABEL,
     schoolEmailChecked: row?.schoolDomain != null,
+    isGuest: row?.schoolDomain == null,
   };
 }
 

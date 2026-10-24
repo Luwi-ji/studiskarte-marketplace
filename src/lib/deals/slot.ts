@@ -3,13 +3,14 @@
  * Pure: shared by the server, the thread and the Transactions list.
  *
  * Every step is a two-way handshake: one says, the other confirms. Order of
- * events once a time and place are agreed:
- * - Online or others: the one being paid asks the other to pay ("asked"), the
- *   payer says they paid ("paid"), the payee confirms receiving it ("confirmed").
- * - Cash: the payer asks to pay cash in person ("cash_requested") and the payee
- *   agrees ("cash_agreed"). The cash then changes hands at the handover: the
- *   payer says they gave it ("cash_given"), the payee says they received it
- *   ("cash_received").
+ * events once a time and place are agreed (either side may start the payment step):
+ * - Online or others: the one being paid asks the other to pay ("asked") or the
+ *   payer pays unasked; the payer says they paid ("paid"), the payee confirms
+ *   receiving it ("confirmed").
+ * - Cash: one asks for cash in person ("cash_requested": the payer offers it or
+ *   the payee asks for it, see cashAskedBy) and the other agrees ("cash_agreed").
+ *   The cash then changes hands at the handover: the payer says they gave it
+ *   ("cash_given"), the payee says they received it ("cash_received").
  * Payment is settled by "confirmed", "cash_received", or "free"; nothing less.
  * The reservation can no longer be cancelled from "paid" or "cash_agreed" on, or
  * once either person said the handover happened.
@@ -44,6 +45,17 @@ export function paymentStage(d: PaymentFields): PaymentStage {
 /** Cash in person was agreed (and perhaps already given or received). */
 export function isCashStage(stage: PaymentStage): boolean {
   return stage === "cash_agreed" || stage === "cash_given" || stage === "cash_received";
+}
+
+/**
+ * Who asked for cash in person: the payer offers it, or the payee asks for it
+ * (then `paymentAskedAt` is set together with `cashRequestedAt`, so it is not
+ * older than the request; a payer's request after an earlier online ask is newer
+ * than that ask). Null when no cash was asked for. The other person answers.
+ */
+export function cashAskedBy(d: Pick<PaymentFields, "cashRequestedAt" | "paymentAskedAt">): "payer" | "payee" | null {
+  if (!d.cashRequestedAt) return null;
+  return d.paymentAskedAt && d.paymentAskedAt.getTime() >= d.cashRequestedAt.getTime() ? "payee" : "payer";
 }
 
 /** The payment is settled: confirmed by the payee, cash received, or nothing to pay. */

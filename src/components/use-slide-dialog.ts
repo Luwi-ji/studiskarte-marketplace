@@ -105,16 +105,25 @@ export function useSlideDialog(ref: RefObject<HTMLDialogElement | null>, { open,
         openedAt.current = performance.now();
         // Opening is declarative: no inline transform at all, so nothing can leave the panel parked off screen. The slide
         // is a CSS keyframe animation on `dialog[open]` (globals.css); a browser that skips it just shows the panel.
+        el.style.animation = "";
         el.style.transition = "";
         el.style.transform = "";
         showDialog(el, edge);
         // Pointer users: the dialog itself holds focus, so no button shows a ring.
         if (!keyboard.current) el.focus({ preventScroll: true });
+      } else if (el.style.transform !== "") {
+        // Reopened while it was sliding out: slide back in (the close timer is cleared below).
+        el.style.transition = slide;
+        el.style.transform = SHOWN[edge];
       }
       el.dataset.shown = "true";
       // If the slide never happened (a browser that skips it), make sure the panel is where it should be.
       check = window.setTimeout(() => {
         if (!el.open) return;
+        // An entrance animation still running well past its end (a browser that stalls it) is put at its end.
+        if (typeof el.getAnimations === "function") {
+          for (const animation of el.getAnimations()) if ("animationName" in animation) animation.finish();
+        }
         const box = el.getBoundingClientRect();
         if (edge === "bottom" ? box.top >= window.innerHeight - 1 : box.right <= 1) {
           el.style.animation = "none";
@@ -173,6 +182,8 @@ export function useSlideDialog(ref: RefObject<HTMLDialogElement | null>, { open,
     }
 
     function start(event: TouchEvent) {
+      // The last gesture never ended (no touchend or touchcancel came, as when a system gesture takes the finger): put the panel back.
+      if (g?.dragging) springBack();
       g = null;
       if (event.touches.length !== 1 || !el.open || !latest.current.open) return;
       const target = event.target;
@@ -213,8 +224,13 @@ export function useSlideDialog(ref: RefObject<HTMLDialogElement | null>, { open,
       g = null;
       if (!done || !done.dragging) return; // a tap or a scroll: nothing of ours to finish
       const size = edge === "bottom" ? el.offsetHeight : el.offsetWidth;
-      if (event.type === "touchend" && (done.offset > size * closeShare || (speedOf(done.samples) > FLICK && done.offset > 8))) latest.current.onOpenChange(false);
-      else springBack();
+      if (event.type === "touchend" && (done.offset > size * closeShare || (speedOf(done.samples) > FLICK && done.offset > 8))) {
+        latest.current.onOpenChange(false);
+        // A parent that does not close (it is busy, or asked first) leaves the panel where the finger let go: put it back.
+        window.setTimeout(() => {
+          if (latest.current.open && el.open) springBack();
+        }, 300);
+      } else springBack();
     }
 
     el.addEventListener("touchstart", start, { passive: true });

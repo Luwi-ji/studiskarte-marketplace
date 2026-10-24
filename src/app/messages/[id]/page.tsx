@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { GuestBadge } from "@/components/guest-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
@@ -88,7 +89,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
           // One line: name, school-email badge, school abbreviation. The name gives way first when it is long.
           <span className="flex min-w-0 items-center gap-2">
             <span className="min-w-0 truncate">{name}</span>
-            {profile.schoolEmailChecked ? <VerifiedBadge interactive={false} /> : null}
+            {profile.isGuest ? <GuestBadge interactive={false} /> : profile.schoolEmailChecked ? <VerifiedBadge interactive={false} /> : null}
             <span className="shrink-0 text-sm font-normal text-zinc-600 dark:text-zinc-400">{profile.schoolShort}</span>
           </span>
         }

@@ -47,6 +47,8 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 
 - Use `BottomSheet` or `useSlideDialog`: a native `<dialog>`, slide-in at most 220 ms ease-out (none with reduced motion), Escape and tap-outside close, swipe down closes from the handle.
 - A sheet's own scroll region is `min-h-0 flex-1 overflow-y-auto` with bottom padding `env(safe-area-inset-bottom)`.
+- Older Safari (Tailwind 4 and Next 16 target Safari 16.4 and up; `<dialog>` and `dvh` need 15.4): a sheet's `display: flex` while open, its slide-in and its `vh` cap are plain CSS in `globals.css` (`dialog[data-slide="bottom"]`), not Tailwind's `open:` variant. `::backdrop` gets `--color-black` there, because Safari before 17.4 passes no custom properties to `::backdrop` and `backdrop:bg-black/50` would not dim (iOS 16.2 to 17.3). A sheet that sits in a sticky, blurred or transformed parent (the thread's three-dot menu in the page header) passes `portal` so it lives in `document.body`; never for a sheet whose inputs belong to a surrounding `<form>`.
+- The slide cannot leave a sheet stuck: a stalled entrance animation is finished after 300 ms, a panel left off screen is put in place, a swipe whose `touchend` never came springs back at the next touch, a close the parent refuses springs back, and a dialog that does not show at all becomes a plain overlay (reported to Sentry).
 
 ## Out-of-date app
 

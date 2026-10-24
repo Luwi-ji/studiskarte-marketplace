@@ -10,6 +10,7 @@ export type PersonResult = {
   handle: string;
   displayName: string;
   school: string;
+  isGuest: boolean;
   avatarThumbKey: string | null;
 };
 
@@ -60,7 +61,7 @@ export async function searchPeople(viewerId: string, rawQuery: string): Promise<
 
   return rows.flatMap((row) =>
     row.handle
-      ? [{ handle: row.handle, displayName: row.displayName, school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL, avatarThumbKey: row.avatarThumbKey }]
+      ? [{ handle: row.handle, displayName: row.displayName, school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL, isGuest: row.schoolDomain === null, avatarThumbKey: row.avatarThumbKey }]
       : [],
   );
 }

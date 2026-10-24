@@ -59,6 +59,7 @@ export type PostDetail = {
     handle: string | null;
     displayName: string;
     school: string;
+    isGuest: boolean;
     avatarThumbKey: string | null;
     rating: { average: number; count: number } | null;
     /** Units handed over for a price. */
@@ -169,6 +170,7 @@ export async function getPostDetail(viewerId: string, postId: string): Promise<P
       handle: row.sellerHandle,
       displayName: row.sellerName,
       school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
+      isGuest: row.schoolDomain === null,
       avatarThumbKey: row.avatarThumbKey,
       rating: reputation.rating,
       sold: reputation.sold,
