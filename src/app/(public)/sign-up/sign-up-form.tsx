@@ -3,22 +3,26 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { buttonClass, inlineLinkClass, inputClass, linkClass } from "../auth-styles";
-import { requestCode, verifyCode, type Mode, type SignUpState } from "./actions";
+import { requestCode, verifyCode, type SignUpState } from "./actions";
+import { CHOOSABLE_ROLES, ROLE_LABEL, type Role } from "@/lib/identity/roles";
 
-const MODES: { value: Mode; label: string; hint: string }[] = [
-  { value: "school", label: "School email", hint: "For students, faculty, staff and alumni" },
-  { value: "visitor", label: "Guest", hint: "Any other email" },
-];
+const ROLE_HINT: Record<Role, string> = {
+  student: "Requires your school email",
+  faculty: "School or personal email",
+  staff: "School or personal email",
+  alumni: "School or personal email",
+  visitor: "School or personal email",
+};
 
-/** `visitors` is false while sign-up without a school email is closed (ALLOW_VISITORS). */
+/** `visitors` is false while sign-up with a personal email is closed (ALLOW_VISITORS). */
 export function SignUpForm({ visitors, next }: { visitors: boolean; next: string | null }) {
   const [requested, requestAction, requesting] = useActionState<SignUpState, FormData>(requestCode, {
     step: "email",
-    mode: "school",
+    role: "student",
   });
   const [verified, verifyAction, verifying] = useActionState<SignUpState, FormData>(verifyCode, {
     step: "email",
-    mode: "school",
+    role: "student",
   });
 
   // The code step belongs to the address just requested; its errors come from verifyAction.
@@ -31,7 +35,7 @@ export function SignUpForm({ visitors, next }: { visitors: boolean; next: string
           asking for a new code cancels the old one.
         </p>
         <input type="hidden" name="email" value={requested.email} />
-        <input type="hidden" name="mode" value={requested.mode} />
+        <input type="hidden" name="role" value={requested.role} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">Code</span>
@@ -62,31 +66,35 @@ export function SignUpForm({ visitors, next }: { visitors: boolean; next: string
     <div className="flex flex-col gap-4">
       <form action={requestAction} className="flex flex-col gap-4">
         {next ? <input type="hidden" name="next" value={next} /> : null}
-        <fieldset className="flex flex-col gap-2" hidden={!visitors}>
-          <legend className="mb-1 text-sm font-medium">I am signing up with</legend>
-          {MODES.filter((mode) => visitors || mode.value === "school").map((mode) => (
-            <label key={mode.value} className="flex items-start gap-3 rounded-lg border border-zinc-300 px-3 py-3 dark:border-zinc-700">
-              <input type="radio" name="mode" value={mode.value} defaultChecked={requested.mode === mode.value} className="mt-1 h-5 w-5 shrink-0" />
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">I am a</legend>
+          {CHOOSABLE_ROLES.map((role) => (
+            <label key={role} className="flex items-start gap-3 rounded-lg border border-zinc-300 px-3 py-3 dark:border-zinc-700">
+              <input type="radio" name="role" value={role} defaultChecked={requested.role === role} className="mt-1 h-5 w-5 shrink-0" />
               <span className="flex flex-col">
-                <span className="text-base font-medium">{mode.label}</span>
-                <span className="text-xs text-zinc-500">{mode.hint}</span>
+                <span className="text-base font-medium">{ROLE_LABEL[role]}</span>
+                <span className="text-xs text-zinc-500">{role === "student" || visitors ? ROLE_HINT[role] : "Use your school email"}</span>
               </span>
             </label>
           ))}
         </fieldset>
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium">{visitors ? "Email" : "School email"}</span>
+          <span className="text-sm font-medium">Email</span>
           <input
             name="email"
+            defaultValue={requested.email}
             type="email"
             inputMode="email"
             autoComplete="email"
             placeholder="you@school.edu.ph"
             required
-            autoFocus
             className={`${inputClass} placeholder:text-zinc-500`}
           />
-          {visitors ? null : <span className="text-sm text-zinc-600 dark:text-zinc-400">Use the email your school gave you.</span>}
+          <span className="text-sm text-zinc-600 dark:text-zinc-400">
+            {visitors
+              ? "Students need a school email. With a personal email you join as a Guest until you confirm a school email in Settings."
+              : "Use the email your school gave you."}
+          </span>
         </label>
         {requested.error ? <p role="alert" className="text-sm text-red-600">{requested.error}</p> : null}
         <button type="submit" disabled={requesting} className={buttonClass}>

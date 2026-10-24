@@ -17,3 +17,10 @@ export const ROLE_LABEL: Record<Role, string> = {
 export function parseSchoolRole(raw: unknown): SchoolRole | null {
   return SCHOOL_ROLES.find((role) => role === raw) ?? null;
 }
+
+/** Every role a person can choose at sign-up and sign-in, in the order shown. */
+export const CHOOSABLE_ROLES: readonly Role[] = ["student", "faculty", "staff", "alumni", "visitor"];
+
+export function parseRole(raw: unknown): Role | null {
+  return CHOOSABLE_ROLES.find((role) => role === raw) ?? null;
+}

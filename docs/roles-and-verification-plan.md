@@ -4,6 +4,7 @@ Status: **partly built.** Built 2026-10-19 (ADR 0005): roles in the database (st
 
 ## Decisions (owner)
 - Roles: student, faculty or teacher, staff, alumni, visitor. A **school email** means one of the first four, never visitor; a **personal email** means visitor until a school email is added and confirmed by code (decided 2026-10-19, ID check optional after that).
+- Sign-up and sign-in role choice (2026-10-24): sign-up asks for the role first. A student needs a school email. Faculty, staff, alumni and guests may use a school or personal email. A personal email always makes a Guest account until a school email is confirmed, whatever role was picked; the pick only preselects the role on the welcome step for someone with a school email. A personal email still needs `ALLOW_VISITORS` (off in production). Sign-in asks for a role too, but the saved role wins: a different choice signs in and shows which role applies (`/sign-in?chose=`). Choosing a role never changes permissions.
 - Sign-in stays the emailed code. Sending moves to a provider without Gmail's 500 a day cap (Resend or Brevo) **before** visitors are allowed in.
 - Unverified students can browse, buy and post wishlists. **An unverified student may have one open showcase listing**; verification lifts the limit.
 - Faculty, staff, alumni and visitors browse, buy and post wishlists only.

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { CHOOSABLE_ROLES, ROLE_LABEL } from "@/lib/identity/roles";
 import { buttonClass, inlineLinkClass, inputClass, linkClass, outlineButtonClass } from "../auth-styles";
 import { continueWithGoogle, signIn, type SignInState } from "./actions";
 
@@ -12,6 +13,16 @@ export function SignInForm({ google, googleFailed, next }: { google: boolean; go
     <div className="flex flex-col gap-4">
       <form action={action} className="flex flex-col gap-4">
         {next ? <input type="hidden" name="next" value={next} /> : null}
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium">I am signing in as</span>
+          <select name="role" defaultValue="student" className={inputClass}>
+            {CHOOSABLE_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {ROLE_LABEL[role]}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">School email, email or handle</span>
           <input

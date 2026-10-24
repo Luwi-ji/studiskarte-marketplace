@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
 import { hasPassword } from "@/lib/identity/password";
 import { getOwnProfile } from "@/lib/identity/profile";
+import { parseSchoolRole } from "@/lib/identity/roles";
 import { currentLegal } from "@/lib/legal/documents";
 import { safeReturnTo } from "@/lib/identity/return-to";
 import { PasswordForm } from "./password-form";
@@ -22,7 +23,9 @@ export default function WelcomePage({ searchParams }: PageProps<"/welcome">) {
 
 // Only for signed-in people who have not finished sign-up: first a password, then the profile.
 async function Guarded({ searchParams }: { searchParams: PageProps<"/welcome">["searchParams"] }) {
-  const next = safeReturnTo((await searchParams).next);
+  const params = await searchParams;
+  const next = safeReturnTo(params.next);
+  const chosenRole = parseSchoolRole(params.role) ?? "student";
   const me = await getSignedInStudent();
   if (!me) redirect("/sign-in");
   if (me.handle) redirect(next ?? "/");
@@ -47,7 +50,7 @@ async function Guarded({ searchParams }: { searchParams: PageProps<"/welcome">["
           Choose how other people will find you. Your email is never shown.
         </p>
       </header>
-      <WelcomeForm terms={currentLegal()?.version ?? null} askRole={me.role !== "visitor"} next={next} />
+      <WelcomeForm terms={currentLegal()?.version ?? null} askRole={me.role !== "visitor"} defaultRole={chosenRole} next={next} />
     </>
   );
 }

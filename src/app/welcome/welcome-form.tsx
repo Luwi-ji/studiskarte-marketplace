@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { AGE_CHECKBOX, UNDER_18_NOTICE } from "@/lib/identity/age";
 import { DISPLAY_NAME_MAX, HANDLE_MAX } from "@/lib/identity/names";
-import { ROLE_LABEL, SCHOOL_ROLES } from "@/lib/identity/roles";
+import { ROLE_LABEL, SCHOOL_ROLES, type SchoolRole } from "@/lib/identity/roles";
 import { finishSignUp, type WelcomeState } from "./actions";
 
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 
-/** `terms` is the version of the legal documents to accept, or null when there are none. `askRole` is true for someone with a school email. */
-export function WelcomeForm({ terms, askRole, next }: { terms: string | null; askRole: boolean; next: string | null }) {
+/** `terms` is the version of the legal documents to accept, or null when there are none. `askRole` is true for someone with a school email; `defaultRole` is what they picked at sign-up. */
+export function WelcomeForm({ terms, askRole, defaultRole, next }: { terms: string | null; askRole: boolean; defaultRole: SchoolRole; next: string | null }) {
   const [state, action, pending] = useActionState<WelcomeState, FormData>(finishSignUp, {
     values: { handle: "", displayName: "" },
   });
@@ -28,7 +28,7 @@ export function WelcomeForm({ terms, askRole, next }: { terms: string | null; as
       {askRole ? (
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">I am a</span>
-          <select name="role" defaultValue="student" className={input}>
+          <select name="role" defaultValue={defaultRole} className={input}>
             {SCHOOL_ROLES.map((role) => (
               <option key={role} value={role}>
                 {ROLE_LABEL[role]}
