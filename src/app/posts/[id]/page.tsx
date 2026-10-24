@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { HeartButton } from "@/components/heart-button";
+import { ReviewPrompt } from "@/components/review-prompt";
 import { SellerStats } from "@/components/seller-trust";
 import { PostSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -140,6 +141,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
           </div>
         </div>
       ) : null}
+      {detail.isOwner && justCreated ? <ReviewPrompt momentKey={`posted:${detail.id}`} context="posted" /> : null}
       {detail.isOwner ? null : <ViewTracker postId={detail.id} />}
       <PhotoCarousel
         photos={photoUrls.map((url, i) => ({ url, caption: detail.photos[i].caption }))}

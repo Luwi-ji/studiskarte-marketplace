@@ -14,6 +14,8 @@ import { hasCalendarToken } from "@/lib/calendar/token";
 import { verificationEnabled } from "@/lib/verification/config";
 import { getMyCheck, type MyCheck } from "@/lib/verification/service";
 import { ProfileAvatar, SettingsSection, SettingsIcon, SettingsRow } from "@/components/settings-list";
+import { SocialLinks } from "@/components/social-links";
+import { FACEBOOK_REVIEWS_URL, HELP_PATHS } from "@/lib/support/config";
 import { SettingsSkeleton } from "@/components/list-skeletons";
 import { SignOutRow } from "./sign-out-row";
 import { SavedToast } from "./saved-toast";
@@ -116,6 +118,23 @@ async function Settings() {
           />
         </SettingsSection>
       ) : null}
+
+      <SettingsSection label="Help and support">
+        <SettingsRow href={HELP_PATHS.faq} icon={<SettingsIcon name="help" />} label="FAQs" description="Answers to common questions about Studiskarte." />
+        <SettingsRow href={HELP_PATHS.reportListing} icon={<SettingsIcon name="flag" />} label="Report a listing" description="Paste the listing's link." />
+        <SettingsRow href={HELP_PATHS.reportUser} icon={<SettingsIcon name="user" />} label="Report a user" description="Enter their username." />
+        <SettingsRow href={HELP_PATHS.bug} icon={<SettingsIcon name="bug" />} label="Report a bug" description="Something is not working." />
+        <SettingsRow href={HELP_PATHS.feedback} icon={<SettingsIcon name="chat" />} label="Send feedback" description="Suggestions, compliments and ideas." />
+        <SettingsRow href={HELP_PATHS.contact} icon={<SettingsIcon name="mail" />} label="Contact us" description="Write to the Studiskarte team." />
+      </SettingsSection>
+
+      <SettingsSection label="Follow Studiskarte">
+        <li className="flex flex-col gap-3 px-4 py-2">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Follow us for updates, tips and new features.</p>
+          <SocialLinks />
+        </li>
+        <SettingsRow href={FACEBOOK_REVIEWS_URL} external icon={<SettingsIcon name="star" />} label="Leave a review on Facebook" description="Tell others what you think of Studiskarte." />
+      </SettingsSection>
 
       {legal ? (
         <SettingsSection label="Legal and safety">

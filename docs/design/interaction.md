@@ -65,6 +65,13 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 - Start over and Discard delete the current post type's saved draft and reset the form, including cached values. Pending autosaves cannot restore the deleted draft.
 - Reopening Create a post after either reset starts blank, without a saved-draft prompt. The other post type's draft is unchanged.
 
+## Help and support
+
+- Settings has two sections for it: Help and support (FAQs, Report a listing, Report a user, Report a bug, Send feedback, Contact us) and Follow Studiskarte (Facebook and Instagram buttons, Leave a review on Facebook). Addresses and routes live in `src/lib/support/config.ts`.
+- Report a listing takes the listing's link (a full address, `/posts/<id>` or the id) and Report a user takes a username. Both go through the same `reportPost` / `reportStudent` as the report sheets, so limits, the hide-at-3 rule and the admin queue are shared. A confirmation replaces the form and never shows the owner of a listing.
+- Bug, feedback and contact go by email to `SUPPORT_EMAIL` with the sender's handle, role and account email, and `Reply-To` set to that email. They share the 96-a-day mail quota, so each student is limited to 5 an hour and 10 a day. A message that could not be sent keeps what was typed and is never shown as sent.
+- The Facebook review prompt (`ReviewPrompt`) opens after a post goes live and after a handover completed in the last 48 hours. At most once per 14 days per device, once per post or deal, never after Don't ask again, and not for 90 days after Leave a review was opened. State is in `localStorage` (`studiskarte:review-prompt:v1`); rules and tests are in `src/lib/support/review-prompt.ts`.
+
 ## Out-of-date app
 
 An app on the Home Screen keeps running old scripts until it is reloaded. `UpdateNotice` checks `/api/version` when the app returns to the foreground, when a page is restored from the back/forward cache, and every 5 minutes. When a newer version is found the banner "A new version is ready" stays, and the next plain tap on an in-app link loads that page from the server (a full navigation) instead of navigating in place, so the new scripts arrive with it.

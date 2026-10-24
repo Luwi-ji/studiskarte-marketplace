@@ -19,6 +19,12 @@ const ICONS = {
   refresh: "M20 11a8 8 0 00-14.5-4M4 4v4h4M4 13a8 8 0 0014.5 4M20 20v-4h-4",
   sun: "M12 8a4 4 0 100 8 4 4 0 000-8zM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5",
   off: "M12 3a9 9 0 100 18 9 9 0 000-18zM5.6 5.6l12.8 12.8",
+  help: "M12 3a9 9 0 100 18 9 9 0 000-18zM9.5 9.5a2.5 2.5 0 114 2c-.8.5-1.5 1-1.5 2M12 17h.01",
+  flag: "M5 21V4M5 4h11l-2 4 2 4H5",
+  bug: "M9 9a3 3 0 016 0v7a3 3 0 01-6 0V9zM12 9v10M9 12H5M15 12h4M9 16H5.5M15 16h3.5M10 5L8.5 3M14 5l1.5-2",
+  chat: "M4 5h16v11H9l-5 4V5z",
+  mail: "M3 6h18v12H3V6zM3 7l9 7 9-7",
+  star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z",
 } as const;
 
 export type SettingsIconName = keyof typeof ICONS;
@@ -35,6 +41,15 @@ export function RowChevron() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-none stroke-zinc-400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/** The trailing mark of a row that leaves the app. */
+export function ExternalMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-none stroke-zinc-400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" />
     </svg>
   );
 }
@@ -69,13 +84,15 @@ type RowProps = {
   /** No trailing chevron: a plain text row such as Sign out. */
   plain?: boolean;
   disabled?: boolean;
+  /** Opens an address outside the app in a new tab. */
+  external?: boolean;
 } & ({ href: string; onClick?: never } | { onClick: () => void; href?: never } | { href?: never; onClick?: never });
 
 /**
  * One list row: optional icon, label, optional current value, trailing chevron when it goes somewhere. 48 px tall at least.
  * A `href` makes it a link, an `onClick` a button; with neither it is a plain row.
  */
-export function SettingsRow({ label, icon, value, description, danger, trailing, tall, plain, disabled, href, onClick }: RowProps) {
+export function SettingsRow({ label, icon, value, description, danger, trailing, tall, plain, disabled, external, href, onClick }: RowProps) {
   const inner = (
     <>
       {icon}
@@ -84,10 +101,20 @@ export function SettingsRow({ label, icon, value, description, danger, trailing,
         {description ? <span className="text-sm font-normal text-zinc-600 dark:text-zinc-400">{description}</span> : null}
       </span>
       {value !== undefined && value !== null ? <span className="max-w-[45%] shrink-0 truncate text-sm font-normal text-zinc-600 dark:text-zinc-400">{value}</span> : null}
-      {trailing ?? ((href || onClick) && !plain ? <RowChevron /> : null)}
+      {trailing ?? ((href || onClick) && !plain ? external ? <ExternalMark /> : <RowChevron /> : null)}
     </>
   );
   const cls = `press-row flex w-full items-center gap-3 px-4 py-2 text-left text-base ${tall ? "min-h-20" : "min-h-14"} ${danger ? "text-red-700 dark:text-red-400" : ""}`;
+  if (href && external) {
+    return (
+      <li>
+        <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+          {inner}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      </li>
+    );
+  }
   if (href) {
     return (
       <li>

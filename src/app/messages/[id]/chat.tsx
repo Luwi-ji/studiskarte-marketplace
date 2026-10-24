@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { markReadAction, sendMessageAction } from "../actions";
 import { ProductCard } from "@/components/product-card";
+import { ReviewPrompt } from "@/components/review-prompt";
 import { Composer } from "../composer";
 import { OfferCardView, type OfferCardData } from "./offer-card";
 import { LiveStrip } from "./live-strip";
@@ -152,8 +153,14 @@ export function Chat({
     conversationId,
     timeline.map((entry) => entry.key),
   );
+  // The newest completed handover, pinned or in the thread: a moment to ask for a review. One that completed long ago passes quietly.
+  const dealCards = [...cards, ...messages.flatMap((m) => (m.offer ? [m.offer] : []))];
+  const lastCompleted = dealCards
+    .filter((c) => c.deal?.status === "completed")
+    .sort((a, b) => Date.parse(b.deal?.activityAt ?? "") - Date.parse(a.deal?.activityAt ?? ""))[0];
   return (
     <>
+      {lastCompleted?.deal ? <ReviewPrompt momentKey={`deal:${lastCompleted.deal.id}`} context="completed" happenedAt={lastCompleted.deal.activityAt} /> : null}
       <ul className="flex flex-col gap-1.5 px-3 py-3" aria-label="Messages">
         {timeline.map((entry) => {
           if (entry.kind === "card") {
