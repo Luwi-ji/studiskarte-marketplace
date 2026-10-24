@@ -1,14 +1,14 @@
 /**
  * Fills the DEV database (the one the staging site uses) with test people and listings, so the staging site is not empty.
  * Run: npx tsx --env-file=.env.local scripts/seed-staging.ts        (add `clean` to remove everything it made)
- * Refuses to run unless NEON_BRANCH=dev. Test logins: handles staging_sam and staging_bea, password below (dev only).
+ * Refuses to run unless NEON_BRANCH=dev. Test logins: handles staging_sam, staging_bea and staging_admin (admin), password below (dev only).
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { hashPassword } from "better-auth/crypto";
-import { eq, like } from "drizzle-orm";
+import { eq, inArray, like, or } from "drizzle-orm";
 import sharp from "sharp";
-import { account, image, post, student } from "../src/db/schema";
+import { account, conversation, deal, image, message, notification, offer, post, student } from "../src/db/schema";
 import { getDb, getPool } from "../src/lib/db";
 import { acceptOffer } from "../src/lib/deals/accept";
 import { makeOffer } from "../src/lib/deals/offers";
@@ -17,8 +17,9 @@ import { createPost } from "../src/lib/posts/create";
 import { createTestStudent, deleteTestStudent } from "../src/test/fixtures";
 
 const PASSWORD = "Staging-Pass-2026";
-const people = [
+const people: { id: string; handle: string; name: string; bio: string; isAdmin?: boolean }[] = [
   { id: "staging-sam", handle: "staging_sam", name: "Sam Santos", bio: "Selling textbooks and dorm stuff. Meet at the library." },
+  { id: "staging-admin", handle: "staging_admin", name: "Ana Admin", bio: "Staging admin for reviewing ID checks and reports.", isAdmin: true },
   { id: "staging-bea", handle: "staging_bea", name: "Bea Reyes", bio: "Looking for lab gear and calculators." },
 ];
 const db = getDb();
@@ -26,6 +27,17 @@ const store = getObjectStore();
 
 async function clean() {
   const ids = (await db.select({ id: student.id }).from(student).where(like(student.id, "staging-%"))).map((s) => s.id);
+  if (ids.length) {
+    const posts = (await db.select({ id: post.id }).from(post).where(inArray(post.ownerId, ids))).map((p) => p.id);
+    const convs = (await db.select({ id: conversation.id }).from(conversation).where(or(inArray(conversation.participantA, ids), inArray(conversation.participantB, ids)))).map((c) => c.id);
+    if (convs.length) await db.delete(message).where(inArray(message.conversationId, convs)).catch(() => {});
+    if (posts.length) {
+      await db.delete(deal).where(inArray(deal.postId, posts)).catch((e) => console.log("deal", e.message));
+      await db.delete(offer).where(inArray(offer.postId, posts)).catch((e) => console.log("offer", e.message));
+    }
+    await db.delete(notification).where(inArray(notification.recipientId, ids)).catch(() => {});
+    if (convs.length) await db.delete(conversation).where(inArray(conversation.id, convs)).catch((e) => console.log("conversation", e.message));
+  }
   for (const id of ids) {
     const imgs = await db.select({ key: image.key, thumbKey: image.thumbKey }).from(image).where(eq(image.ownerId, id));
     await db.delete(post).where(eq(post.ownerId, id)).catch(() => {});
@@ -53,7 +65,7 @@ async function seed() {
   await clean();
   const version = readFileSync("content/legal/VERSION", "utf8").trim();
   for (const p of people) {
-    await createTestStudent(p.id, { handle: p.handle, name: p.name });
+    await createTestStudent(p.id, { handle: p.handle, name: p.name, isAdmin: p.isAdmin === true });
     await db.update(student).set({ termsVersion: version, termsAcceptedAt: new Date(), ageConfirmedAt: new Date(), bio: p.bio }).where(eq(student.id, p.id));
     await db.insert(account).values({ id: `acc-${p.id}`, accountId: p.id, providerId: "credential", userId: p.id, password: await hashPassword(PASSWORD) });
   }
