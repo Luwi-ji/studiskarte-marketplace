@@ -4,6 +4,7 @@ import { deal, offer, post, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
 import { isUniqueViolation, getOrCreateConversation, writeMessage } from "@/lib/messaging/send";
 import { audienceRefusal } from "@/lib/posts/audience";
+import { supplyBlock, WISHLIST_NEEDS_ID_AFTER_SALE } from "@/lib/posts/showcase-limit";
 import type { Role } from "@/lib/identity/roles";
 import { MESSAGES_PER_MINUTE } from "@/lib/messaging/rules";
 import { offerKey, recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
@@ -74,13 +75,20 @@ export async function makeOffer(args: {
         .innerJoin(owner, eq(owner.id, post.ownerId))
         .where(eq(post.id, args.postId))
         .for("share", { of: post });
-      const [me] = await tx.select({ status: student.accountStatus, role: student.role }).from(student).where(eq(student.id, args.responderId));
+      const [me] = await tx
+        .select({ status: student.accountStatus, role: student.role, checkedAt: student.idCheckedAt, checkExpiresAt: student.idCheckExpiresAt })
+        .from(student)
+        .where(eq(student.id, args.responderId));
       if (!target || !me) return { ok: false, error: "That post could not be found." };
       if (target.ownerId === args.responderId) return { ok: false, error: "You can't make an offer on your own post." };
       // Blocked either way reads as a post that is not there, so the blocked person learns nothing.
       if (await isBlockedEitherWay(args.responderId, target.ownerId, tx)) return { ok: false, error: "That post could not be found." };
       const notForThem = audienceRefusal({ role: me.role as Role, kind: target.kind, allowNonStudents: target.allowNonStudents });
       if (notForThem) return { ok: false, error: notForThem };
+      // Answering a Wishlist is selling: once a student without a current ID check has made a sale, it needs one.
+      if (target.kind === "wishlist" && (await supplyBlock(tx, args.responderId, { checkedAt: me.checkedAt, expiresAt: me.checkExpiresAt }))) {
+        return { ok: false, error: WISHLIST_NEEDS_ID_AFTER_SALE };
+      }
 
       const [mine] = await tx
         .select({ n: count() })

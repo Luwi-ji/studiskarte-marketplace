@@ -15,6 +15,7 @@ export type SignUpState =
 
 const VISITORS_CLOSED = "Sign-up with a personal email is not open yet. Use your school email.";
 const TRY_LATER = "Too many attempts. Try again later.";
+const SIGNUPS_BUSY = "Many people are signing up right now. Try again tomorrow, or write to support@studiskarte.com.";
 const COULD_NOT_SEND = "We could not send the code. Try again later.";
 const EXISTS = "There is already an account for that email. Log in, or use Forgot password.";
 // Wrong, expired, used and locked codes all get this one reply, so the
@@ -39,6 +40,7 @@ export async function requestCode(_prev: SignUpState, formData: FormData): Promi
     if (result.reason === "invalid_email") return { step: "email", role, email: typed, error: "Enter a valid email address." };
     if (result.reason === "visitors_closed") return { step: "email", role, email: typed, error: VISITORS_CLOSED };
     if (result.reason === "account_exists") return { step: "email", role, email: typed, error: EXISTS };
+    if (result.reason === "signups_busy") return { step: "email", role, email: typed, error: SIGNUPS_BUSY };
     if (result.reason === "send_failed") return { step: "email", role, email: typed, error: COULD_NOT_SEND };
     return { step: "email", role, email: typed, error: TRY_LATER };
   } catch (error) {

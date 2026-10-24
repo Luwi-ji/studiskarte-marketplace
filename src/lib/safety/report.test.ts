@@ -168,6 +168,29 @@ describe("hiding a post", () => {
     expect(await postRow(id)).toEqual({ status: "hidden", before: "open" });
   });
 
+  it("does not count Guests toward hiding, but still stores their reports and lets a Guest's child safety report hide at once", async () => {
+    const guests = [0, 1, 2].map((n) => `sfg${n}-${run}`);
+    for (const [n, id] of guests.entries()) await createTestStudent(id, { handle: `sfg${n}_${run}`, name: `Guest ${n}`, visitor: true });
+    try {
+      const id = await newPost();
+      for (const by of guests) expect(await reportPost({ reporterId: by, postId: id, input: spam })).toEqual({ ok: true, hidden: false });
+      expect(await openReports(id)).toHaveLength(3);
+      expect(await postRow(id)).toEqual({ status: "open", before: null });
+
+      // Two members with a school email and three Guests: only two count.
+      expect(await reportPost({ reporterId: r1, postId: id, input: spam })).toEqual({ ok: true, hidden: false });
+      expect(await reportPost({ reporterId: r2, postId: id, input: spam })).toEqual({ ok: true, hidden: false });
+      expect(await postRow(id)).toEqual({ status: "open", before: null });
+      expect(await reportPost({ reporterId: r3, postId: id, input: spam })).toEqual({ ok: true, hidden: true });
+
+      const child = await newPost();
+      expect(await reportPost({ reporterId: guests[0], postId: child, input: { reason: "child_safety" } })).toEqual({ ok: true, hidden: true });
+    } finally {
+      await db.delete(report).where(inArray(report.reporterId, guests));
+      for (const id of guests) await deleteTestStudent(id);
+    }
+  });
+
   it("does not hide on two reports, hides on the third different student, and tells the owner once", async () => {
     const id = await newPost();
     const alerts: string[] = [];

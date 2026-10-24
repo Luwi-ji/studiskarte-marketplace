@@ -10,6 +10,8 @@ import { offerLabels, offerOptions } from "@/lib/deals/rules";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
 import { audienceRefusal } from "@/lib/posts/audience";
+import { getDb } from "@/lib/db";
+import { isSupplyBlocked, WISHLIST_NEEDS_ID_AFTER_SALE } from "@/lib/posts/showcase-limit";
 import { formatPrice } from "@/lib/posts/format";
 import { OfferForm } from "./offer-form";
 
@@ -48,7 +50,9 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
   });
   const labels = offerLabels(detail.kind);
   const studentsOnly = audienceRefusal({ role: me.role, kind: detail.kind, allowNonStudents: detail.allowNonStudents });
-  const allowed = !studentsOnly && (kind === "reserve" ? options.reserve : options.offer);
+  // Answering a Wishlist is selling: after a first sale it needs an ID check.
+  const needsId = detail.kind === "wishlist" && !studentsOnly && (await isSupplyBlocked(getDb(), me.id));
+  const allowed = !studentsOnly && !needsId && (kind === "reserve" ? options.reserve : options.offer);
   const thumbUrl = await getObjectStore().signedUrl(detail.photos[0].key, LINK_SECONDS);
   const price = formatPrice(detail.priceKind, detail.priceAmount);
   const askingText =
@@ -80,7 +84,12 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
           />
         ) : (
           <div className="flex flex-col gap-4 py-6 text-center">
-            <p className="text-zinc-600 dark:text-zinc-400">{studentsOnly ?? options.reason ?? (kind === "reserve" ? "This post has no price to reserve at. Make an offer instead." : "This post is free. Reserve it instead.")}</p>
+            <p className="text-zinc-600 dark:text-zinc-400">{studentsOnly ?? (needsId ? WISHLIST_NEEDS_ID_AFTER_SALE : null) ?? options.reason ?? (kind === "reserve" ? "This post has no price to reserve at. Make an offer instead." : "This post is free. Reserve it instead.")}</p>
+            {needsId ? (
+              <Link href="/me/verify" className="mx-auto flex h-12 items-center rounded-lg bg-brand px-6 font-medium text-white">
+                Check my ID
+              </Link>
+            ) : null}
             <Link href={`/posts/${detail.id}`} className="mx-auto flex h-12 items-center rounded-lg border border-zinc-300 px-6 font-medium dark:border-zinc-700">
               Back to the post
             </Link>

@@ -8,7 +8,7 @@ import { emailOTP } from "better-auth/plugins";
 import * as schema from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { MailQuotaError, sendMail } from "@/lib/mail";
-import { consume } from "@/lib/rate-limit";
+import { consume, SIGN_UP_CODE_ACTION, SIGN_UP_CODES_PER_DAY } from "@/lib/rate-limit";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/identity/password-rules";
 import { parseEmail, parseSchoolEmail } from "@/lib/identity/school-email";
 
@@ -17,6 +17,7 @@ export const SIGN_IN_ERROR = {
   invalidEmail: "INVALID_EMAIL",
   visitorsClosed: "VISITORS_CLOSED",
   tooManyRequests: "TOO_MANY_REQUESTS",
+  signupsBusy: "SIGNUPS_BUSY",
 } as const;
 
 export const SESSION_SECONDS = 30 * 24 * 60 * 60;
@@ -188,6 +189,14 @@ const authOptions = {
       if (ctx.path === SIGN_UP_VERIFY_PATH && existing) {
         throw APIError.from("BAD_REQUEST", { code: "INVALID_OTP", message: "Invalid OTP" });
       }
+      // New accounts share a daily share of the mail budget, so a burst of sign-ups cannot use up the day's mail and
+      // leave password resets and support messages with none. Counted only when a code is really about to be sent.
+      if (ctx.path === SIGN_UP_REQUEST_PATH && !existing) {
+        const open = await consume({ action: SIGN_UP_CODE_ACTION, key: "global", max: SIGN_UP_CODES_PER_DAY, windowSeconds: 24 * 60 * 60 });
+        if (!open) {
+          throw APIError.from("TOO_MANY_REQUESTS", { code: SIGN_IN_ERROR.signupsBusy, message: "Sign-ups are busy right now. Try again tomorrow." });
+        }
+      }
       // A suspended or deleted account cannot reset its password. The answer
       // matches what an unknown address gets (a request looks accepted, a code
       // looks wrong), so it does not reveal the account's state, and no mail leaves.
@@ -249,7 +258,7 @@ export const auth = betterAuth(authOptions);
 
 export type CodeRequestResult =
   | { ok: true }
-  | { ok: false; reason: "invalid_email" | "visitors_closed" | "account_exists" | "too_many_requests" | "mail_quota" | "send_failed" };
+  | { ok: false; reason: "invalid_email" | "visitors_closed" | "account_exists" | "too_many_requests" | "signups_busy" | "mail_quota" | "send_failed" };
 
 /** Runs a code-sending call and reports whether the mail really left. The UI must never say "we sent a code" when it did not. */
 async function sendCode(send: () => Promise<unknown>): Promise<CodeRequestResult> {
@@ -261,6 +270,7 @@ async function sendCode(send: () => Promise<unknown>): Promise<CodeRequestResult
     if (code === SIGN_IN_ERROR.invalidEmail) return { ok: false, reason: "invalid_email" };
     if (code === SIGN_IN_ERROR.visitorsClosed) return { ok: false, reason: "visitors_closed" };
     if (code === SIGN_IN_ERROR.tooManyRequests) return { ok: false, reason: "too_many_requests" };
+    if (code === SIGN_IN_ERROR.signupsBusy) return { ok: false, reason: "signups_busy" };
     throw error;
   }
   if (outcome.exists) return { ok: false, reason: "account_exists" };

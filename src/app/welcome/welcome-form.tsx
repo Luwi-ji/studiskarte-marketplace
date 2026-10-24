@@ -35,6 +35,7 @@ export function WelcomeForm({ terms, askRole, defaultRole, next }: { terms: stri
               </option>
             ))}
           </select>
+          <span className="text-xs text-zinc-500">Choose the one that is true for you. Only students can sell; everyone else can post Wishlists and buy where a seller allows it.</span>
         </label>
       ) : null}
       <label className="flex flex-col gap-2">

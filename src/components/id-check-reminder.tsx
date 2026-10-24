@@ -4,7 +4,7 @@ import type { ShowcaseStanding } from "@/lib/posts/showcase-limit";
 const COPY = {
   free: {
     title: "One showcase until your first sale",
-    body: "Without an ID check you can have 1 open showcase. After your first showcase sale is complete you need an ID check to post more. Wishlists are not affected.",
+    body: "Without an ID check you can have 1 open showcase. After your first sale is complete you need an ID check to post more showcases or answer Wishlists. Posting your own Wishlist is not affected.",
     cta: "About the ID check",
     tone: "neutral",
   },
@@ -15,8 +15,8 @@ const COPY = {
     tone: "warn",
   },
   sold: {
-    title: "Your first showcase sale is complete",
-    body: "To post more showcases, check your ID. Your listings and deals in progress carry on as normal, and you can still post Wishlists.",
+    title: "Your first sale is complete",
+    body: "To sell more, post showcases or answer Wishlists, check your ID. Your listings and deals in progress carry on as normal, and you can still post your own Wishlists.",
     cta: "Check my ID",
     tone: "warn",
   },

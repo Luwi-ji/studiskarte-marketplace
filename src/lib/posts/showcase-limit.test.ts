@@ -8,7 +8,7 @@ import { getDb, getPool } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
 import { createPost, type SaveResult } from "@/lib/posts/create";
 import type { NewPostInput } from "@/lib/posts/schema";
-import { SHOWCASE_NEEDS_ID_AFTER_SALE, SHOWCASE_NEEDS_ID_CHECK, showcaseStanding } from "@/lib/posts/showcase-limit";
+import { SHOWCASE_NEEDS_ID_AFTER_SALE, SHOWCASE_NEEDS_ID_CHECK, showcaseStanding, WISHLIST_NEEDS_ID_AFTER_SALE } from "@/lib/posts/showcase-limit";
 import { updatePost } from "@/lib/posts/update";
 import { createTestStudent, deleteTestStudent } from "@/test/fixtures";
 import { photosOf } from "@/test/photos";
@@ -87,7 +87,7 @@ afterEach(async () => {
   await db.delete(post).where(eq(post.ownerId, seller));
   await db.delete(conversation).where(or(eq(conversation.participantA, seller), eq(conversation.participantB, seller)));
   await db.delete(notification).where(inArray(notification.recipientId, people));
-  await db.update(student).set({ idCheckedAt: null, idCheckExpiresAt: null }).where(eq(student.id, seller));
+  await db.update(student).set({ idCheckedAt: null, idCheckExpiresAt: null }).where(inArray(student.id, people));
 });
 
 afterAll(async () => {
@@ -147,5 +147,37 @@ describe("an unverified student's showcases", () => {
     await sell(await must());
     expect(await make()).toMatchObject({ ok: true });
     expect(await showcaseStanding(db, seller)).toBe("off");
+  });
+});
+
+describe("selling through a Wishlist", () => {
+  const db2 = db;
+
+  it("counts as the first sale, and then needs an ID check like a new showcase does", async () => {
+    // The seller posts two Wishlists; the buyer is the one who supplies them, so on a Wishlist the buyer is the seller.
+    const first = await must("wishlist");
+    const second = await must("wishlist");
+    expect(await showcaseStanding(db2, buyer)).toBe("free");
+    expect(await makeOffer({ responderId: buyer, postId: second, input: { kind: "reserve", quantity: "1", note: "" } })).toMatchObject({ ok: true });
+    await db2.delete(deal).where(eq(deal.postId, second));
+
+    await sell(first);
+    expect(await showcaseStanding(db2, buyer)).toBe("sold");
+    // The poster of a Wishlist has bought, not sold.
+    expect(await showcaseStanding(db2, seller)).toBe("free");
+
+    const third = await must("wishlist");
+    expect(await makeOffer({ responderId: buyer, postId: third, input: { kind: "reserve", quantity: "1", note: "" } })).toEqual({ ok: false, error: WISHLIST_NEEDS_ID_AFTER_SALE });
+
+    await db2.update(student).set({ idCheckedAt: new Date(), idCheckExpiresAt: new Date(Date.now() + 86_400_000) }).where(eq(student.id, buyer));
+    expect(await makeOffer({ responderId: buyer, postId: third, input: { kind: "reserve", quantity: "1", note: "" } })).toMatchObject({ ok: true });
+  });
+
+  it("is not limited while ID checks are closed", async () => {
+    vi.stubEnv("R2_ID_BUCKET", "");
+    const first = await must("wishlist");
+    await sell(first);
+    const second = await must("wishlist");
+    expect(await makeOffer({ responderId: buyer, postId: second, input: { kind: "reserve", quantity: "1", note: "" } })).toMatchObject({ ok: true });
   });
 });

@@ -6,12 +6,13 @@ import { buttonClass, inlineLinkClass, inputClass, linkClass } from "../auth-sty
 import { requestCode, verifyCode, type SignUpState } from "./actions";
 import { CHOOSABLE_ROLES, ROLE_LABEL, type Role } from "@/lib/identity/roles";
 
-const ROLE_HINT: Record<Role, string> = {
-  student: "Requires your school email",
-  faculty: "Requires your school email",
-  staff: "Requires your school email",
-  alumni: "Requires your school email",
-  visitor: "School or personal email",
+// What each role can do, shown on its card. Only students can sell; the others buy and post Wishlists.
+const ABILITY: Record<Role, string> = {
+  student: "Buy, sell and post Wishlists",
+  faculty: "Buy and post Wishlists. Cannot sell",
+  staff: "Buy and post Wishlists. Cannot sell",
+  alumni: "Buy and post Wishlists. Cannot sell",
+  visitor: "Buy and post Wishlists. Cannot sell",
 };
 
 /** `visitors` is false while sign-up with a personal email is closed (ALLOW_VISITORS). */
@@ -73,11 +74,16 @@ export function SignUpForm({ visitors, next }: { visitors: boolean; next: string
               <input type="radio" name="role" value={role} defaultChecked={requested.role === role} className="mt-1 h-5 w-5 shrink-0" />
               <span className="flex flex-col">
                 <span className="text-base font-medium">{ROLE_LABEL[role]}</span>
-                <span className="text-xs text-zinc-500">{role === "student" || visitors ? ROLE_HINT[role] : "Use your school email"}</span>
+                <span className="text-xs text-zinc-500">
+                  {ABILITY[role]} · {role === "visitor" && visitors ? "School or personal email" : "School email"}
+                </span>
               </span>
             </label>
           ))}
         </fieldset>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Only students can sell. Everyone else can post a Wishlist, and can buy from a Showcase when its seller has opened it to non-students.
+        </p>
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">Email</span>
           <input

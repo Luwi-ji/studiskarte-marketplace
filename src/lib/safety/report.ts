@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { post, report, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
@@ -11,7 +11,11 @@ export const REPORTING_TOO_FAST = "You're reporting too fast. Try again in a whi
 
 const REPORT_LIMIT = { action: "report", max: REPORTS_PER_HOUR, windowSeconds: 60 * 60 };
 
-/** How many different active students must have an open report on a post before it is hidden. */
+/**
+ * How many different active members with a school email must have an open report on a post before it is hidden. A Guest
+ * (no school email) can still report, and the admin sees it, but does not count toward hiding: a personal email costs
+ * nothing, so three throwaway accounts could otherwise hide any listing. A child safety report hides on the first report.
+ */
 export const REPORT_HIDE_THRESHOLD = 3;
 
 /** The reason that hides a post on the first report: a child may be at risk (child safety standards, RA 11930). */
@@ -90,7 +94,7 @@ export async function reportPost(args: { reporterId: string; postId: string; inp
       .select({ reporters: sql<number>`count(distinct ${report.reporterId})::int` })
       .from(report)
       .innerJoin(student, eq(student.id, report.reporterId))
-      .where(and(eq(report.postId, args.postId), eq(report.status, "open"), eq(student.accountStatus, "active")));
+      .where(and(eq(report.postId, args.postId), eq(report.status, "open"), eq(student.accountStatus, "active"), isNotNull(student.schoolEmail)));
     if (parsed.reason !== CHILD_SAFETY_REASON && counted.reporters < REPORT_HIDE_THRESHOLD) return { ok: true, hidden: false };
 
     const now = new Date();
