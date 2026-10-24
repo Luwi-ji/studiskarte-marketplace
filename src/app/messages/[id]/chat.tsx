@@ -99,6 +99,15 @@ export function Chat({
     if (following.current) scrollToBottom();
   }, [pinnedKey]);
 
+  // Opened from Ongoing transactions (Messages), which links to a transaction's card: bring that card into view
+  // instead of the bottom. After the effects above, so it has the last word.
+  useEffect(() => {
+    const target = window.location.hash.startsWith("#offer-") ? document.getElementById(window.location.hash.slice(1)) : null;
+    if (!target) return;
+    following.current = false;
+    target.scrollIntoView({ block: "start", behavior: "instant" });
+  }, []);
+
   // Anything above the screen that changes height (a card moving down the thread) leaves the reader where they were.
   useKeepPlace(following);
 
@@ -165,7 +174,7 @@ export function Chat({
         {timeline.map((entry) => {
           if (entry.kind === "card") {
             return (
-              <li key={entry.key} className={`flex ${arrived.has(entry.key) ? ARRIVE : ""}`}>
+              <li key={entry.key} id={`offer-${entry.offer.id}`} className={`flex scroll-mt-16 ${arrived.has(entry.key) ? ARRIVE : ""}`}>
                 <OfferCardView offer={entry.offer} responderName={otherName} placement="pinned" />
               </li>
             );
@@ -175,7 +184,7 @@ export function Chat({
           const day = days[index];
           const divider = index === 0 || day !== days[index - 1];
           return (
-            <li key={entry.key} data-place={m.id} className={`flex flex-col gap-1.5 ${arrived.has(entry.key) ? ARRIVE : ""}`}>
+            <li key={entry.key} data-place={m.id} id={m.offer && !(m.offer.deal && pinnedDealIds.has(m.offer.deal.id)) ? `offer-${m.offer.id}` : undefined} className={`flex scroll-mt-16 flex-col gap-1.5 ${arrived.has(entry.key) ? ARRIVE : ""}`}>
               {divider ? <p className="py-1 text-center text-xs text-zinc-500">{day}</p> : null}
               <div className={`flex flex-col gap-1 ${m.mine ? "items-end" : "items-start"}`}>
                 {m.pictures.length > 0 ? (

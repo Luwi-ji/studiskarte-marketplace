@@ -374,3 +374,24 @@ dialog[data-slide="left"][open] {
     transform: translateY(8px);
   }
 }
+
+/* The category strip on the landing page: it drifts sideways, and with reduced motion it simply wraps and stays still. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  width: max-content;
+  animation: marquee 60s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    width: auto;
+    flex-wrap: wrap;
+    animation: none;
+  }
+  .marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+}
