@@ -143,6 +143,9 @@ export function useSlideDialog(ref: RefObject<HTMLDialogElement | null>, { open,
     return () => {
       window.clearTimeout(timer);
       window.clearTimeout(check);
+      // The page can be hidden (Next keeps the previous page alive) or removed while the panel is still sliding out: the
+      // close timer is gone, and a modal dialog left open would make the whole next page unclickable. Finish closing it now.
+      if (!latest.current.open && el.open) closeDialog(el);
     };
   }, [open, ref, edge, ms]);
 

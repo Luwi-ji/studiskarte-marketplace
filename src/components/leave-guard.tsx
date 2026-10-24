@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ConfirmSheet } from "@/components/confirm-sheet";
+import { canGoBackInApp } from "@/components/page-header";
 
 /** For a form whose values can be kept as a draft: the guard then offers Save draft and leave, and Discard clears it. */
 export type LeaveDraft = { onSave: () => void; onDiscard: () => void };
@@ -18,7 +19,8 @@ export type LeaveDraft = { onSave: () => void; onDiscard: () => void };
  */
 export function LeaveGuard({ active, skipBack = false, allow, draft }: { active: boolean; skipBack?: boolean; allow?: string; draft?: LeaveDraft }) {
   const router = useRouter();
-  const [target, setTarget] = useState<string | null>(null);
+  // `back`: the tap was on the header's Back arrow, so leaving goes back in history (as the arrow does), not forward to its address.
+  const [target, setTarget] = useState<{ href: string; back: boolean } | null>(null);
 
   useEffect(() => {
     if (!active) return;
@@ -35,7 +37,7 @@ export function LeaveGuard({ active, skipBack = false, allow, draft }: { active:
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       event.preventDefault();
       event.stopPropagation();
-      setTarget(url.pathname + url.search + url.hash);
+      setTarget({ href: url.pathname + url.search + url.hash, back: link.getAttribute("aria-label") === "Back" });
     }
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
@@ -45,10 +47,12 @@ export function LeaveGuard({ active, skipBack = false, allow, draft }: { active:
     if (!open) setTarget(null);
   };
   const leave = (run?: () => void) => {
-    const href = target;
+    const go = target;
     setTarget(null);
     run?.();
-    if (href) router.push(href);
+    if (!go) return;
+    if (go.back && canGoBackInApp()) router.back();
+    else router.push(go.href);
   };
 
   if (draft) {
