@@ -22,6 +22,8 @@ const people: { id: string; handle: string; name: string; bio: string; isAdmin?:
   { id: "staging-admin", handle: "staging_admin", name: "Ana Admin", bio: "Staging admin for reviewing ID checks and reports.", isAdmin: true },
   { id: "staging-bea", handle: "staging_bea", name: "Bea Reyes", bio: "Looking for lab gear and calculators." },
 ];
+if (process.env.NEON_BRANCH !== "dev") throw new Error("Refusing: NEON_BRANCH is not 'dev'.");
+
 const db = getDb();
 const store = getObjectStore();
 
@@ -61,7 +63,6 @@ async function photo(owner: string, colour: string) {
 }
 
 async function seed() {
-  if (process.env.NEON_BRANCH !== "dev") throw new Error("Refusing: NEON_BRANCH is not 'dev'.");
   await clean();
   const version = readFileSync("content/legal/VERSION", "utf8").trim();
   for (const p of people) {

@@ -2,6 +2,10 @@
 
 Last reviewed 2026-10-20. Production is https://studiskarte.com (Vercel Hobby, Neon `production` branch, Cloudflare R2 `studiskarte-prod`, mail by SMTP: Resend).
 
+## Staging fixtures
+
+`scripts/seed-staging.ts` seeds test accounts and listings; its `clean` command deletes those fixtures. Both commands require `NEON_BRANCH=dev` before database or object-storage initialization. Never run either against production credentials; the branch flag is a safety check, not proof of which database the connection URL targets.
+
 ## Before the app is opened to real students
 
 Items marked **Owner** cannot be done in code.
