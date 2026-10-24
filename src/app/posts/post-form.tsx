@@ -117,6 +117,7 @@ export function PostForm(props: Props) {
   const studentId = props.mode === "create" ? props.studentId : null;
   const [offer, setOffer] = useState<{ draft: LoadedDraft; ago: string } | null | undefined>(props.mode === "create" ? undefined : null);
   const [continuing, setContinuing] = useState(false);
+  const draftRevision = useRef(0);
 
   const dirty = JSON.stringify(values) !== startJson;
 
@@ -134,8 +135,9 @@ export function PostForm(props: Props) {
       clearDraft(studentId, kind);
       return;
     }
+    const revision = draftRevision.current;
     const write = () => {
-      if (!saved.current) saveDraft(studentId, kind, values);
+      if (!saved.current && revision === draftRevision.current) saveDraft(studentId, kind, values);
     };
     const hide = () => {
       if (document.visibilityState === "hidden") write();
@@ -316,7 +318,13 @@ export function PostForm(props: Props) {
   }
 
   function startOver() {
+    // Invalidate pending autosaves before clearing both storage and the cached form.
+    draftRevision.current += 1;
     clearDraft(studentId, kind);
+    setValues(startValues);
+    setErrors({});
+    setDetailsChoice(null);
+    setSheet(null);
     setOffer(null);
   }
 
@@ -336,11 +344,7 @@ export function PostForm(props: Props) {
                   saveDraft(studentId, kind, values);
                   setOffer(null);
                 },
-                // A draft still waiting for an answer is not this form's, so it stays.
-                onDiscard: () => {
-                  if (offer === null) clearDraft(studentId, kind);
-                  setValues(startValues);
-                },
+                onDiscard: startOver,
               }
             : undefined
         }

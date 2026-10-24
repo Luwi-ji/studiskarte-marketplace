@@ -50,6 +50,12 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 - Older Safari (Tailwind 4 and Next 16 target Safari 16.4 and up; `<dialog>` and `dvh` need 15.4): a sheet's `display: flex` while open, its slide-in and its `vh` cap are plain CSS in `globals.css` (`dialog[data-slide="bottom"]`), not Tailwind's `open:` variant. `::backdrop` gets `--color-black` there, because Safari before 17.4 passes no custom properties to `::backdrop` and `backdrop:bg-black/50` would not dim (iOS 16.2 to 17.3). A sheet that sits in a sticky, blurred or transformed parent (the thread's three-dot menu in the page header) passes `portal` so it lives in `document.body`; never for a sheet whose inputs belong to a surrounding `<form>`.
 - The slide cannot leave a sheet stuck: a stalled entrance animation is finished after 300 ms, a panel left off screen is put in place, a swipe whose `touchend` never came springs back at the next touch, a close the parent refuses springs back, and a dialog that does not show at all becomes a plain overlay (reported to Sentry).
 
+## Post drafts
+
+- Showcase and Wishlist each keep their own draft on this device. Save draft and leave preserves it; Continue restores it.
+- Start over and Discard delete the current post type's saved draft and reset the form, including cached values. Pending autosaves cannot restore the deleted draft.
+- Reopening Create a post after either reset starts blank, without a saved-draft prompt. The other post type's draft is unchanged.
+
 ## Out-of-date app
 
 An app on the Home Screen keeps running old scripts until it is reloaded. `UpdateNotice` checks `/api/version` when the app returns to the foreground, when a page is restored from the back/forward cache, and every 5 minutes. When a newer version is found the banner "A new version is ready" stays, and the next plain tap on an in-app link loads that page from the server (a full navigation) instead of navigating in place, so the new scripts arrive with it.
