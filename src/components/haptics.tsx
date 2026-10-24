@@ -43,8 +43,10 @@ function kindFor(target: EventTarget | null): HapticKind | null {
   // A label stands for the control it forwards to; a label with none is plain text and stays silent.
   let subject: Element = el;
   if (el instanceof HTMLLabelElement) {
-    if (!el.control) return null;
-    if (isDisabled(el.control)) return null;
+    if (!el.control || isDisabled(el.control)) return null;
+    // Tapping a text field must only focus it: a haptic here would take the focus (and the keyboard) away.
+    if (el.control instanceof HTMLTextAreaElement || el.control instanceof HTMLSelectElement) return null;
+    if (el.control instanceof HTMLInputElement && !SELECT_INPUTS[el.control.type] && el.control.type !== "file") return null;
     subject = el.control;
   }
   if (subject instanceof HTMLInputElement && SELECT_INPUTS[subject.type]) return "select";

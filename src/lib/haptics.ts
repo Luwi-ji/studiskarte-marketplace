@@ -63,7 +63,10 @@ function switchLabel(): HTMLLabelElement | null {
 }
 
 function iosTick() {
+  // The tick toggles a hidden control; whatever had focus (a text field being typed in) must keep it.
+  const focused = document.activeElement;
   switchLabel()?.click();
+  if (focused instanceof HTMLElement && document.activeElement !== focused) focused.focus({ preventScroll: true });
 }
 
 /** Plays a haptic. Call it inside a user event handler. */
