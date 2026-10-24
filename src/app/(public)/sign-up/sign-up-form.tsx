@@ -8,9 +8,9 @@ import { CHOOSABLE_ROLES, ROLE_LABEL, type Role } from "@/lib/identity/roles";
 
 const ROLE_HINT: Record<Role, string> = {
   student: "Requires your school email",
-  faculty: "School or personal email",
-  staff: "School or personal email",
-  alumni: "School or personal email",
+  faculty: "Requires your school email",
+  staff: "Requires your school email",
+  alumni: "Requires your school email",
   visitor: "School or personal email",
 };
 
@@ -92,7 +92,7 @@ export function SignUpForm({ visitors, next }: { visitors: boolean; next: string
           />
           <span className="text-sm text-zinc-600 dark:text-zinc-400">
             {visitors
-              ? "Students need a school email. With a personal email you join as a Guest until you confirm a school email in Settings."
+              ? "Students, faculty, staff and alumni need a school email. As a Guest you can use a personal email."
               : "Use the email your school gave you."}
           </span>
         </label>

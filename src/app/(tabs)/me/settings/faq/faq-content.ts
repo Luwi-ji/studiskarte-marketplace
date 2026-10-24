@@ -42,8 +42,8 @@ export const FAQ_TOPICS: FaqTopic[] = [
       {
         q: "School email or personal email?",
         text: [
-          "A school email puts you at your school as a Student, Faculty or teacher, Staff or Alumni. A student needs a school email. We send a code to it to confirm it, and it is never shown to others.",
-          "A personal email makes you a Guest.",
+          "Students, Faculty or teachers, Staff and Alumni sign up with a school email, which puts you at your school. We send a code to it to confirm it, and it is never shown to others.",
+          "A personal email makes you a Guest, when Guest sign-up is open.",
         ],
       },
       {
