@@ -65,6 +65,13 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 - Start over and Discard delete the current post type's saved draft and reset the form, including cached values. Pending autosaves cannot restore the deleted draft.
 - Reopening Create a post after either reset starts blank, without a saved-draft prompt. The other post type's draft is unchanged.
 
+## Post content rules
+
+- A post cannot hold profanity, sexual slang, slurs or harassment in English, Filipino or Taglish. `parseFields` in `src/lib/posts/schema.ts` checks the title, description, meet-up place, payment note (only when kept) and photo captions with `findBlocked` (`src/lib/moderation/explicit.ts`), so create, edit and relist are all covered. The post form opens a notice ("This post cannot be posted yet") naming the fields, and each field shows the word with its letters hidden ("g***").
+- Matching is by whole word, so ordinary words that contain a bad one pass (class, assistant). It reads through capitals, accents, invisible characters, symbols and numbers for letters (sh1t, f*ck), stretched letters (puuuta) and spaced letters (p u t a). Words with an everyday use are left out on purpose (puto the rice cake, leche flan, cum laude, Moby Dick, Maine Coon, baby bottle nipples): the reasons are at the top of `src/lib/moderation/blocked-words.ts`. To block a word, add it there and add a test in `explicit.test.ts`.
+- A filter cannot judge meaning. A hateful or unsafe post written without these words still needs the report buttons and the owner. Messages, bios and names are not checked.
+- The English terms come from a CC BY 4.0 list: see `THIRD_PARTY_NOTICES.md`.
+
 ## Help and support
 
 - Settings has two sections for it: Help and support (FAQs, Report a listing, Report a user, Report a bug, Send feedback, Contact us) and Follow Studiskarte (Facebook and Instagram buttons, Leave a review on Facebook). Addresses and routes live in `src/lib/support/config.ts`.

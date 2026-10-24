@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { LeaveGuard } from "@/components/leave-guard";
+import { BottomSheet } from "@/components/bottom-sheet";
 import { CategoryIcon } from "@/components/category-icon";
 import { CategoryList } from "@/components/category-select";
 import { uploadPhoto } from "@/lib/images/prepare-photo";
@@ -19,6 +20,7 @@ import {
   QUANTITY_MAX,
   TITLE_MAX,
   AVAILABILITY_MAX,
+  EXPLICIT_FIELD_PREFIX,
   type FieldErrors,
   type PostFields,
   type PostKind,
@@ -91,6 +93,15 @@ function fileSize(bytes: number): string {
   return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+const BLOCKED_LABEL: Record<string, string> = { title: "Title", description: "Description", meetupLocation: "Where to meet", paymentNote: "Payment note" };
+
+/** The fields of a refused post that hold a blocked word, as the names the form shows. */
+function blockedFields(errors: FieldErrors): string[] {
+  return Object.entries(errors)
+    .filter(([key, message]) => key !== "content" && message?.startsWith(EXPLICIT_FIELD_PREFIX))
+    .map(([key]) => BLOCKED_LABEL[key] ?? `Photo ${Number(key.split(".")[1]) + 1} caption`);
+}
+
 type SheetId = "category" | "condition" | "quantity" | "handover" | "payment" | "audience" | "availability";
 
 type Props =
@@ -110,6 +121,8 @@ export function PostForm(props: Props) {
   const [detailsChoice, setDetailsChoice] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [sheet, setSheet] = useState<SheetId | null>(null);
+  // The fields that hold words that are not allowed, while the notice about them is open.
+  const [notAllowed, setNotAllowed] = useState<string[] | null>(null);
   // Set once the post is saved, so going to its page does not ask whether to leave.
   const saved = useRef(false);
   // A new post keeps a draft on this device, per student and kind. `offer`: undefined while the saved draft is being looked for, null when there is nothing to ask about, else a draft waiting for Continue or Start over.
@@ -279,6 +292,7 @@ export function PostForm(props: Props) {
         }
       }
       setErrors(problems);
+      if (problems.content) setNotAllowed(blockedFields(problems));
       return;
     }
     saved.current = true;
@@ -349,6 +363,24 @@ export function PostForm(props: Props) {
             : undefined
         }
       />
+      <BottomSheet open={notAllowed !== null} onOpenChange={(open) => { if (!open) setNotAllowed(null); }} label="This post cannot be posted">
+        <div className="flex flex-col gap-3 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1">
+          <h2 className="text-lg font-semibold">This post cannot be posted yet</h2>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            It has words that are not allowed on Studiskarte, such as profanity, slurs or sexual language. Reword it and try again.
+          </p>
+          {notAllowed && notAllowed.length > 0 ? (
+            <ul className="list-disc pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+              {notAllowed.map((field) => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+          ) : null}
+          <button type="button" onClick={() => setNotAllowed(null)} className="press flex h-12 w-full items-center justify-center rounded-lg bg-brand font-medium text-white">
+            Edit my post
+          </button>
+        </div>
+      </BottomSheet>
       <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
         {props.mode === "edit" && props.relist ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">

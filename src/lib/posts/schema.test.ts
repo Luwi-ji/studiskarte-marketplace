@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { photosOf } from "@/test/photos";
-import { addDays, manilaToday, parseDate, parseNewPost, parsePostEdit, parseTime, type NewPostInput } from "./schema";
+import { EXPLICIT_CONTENT, addDays, manilaToday, parseDate, parseNewPost, parsePostEdit, parseTime, type NewPostInput } from "./schema";
 
 const now = new Date("2026-10-16T04:00:00Z"); // 12:00 on 16 October in Manila
 const categories: Record<string, { requiresCondition: boolean }> = {
@@ -33,6 +33,42 @@ function errorsOf(input: unknown) {
   if (result.ok) throw new Error("expected the input to be rejected");
   return result.errors;
 }
+
+describe("words that are not allowed", () => {
+  const caption = (text: string) => photosOf([photo]).map((p) => ({ ...p, caption: text }));
+
+  it.each([
+    ["the title", { title: "Selling my gago ex's stuff" }, "title"],
+    ["the description", { description: "Pm me, sh1t cheap" }, "description"],
+    ["where to meet", { meetupLocation: "Behind the f*cking gym" }, "meetupLocation"],
+    ["a photo caption", { photos: caption("p u t a") }, "photos.0"],
+    ["the payment note", { paymentCash: false, paymentOnline: true, paymentNote: "Gcash, tangina mo" }, "paymentNote"],
+  ] as const)("refuses a post with one in %s, names the field and sets the notice", (_label, overrides, field) => {
+    const errors = errorsOf(valid(overrides as Partial<NewPostInput>));
+    expect(errors.content).toBe(EXPLICIT_CONTENT);
+    expect(errors[field]).toMatch(/^Remove or reword "\w\*+"\. It is not allowed here\.$/);
+  });
+
+  it("never repeats the word itself in the message", () => {
+    expect(JSON.stringify(errorsOf(valid({ title: "gago" })))).not.toContain("gago");
+  });
+
+  it("lets a clean post and ordinary words that only resemble bad ones through", () => {
+    expect(parseNewPost(valid({ title: "Class notes, magna cum laude gown, puto bumbong", description: "Assistant professor handouts." }), lookup, now).ok).toBe(true);
+  });
+
+  it("applies when a post is edited or relisted too", () => {
+    const { kind: _kind, ...fields } = valid({ description: "bobo ka" });
+    void _kind;
+    const result = parsePostEdit(fields, lookup, now);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.content).toBe(EXPLICIT_CONTENT);
+  });
+
+  it("does not flag a payment note that will not be kept", () => {
+    expect(parseNewPost(valid({ priceKind: "free", paymentNote: "tangina" }), lookup, now).ok).toBe(true);
+  });
+});
 
 describe("availability and meet-up hours", () => {
   const window = (startTime: string, endTime: string) => [{ kind: "weekly" as const, weekday: 1, startTime, endTime }];

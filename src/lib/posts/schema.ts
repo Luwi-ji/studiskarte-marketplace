@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MEETUP_HOURS_MESSAGE, withinMeetupHours } from "@/lib/deals/handover";
 import { PAYMENT_NOTE_MAX } from "@/lib/payment";
+import { findBlocked } from "@/lib/moderation/explicit";
 
 // Post input rules (business logic "Posts", decided 2026-10-16). One schema
 // for the form and the server; the database CHECKs and triggers repeat the
@@ -134,6 +135,9 @@ export type PostData = {
 };
 
 export type FieldErrors = Partial<Record<string, string>>;
+export const EXPLICIT_CONTENT = "Your post has words that are not allowed here. Reword it and try again.";
+/** Starts the message on each field that holds a blocked word. */
+export const EXPLICIT_FIELD_PREFIX = "Remove or reword";
 export type ParseResult<T> = { ok: true; data: T } | { ok: false; errors: FieldErrors };
 
 /** What the rules need to know about the chosen category. */
@@ -149,11 +153,21 @@ function textError(value: string, label: string, max: number): string | undefine
 
 function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLookup, now: Date) {
   const errors: FieldErrors = {};
+  // Words that are not allowed in a post. The form opens a notice when `content` is set; each field says which word.
+  const flag = (field: string, text: string) => {
+    if (errors[field]) return;
+    const hit = findBlocked(text);
+    if (!hit) return;
+    errors[field] = `${EXPLICIT_FIELD_PREFIX} "${hit.masked}". It is not allowed here.`;
+    errors.content = EXPLICIT_CONTENT;
+  };
 
   const title = raw.title.trim();
   const description = raw.description.trim();
   errors.title = textError(title, "a title", TITLE_MAX);
   errors.description = textError(description, "a description", DESCRIPTION_MAX);
+  flag("title", title);
+  flag("description", description);
 
   const photoIds = raw.photos.map((p) => p.id);
   if (photoIds.length === 0) errors.photos = "Add at least one photo.";
@@ -163,6 +177,7 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
   const photos = raw.photos.map((p, index) => {
     const caption = p.caption.trim();
     if (caption.length > CAPTION_MAX) errors[`photos.${index}`] = `Use at most ${CAPTION_MAX} characters.`;
+    flag(`photos.${index}`, caption);
     return { id: p.id, caption: caption.length > 0 ? caption : null };
   });
 
@@ -193,12 +208,14 @@ function parseFields(raw: z.output<typeof postFieldsSchema>, lookup: CategoryLoo
   if (raw.exchangeMeetup && (meetupLocation.length === 0 || meetupLocation.length > PLACE_MAX)) {
     errors.meetupLocation = "Say where to meet (for example, the main gate).";
   }
+  if (raw.exchangeMeetup) flag("meetupLocation", meetupLocation);
 
   // A free post has no payment. Otherwise at least one way, and a note only with online or others.
   const pays = raw.priceKind !== "free";
   const paymentNote = raw.paymentNote.trim();
   if (pays && !raw.paymentCash && !raw.paymentOnline && !raw.paymentOther) errors.payment = "Choose how payment is made.";
   if (pays && (raw.paymentOnline || raw.paymentOther) && paymentNote.length > PAYMENT_NOTE_MAX) errors.paymentNote = `Use at most ${PAYMENT_NOTE_MAX} characters.`;
+  if (pays && (raw.paymentOnline || raw.paymentOther)) flag("paymentNote", paymentNote);
 
   if (raw.availability.length === 0) errors.availability = "Choose at least one day or date you are available.";
   else if (raw.availability.length > AVAILABILITY_MAX) errors.availability = `Choose at most ${AVAILABILITY_MAX} days or dates.`;
