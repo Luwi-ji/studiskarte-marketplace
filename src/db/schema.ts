@@ -65,6 +65,8 @@ export const student = pgTable(
     // SHA-256 (hex) of the private calendar link's token; null when there is no
     // link. The token itself is never stored.
     calendarTokenHash: text("calendar_token_hash"),
+    // A short line about the student on their profile (src/lib/identity/bio.ts); null when empty.
+    bio: text("bio"),
     accountStatus: text("account_status").notNull().default("active"),
     // Set by the owner directly in the database (scripts/make-admin.mjs); never by the app.
     isAdmin: boolean("is_admin").notNull().default(false),
@@ -116,6 +118,7 @@ export const student = pgTable(
       "student_name_length",
       sql`char_length(${t.name}) <= 200 and ${t.name} !~ '[\\r\\n]'`,
     ),
+    check("student_bio_length", sql`${t.bio} is null or (char_length(${t.bio}) between 1 and 160 and ${t.bio} !~ '[\\r\\n]')`),
     check(
       "student_calendar_token_format",
       sql`${t.calendarTokenHash} is null or ${t.calendarTokenHash} ~ '^[0-9a-f]{64}$'`,

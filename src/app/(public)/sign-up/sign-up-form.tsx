@@ -11,7 +11,7 @@ const MODES: { value: Mode; label: string; hint: string }[] = [
 ];
 
 /** `visitors` is false while sign-up without a school email is closed (ALLOW_VISITORS). */
-export function SignUpForm({ visitors }: { visitors: boolean }) {
+export function SignUpForm({ visitors, next }: { visitors: boolean; next: string | null }) {
   const [requested, requestAction, requesting] = useActionState<SignUpState, FormData>(requestCode, {
     step: "email",
     mode: "school",
@@ -32,6 +32,7 @@ export function SignUpForm({ visitors }: { visitors: boolean }) {
         </p>
         <input type="hidden" name="email" value={requested.email} />
         <input type="hidden" name="mode" value={requested.mode} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">Code</span>
           <input
@@ -60,6 +61,7 @@ export function SignUpForm({ visitors }: { visitors: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       <form action={requestAction} className="flex flex-col gap-4">
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <fieldset className="flex flex-col gap-2" hidden={!visitors}>
           <legend className="mb-1 text-sm font-medium">I am signing up with</legend>
           {MODES.filter((mode) => visitors || mode.value === "school").map((mode) => (
@@ -93,7 +95,7 @@ export function SignUpForm({ visitors }: { visitors: boolean }) {
       </form>
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
         Already have an account?{" "}
-        <Link href="/sign-in" className={inlineLinkClass}>
+        <Link href={next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"} className={inlineLinkClass}>
           Log in
         </Link>
       </p>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { bulkPostsAction } from "@/app/posts/bulk-actions";
-import { BottomSheet } from "@/components/bottom-sheet";
 import { PageHeader } from "@/components/page-header";
 import { PendingResults, useNavigate, usePendingHref } from "@/components/pending-nav";
 import { NewPostButton } from "@/components/post-chooser";
@@ -298,9 +297,12 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
   useEffect(() => {
     if (!selecting) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !sheetOpen) {
-        setSelecting(false);
-        setSelected(new Set());
+      if (event.key === "Escape") {
+        if (sheetOpen) setSheetOpen(false);
+        else {
+          setSelecting(false);
+          setSelected(new Set());
+        }
       }
     };
     document.addEventListener("keydown", onKey);
@@ -320,10 +322,6 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
     setSheetOpen(true);
   }
 
-  function onSheetChange(open: boolean) {
-    if (!open && busy) return;
-    setSheetOpen(open);
-  }
 
   async function run() {
     const action = confirm;
@@ -435,7 +433,21 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
       {selecting ? (
         <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-zinc-200 bg-[var(--background)]/95 backdrop-blur will-change-transform motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out dark:border-zinc-800 [html[data-tab-bar-hidden]_&]:translate-y-16">
           <div className="mx-auto flex max-w-md flex-col gap-1.5 px-3 py-2">
-            {picked.length === 0 ? (
+            {sheetOpen ? (
+              <ConfirmBody
+                action={confirm}
+                targets={targets[confirm]}
+                others={picked.length - targets[confirm].length}
+                free={free}
+                max={usage.max}
+                listingDays={listingDays}
+                expiredKeepDays={expiredKeepDays}
+                busy={busy}
+                error={error}
+                onBack={() => setSheetOpen(false)}
+                onConfirm={() => void run()}
+              />
+            ) : picked.length === 0 ? (
               <p className="py-2.5 text-center text-sm text-zinc-600 dark:text-zinc-400">Tap posts to choose them.</p>
             ) : (
               <>
@@ -474,21 +486,6 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
         </div>
       ) : null}
 
-      <BottomSheet open={sheetOpen} onOpenChange={onSheetChange} label={`${ACTION_LABEL[confirm]} posts`}>
-        <ConfirmBody
-          action={confirm}
-          targets={targets[confirm]}
-          others={picked.length - targets[confirm].length}
-          free={free}
-          max={usage.max}
-          listingDays={listingDays}
-          expiredKeepDays={expiredKeepDays}
-          busy={busy}
-          error={error}
-          onCancel={() => setSheetOpen(false)}
-          onConfirm={() => void run()}
-        />
-      </BottomSheet>
 
       {toast ? (
         <div
@@ -518,7 +515,7 @@ function ConfirmBody({
   expiredKeepDays,
   busy,
   error,
-  onCancel,
+  onBack,
   onConfirm,
 }: {
   action: BulkAction;
@@ -530,7 +527,7 @@ function ConfirmBody({
   expiredKeepDays: number;
   busy: boolean;
   error: string | null;
-  onCancel: () => void;
+  onBack: () => void;
   onConfirm: () => void;
 }) {
   const n = targets.length;
@@ -556,7 +553,7 @@ function ConfirmBody({
   const shownTitles = targets.slice(0, TITLES_SHOWN);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-left">
+    <div key={action} className="flex max-h-[60dvh] min-h-0 flex-col gap-3 overflow-y-auto py-1 text-left motion-safe:animate-[step-in_180ms_ease-out]">
       <h2 className="text-lg font-semibold">
         {ACTION_LABEL[action]} {plural(n, "post")}?
       </h2>
@@ -580,8 +577,8 @@ function ConfirmBody({
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" disabled={busy} onClick={onCancel} className="h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700">
-          Cancel
+        <button type="button" disabled={busy} onClick={onBack} className="press h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700">
+          Back
         </button>
         <button
           type="button"

@@ -5,8 +5,7 @@ import { getDb } from "@/lib/db";
 import { visibleCards, type FeedItem } from "@/lib/discovery/feed";
 import { visibleToOthers } from "@/lib/discovery/visibility";
 
-/** How many listings the first batch under a post holds, so the post itself stays fast. */
-export const MORE_FIRST_BATCH = 8;
+/** How many listings sit under a post; the page has no second batch. */
 export const MORE_PAGE_SIZE = 12;
 
 /** 0 = another listing by the same seller, 1 = a listing in the same category by someone else. */

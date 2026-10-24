@@ -1,57 +1,49 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { BottomSheet } from "@/components/bottom-sheet";
+
+const TONES = {
+  // School email is blue, ID checked is green (the owner's colours), in light and dark.
+  blue: { chip: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200", bare: "text-blue-700 dark:text-blue-300" },
+  green: { chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200", bare: "text-emerald-700 dark:text-emerald-300" },
+};
 
 /**
- * A badge shown as a bare icon. Tapping it opens a small bottom sheet with its title and one plain sentence.
- * `interactive={false}` renders a tooltip-labelled icon for rows whose whole surface is already a link.
+ * A badge shown as a small icon chip. Tapping it widens the chip to show its name in place; tapping again folds it back.
+ * `interactive={false}` renders a tooltip-labelled bare icon for rows whose whole surface is already a link.
  */
-export function BadgeButton({ title, description, icon, className, interactive = true }: { title: string; description: string; icon: ReactNode; className: string; interactive?: boolean }) {
+export function BadgeButton({ title, description, icon, tone, interactive = true }: { title: string; description: string; icon: ReactNode; tone: keyof typeof TONES; interactive?: boolean }) {
   const [open, setOpen] = useState(false);
-  // Kept in the page after its first opening so the sheet can slide out instead of vanishing.
-  const [shown, setShown] = useState(false);
 
   if (!interactive) {
-    return <span aria-label={`${title}: ${description}`} title={`${title}: ${description}`} className={`inline-flex h-7 w-7 shrink-0 items-center justify-center ${className}`}>{icon}</span>;
+    return (
+      <span aria-label={`${title}: ${description}`} title={`${title}: ${description}`} className={`inline-flex h-7 w-7 shrink-0 items-center justify-center ${TONES[tone].bare}`}>
+        <span className="h-5 w-5">{icon}</span>
+      </span>
+    );
   }
 
   return (
     <span onClick={(event) => event.stopPropagation()} className="inline-flex shrink-0">
       <button
         type="button"
-        aria-label={`${title}, more info`}
-        aria-haspopup="dialog"
         aria-expanded={open}
+        title={description}
         onClick={(event) => {
           event.preventDefault();
-          setShown(true);
-          setOpen(true);
+          setOpen((was) => !was);
         }}
-        className={`press -mx-1.5 -my-3 inline-flex h-11 w-11 items-center justify-center rounded-full ${className}`}
+        // The chip is 32 px tall; the pseudo-element grows the tap area to 44 px.
+        className={`press relative inline-flex h-8 min-w-8 items-center rounded-full after:absolute after:-inset-1.5 after:content-[''] ${TONES[tone].chip}`}
       >
-        <span className="inline-flex h-5 w-5 items-center justify-center">{icon}</span>
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center">
+          <span className="h-4 w-4">{icon}</span>
+        </span>
+        {/* Always in the page, so the name is read out; clipped to nothing until the chip is opened. */}
+        <span className={`overflow-hidden transition-[max-width,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "max-w-36 opacity-100" : "max-w-0 opacity-0"}`}>
+          <span className="block whitespace-nowrap pr-3 text-sm font-medium">{title}</span>
+        </span>
       </button>
-      {shown
-        ? createPortal(
-            <BottomSheet open={open} onOpenChange={setOpen} label={title}>
-              <div className="flex flex-col gap-1 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                <div data-sheet-drag className="flex min-h-12 items-center gap-3">
-                  <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center ${className}`}>{icon}</span>
-                  <h2 className="min-w-0 flex-1 text-lg font-semibold">{title}</h2>
-                  <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="press -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-                    <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M6 6l12 12M18 6L6 18" />
-                    </svg>
-                  </button>
-                </div>
-                <p className="text-base text-zinc-700 dark:text-zinc-300">{description}</p>
-              </div>
-            </BottomSheet>,
-            document.body,
-          )
-        : null}
     </span>
   );
 }

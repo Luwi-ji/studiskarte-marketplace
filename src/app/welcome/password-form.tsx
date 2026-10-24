@@ -7,10 +7,11 @@ import { choosePassword, type PasswordState } from "./actions";
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 
-export function PasswordForm() {
+export function PasswordForm({ next }: { next: string | null }) {
   const [state, action, pending] = useActionState<PasswordState, FormData>(choosePassword, {});
   return (
     <form action={action} className="flex flex-col gap-5">
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <label className="flex flex-col gap-2">
         <span className="text-sm font-medium">Password</span>
         <input name="password" type="password" autoComplete="new-password" minLength={PASSWORD_MIN} required autoFocus className={input} />

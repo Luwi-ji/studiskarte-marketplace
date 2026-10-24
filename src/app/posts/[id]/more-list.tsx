@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Card } from "@/components/post-card";
 import type { PostCardData } from "@/lib/discovery/cards";
-import { loadMoreLikeThisAction, type MoreEntry } from "./more-actions";
+import type { MoreGroup } from "@/lib/posts/more";
 
 /** Cards side by side that swipe left and right, each snapping into place; the next card peeks in at the edge. */
 function SwipeRow({ cards, label }: { cards: PostCardData[]; label: string }) {
@@ -24,44 +23,18 @@ function SwipeRow({ cards, label }: { cards: PostCardData[]; label: string }) {
   );
 }
 
-/**
- * The listings under a post, grouped under a plain heading each, with a
- * "Show more" button until they run out and then a way back up to the post.
- */
+export type MoreEntry = { card: PostCardData; group: MoreGroup };
+
+/** The listings under a post: a fixed batch, grouped under a plain heading each, then a way back up to the post. */
 export function MoreList({
-  postId,
   sellerHandle,
   categoryName,
-  initialEntries,
-  nextCursor,
+  entries,
 }: {
-  postId: string;
   sellerHandle: string | null;
   categoryName: string;
-  initialEntries: MoreEntry[];
-  nextCursor: string | null;
+  entries: MoreEntry[];
 }) {
-  const [entries, setEntries] = useState(initialEntries);
-  const [cursor, setCursor] = useState(nextCursor);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  async function loadMore() {
-    if (!cursor || loading) return;
-    setLoading(true);
-    setFailed(false);
-    try {
-      const page = await loadMoreLikeThisAction(postId, cursor);
-      // A post can only appear once, even if the student taps twice.
-      setEntries((current) => [...current, ...page.entries.filter((entry) => !current.some((e) => e.card.id === entry.card.id))]);
-      setCursor(page.nextCursor);
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function backToPost() {
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: calm ? "instant" : "smooth" });
@@ -84,36 +57,19 @@ export function MoreList({
           <SwipeRow cards={category} label={`Swipe to see more listings in ${categoryName}`} />
         </div>
       ) : null}
-      {failed ? (
-        <p role="alert" className="text-center text-sm text-red-600">
-          Could not load more. Check your connection and try again.
-        </p>
-      ) : null}
-      {cursor ? (
+      <div className="flex justify-center">
         <button
           type="button"
-          onClick={loadMore}
-          disabled={loading}
-          className="mx-auto flex h-11 w-full max-w-xs items-center justify-center rounded-lg border border-zinc-300 font-medium dark:border-zinc-700"
+          onClick={backToPost}
+          aria-label="Back to the listing"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 transition-colors duration-200 ease-out active:bg-zinc-100 motion-reduce:transition-none dark:border-zinc-700 dark:active:bg-zinc-800"
         >
-          {loading ? "Loading…" : "Show more"}
+          <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 19V5" />
+            <path d="M5 12l7-7 7 7" />
+          </svg>
         </button>
-      ) : (
-        <div className="flex flex-col items-center gap-1 text-zinc-500">
-          <p className="text-sm">You&apos;ve seen everything</p>
-          <button
-            type="button"
-            onClick={backToPost}
-            aria-label="Back to the listing"
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-300 transition-colors duration-200 ease-out active:bg-zinc-100 motion-reduce:transition-none dark:border-zinc-700 dark:active:bg-zinc-800"
-          >
-            <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 19V5" />
-              <path d="M5 12l7-7 7 7" />
-            </svg>
-          </button>
-        </div>
-      )}
+      </div>
     </section>
   );
 }

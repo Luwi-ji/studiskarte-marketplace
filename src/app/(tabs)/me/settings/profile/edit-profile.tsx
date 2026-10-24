@@ -74,20 +74,22 @@ export function EditProfile() {
     setSaving(true);
     setErrors([]);
     try {
-      const fields: { displayName?: string; handle?: string } = {};
+      const fields: { displayName?: string; handle?: string; bio?: string } = {};
       if (draft.nameChanged) fields.displayName = draft.name;
       if (draft.handleChanged) fields.handle = draft.handle;
-      if (fields.displayName !== undefined || fields.handle !== undefined) {
+      if (draft.bioChanged) fields.bio = draft.bio;
+      const hasFields = fields.displayName !== undefined || fields.handle !== undefined || fields.bio !== undefined;
+      if (hasFields) {
         const result = await saveProfileAction(fields);
         if (!result.ok) {
-          setErrors([result.errors.displayName && `Display name: ${result.errors.displayName}`, result.errors.handle && `Handle: ${result.errors.handle}`].filter((line): line is string => Boolean(line)));
+          setErrors([result.errors.displayName && `Display name: ${result.errors.displayName}`, result.errors.handle && `Handle: ${result.errors.handle}`, result.errors.bio && `Bio: ${result.errors.bio}`].filter((line): line is string => Boolean(line)));
           return;
         }
       }
       if (draft.picture) {
         const problem = await uploadPicture(draft.picture.blob);
         if (problem) {
-          setErrors([`${fields.displayName !== undefined || fields.handle !== undefined ? "Your changes are saved, but the picture is not. " : ""}${problem}`]);
+          setErrors([`${hasFields ? "Your changes are saved, but the picture is not. " : ""}${problem}`]);
           return;
         }
         // Uploading does not refresh the pages by itself; this does, with nothing to change.
@@ -133,6 +135,7 @@ export function EditProfile() {
         <SettingsSection>
           <SettingsRow href="/me/settings/profile/name" label="Display name" value={draft.name.trim()} />
           <SettingsRow href="/me/settings/profile/handle" label="Handle" value={`@${draft.handle.trim().replace(/^@/, "").toLowerCase()}`} />
+          <SettingsRow href="/me/settings/profile/bio" label="Bio" value={draft.bio.trim() || "Add a short bio"} />
         </SettingsSection>
         <p className="px-4 pt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {draft.initial.handleChangeOn ? `You can change your handle again on ${draft.initial.handleChangeOn}.` : "You can change your handle once every 30 days."} Changes are saved when you tap Save.

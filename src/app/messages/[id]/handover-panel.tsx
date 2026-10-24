@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { answerProposalAction, confirmHandoverAction, proposeHandoverAction, rejectHandoverAction } from "@/app/deals/actions";
 import { chooseableDays, METHOD_LABEL, suggestTime, time12, to24h, windowsOn, type HandoverMethod } from "@/lib/deals/handover";
@@ -11,6 +10,7 @@ import { CalendarActions } from "./calendar-actions";
 import { PaymentSteps, ReportBox } from "./payment-steps";
 import { NO_ANSWER, ReloadButton } from "./reload-hint";
 import { ReviewBox } from "./review-box";
+import { useSettledRefresh } from "./use-settled-refresh";
 
 /** A reservation as the page sends it to the browser: times as text. */
 export type DealCardData = Omit<DealCard, "handover" | "proposal" | "activityAt"> & {
@@ -53,7 +53,6 @@ const field = "h-11 w-full rounded-lg border border-zinc-300 bg-transparent px-3
  * declines. From the agreed time on, each confirms; both make it complete.
  */
 export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCardData; viewerIsOwner: boolean; otherName: string }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [method, setMethod] = useState<HandoverMethod | null>(null);
   const [day, setDay] = useState("");
@@ -66,21 +65,27 @@ export function HandoverPanel({ deal, viewerIsOwner, otherName }: { deal: DealCa
   // reservation has had no newer step (`at`): if the other person took the confirmation back, the page wins.
   const [justConfirmed, setJustConfirmed] = useState<{ kind: "waiting" | "completed"; at: string } | null>(null);
 
+  // The form and the buttons stay busy until the refreshed page shows the result.
+  const refreshAndSettle = useSettledRefresh(() => {
+    setBusy(null);
+    setEditing(false);
+    setDay("");
+  });
+
   async function run(kind: string, action: () => Promise<{ ok: boolean; error?: string; completed?: boolean }>) {
     setBusy(kind);
     setError(null);
     try {
       const result = await action();
-      if (!result.ok) setError(result.error ?? "Could not do that.");
-      else {
-        if (kind === "confirm") setJustConfirmed({ kind: result.completed ? "completed" : "waiting", at: deal.activityAt });
-        setEditing(false);
-        setDay("");
-        router.refresh();
+      if (!result.ok) {
+        setError(result.error ?? "Could not do that.");
+        setBusy(null);
+        return;
       }
+      if (kind === "confirm") setJustConfirmed({ kind: result.completed ? "completed" : "waiting", at: deal.activityAt });
+      refreshAndSettle();
     } catch {
       setError(NO_ANSWER);
-    } finally {
       setBusy(null);
     }
   }

@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/legal-links";
 import { getSignedInStudent } from "@/lib/access";
 import { visitorsAllowed } from "@/lib/identity/auth";
+import { safeReturnTo } from "@/lib/identity/return-to";
 import { SignUpForm } from "./sign-up-form";
 
 export const metadata = { title: "Create account · Studiskarte Marketplace" };
 
-export default function SignUpPage() {
+export default function SignUpPage({ searchParams }: PageProps<"/sign-up">) {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
       <header className="flex flex-col items-center gap-3 text-center">
@@ -20,24 +21,24 @@ export default function SignUpPage() {
         </p>
       </header>
       <Suspense>
-        <Form />
+        <Form searchParams={searchParams} />
       </Suspense>
       <LegalLinks />
       <Suspense>
-        <SkipIfSignedIn />
+        <SkipIfSignedIn searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
 // Read per request: ALLOW_VISITORS is set in the deployment, not at build time.
-async function Form() {
+async function Form({ searchParams }: { searchParams: PageProps<"/sign-up">["searchParams"] }) {
   await connection();
-  return <SignUpForm visitors={visitorsAllowed()} />;
+  return <SignUpForm visitors={visitorsAllowed()} next={safeReturnTo((await searchParams).next)} />;
 }
 
 // A signed-in student has no reason to be here.
-async function SkipIfSignedIn() {
-  if (await getSignedInStudent()) redirect("/");
+async function SkipIfSignedIn({ searchParams }: { searchParams: PageProps<"/sign-up">["searchParams"] }) {
+  if (await getSignedInStudent()) redirect(safeReturnTo((await searchParams).next) ?? "/");
   return null;
 }

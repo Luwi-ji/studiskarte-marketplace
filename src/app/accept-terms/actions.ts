@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
+import { safeReturnTo } from "@/lib/identity/return-to";
 import { acceptTerms } from "@/lib/identity/terms";
 
 export type AcceptState = { error?: string };
@@ -13,5 +14,5 @@ export async function acceptTermsAction(_prev: AcceptState, formData: FormData):
   const shown = formData.get("terms");
   const result = await acceptTerms(me.id, typeof shown === "string" ? shown : "", formData.get("age") === "on");
   if (!result.ok) return { error: result.error };
-  redirect("/");
+  redirect(safeReturnTo(formData.get("next")) ?? "/");
 }

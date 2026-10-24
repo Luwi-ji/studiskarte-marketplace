@@ -15,3 +15,9 @@ export function signInUrl(path: string | null): string {
   const returnTo = safeReturnTo(path);
   return returnTo ? `/sign-in?next=${encodeURIComponent(returnTo)}` : "/sign-in";
 }
+
+/** `path` with the return address kept on it, for the steps between signing up and the listing. */
+export function withReturnTo(path: string, returnTo: unknown): string {
+  const safe = safeReturnTo(returnTo);
+  return safe ? `${path}?next=${encodeURIComponent(safe)}` : path;
+}

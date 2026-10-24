@@ -2,13 +2,10 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
-import { SoldCount } from "@/components/seller-trust";
-import { Stars } from "@/components/stars";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
-import { REPLY_LABEL } from "@/lib/messaging/response-time";
 import { MenuSheet } from "@/app/safety/menu-sheet";
 import { REPORT_REASONS } from "@/lib/safety/report";
 import { Chat, type ChatMessageData } from "./chat";
@@ -87,7 +84,14 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <PageHeader
-        title={name}
+        title={
+          // One line: name, school-email badge, school abbreviation. The name gives way first when it is long.
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="min-w-0 truncate">{name}</span>
+            {profile.schoolEmailChecked ? <VerifiedBadge interactive={false} /> : null}
+            <span className="shrink-0 text-sm font-normal text-zinc-600 dark:text-zinc-400">{profile.schoolShort}</span>
+          </span>
+        }
         titleHref={handle ? `/u/${handle}?thread=${view.id}` : undefined}
         back="/messages"
         action={
@@ -108,20 +112,6 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
         }
       />
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col">
-        {handle ? (
-          /* Stays under the header while the thread scrolls: who this is. */
-          <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+1px)] z-10 flex flex-col gap-0.5 border-b border-zinc-200 bg-[var(--background)] px-3 py-1.5 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-            <p className="flex flex-wrap items-center gap-x-2">
-              <span>{profile.school}</span>
-              {profile.rating ? <Stars average={profile.rating.average} count={profile.rating.count} /> : <span className="font-medium text-brand-text">New</span>}
-              {profile.sold > 0 ? <SoldCount count={profile.sold} /> : null}
-            </p>
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {profile.schoolEmailChecked ? <VerifiedBadge /> : null}
-              {view.replyTime ? <span>Replies {REPLY_LABEL[view.replyTime]}</span> : null}
-            </p>
-          </div>
-        ) : null}
         <ErrorBanner />
         <Chat conversationId={view.id} messages={messages} pinned={view.pinned.map(offerData)} unread={view.unread} readOnlyReason={view.readOnlyReason} otherName={name} />
       </main>

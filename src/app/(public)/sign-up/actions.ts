@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isAPIError } from "better-auth/api";
 import { auth, requestSignUpCode, SIGN_IN_ERROR, visitorsAllowed } from "@/lib/identity/auth";
+import { withReturnTo } from "@/lib/identity/return-to";
 import { parseEmail } from "@/lib/identity/school-email";
 
 export type Mode = "school" | "visitor";
@@ -66,5 +67,5 @@ export async function verifyCode(_prev: SignUpState, formData: FormData): Promis
     console.error("sign-up failed", error);
     return { step: "code", mode, email, error: "Something went wrong. Try again." };
   }
-  redirect("/welcome");
+  redirect(withReturnTo("/welcome", formData.get("next")));
 }

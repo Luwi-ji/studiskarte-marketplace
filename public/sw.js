@@ -63,15 +63,20 @@ self.addEventListener("push", (event) => {
   const title = typeof data.title === "string" && data.title ? data.title : "Studiskarte";
   const tag = typeof data.tag === "string" && data.tag ? data.tag : undefined;
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: typeof data.body === "string" ? data.body : "",
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag,
-      // A newer alert about the same thing replaces the older one and still alerts.
-      renotify: Boolean(tag),
-      data: { url: pathOnly(data.url) },
-    }),
+    (async () => {
+      // Open pages hear about it first, so a conversation on screen updates at once.
+      const open = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of open) client.postMessage({ type: "alert", url: pathOnly(data.url), tag });
+      await self.registration.showNotification(title, {
+        body: typeof data.body === "string" ? data.body : "",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag,
+        // A newer alert about the same thing replaces the older one and still alerts.
+        renotify: Boolean(tag),
+        data: { url: pathOnly(data.url) },
+      });
+    })(),
   );
 });
 

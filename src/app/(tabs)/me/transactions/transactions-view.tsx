@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BottomSheet } from "@/components/bottom-sheet";
 import type { TransactionAction, TransactionGroup } from "@/lib/deals/mine";
 import { bulkTransactionsAction } from "./actions";
 
@@ -108,6 +107,7 @@ export function TransactionsView({ rows }: { rows: TransactionRow[] }) {
         </nav>
       </div>
 
+      {tab === "done" || tab === "cancelled" || tab === "reported" ? <p className="px-4 pt-3 text-xs text-zinc-600 dark:text-zinc-400">Completed deals still count toward Sold and Bought.</p> : null}
       {visible.length ? (
         <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
           {visible.map((row) => {
@@ -118,11 +118,23 @@ export function TransactionsView({ rows }: { rows: TransactionRow[] }) {
         </ul>
       ) : <p className="px-6 py-16 text-center text-zinc-500">No {TABS.find((item) => item.id === tab)?.label.toLowerCase()} transactions.</p>}
 
-      {selecting && selectedRows.length ? <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-3 py-2 backdrop-blur dark:border-zinc-800"><div className="mx-auto flex max-w-md gap-2">{(["withdraw", "decline", "cancel"] as TransactionAction[]).map((action) => applicable(action).length ? <button key={action} type="button" onClick={() => setConfirm(action)} className="h-11 flex-1 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-red-600 dark:border-zinc-700">{ACTION[action]} {applicable(action).length}</button> : null)}</div></div> : null}
+      {selecting && selectedRows.length ? (
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-3 py-2 backdrop-blur dark:border-zinc-800">
+          {confirm ? (
+            <div key={confirm} className="mx-auto flex max-w-md flex-col gap-3 py-1 motion-safe:animate-[step-in_180ms_ease-out]">
+              <h2 className="text-lg font-semibold">{`${ACTION[confirm]} ${applicable(confirm).length} ${applicable(confirm).length === 1 ? "transaction" : "transactions"}?`}</h2>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">Only transactions that can still be changed are included. The same rules as the conversation apply.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" disabled={busy} onClick={() => setConfirm(null)} className="press h-11 rounded-lg border border-zinc-300 font-medium disabled:opacity-60 dark:border-zinc-700">Back</button>
+                <button type="button" disabled={busy || applicable(confirm).length === 0} onClick={() => void run()} className="h-11 rounded-lg bg-red-600 font-medium text-white disabled:opacity-60">{busy ? "Working…" : ACTION[confirm]}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto flex max-w-md gap-2">{(["withdraw", "decline", "cancel"] as TransactionAction[]).map((action) => applicable(action).length ? <button key={action} type="button" onClick={() => setConfirm(action)} className="h-11 flex-1 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-red-600 dark:border-zinc-700">{ACTION[action]} {applicable(action).length}</button> : null)}</div>
+          )}
+        </div>
+      ) : null}
 
-      <BottomSheet open={confirm !== null} onOpenChange={(open) => { if (!open && !busy) setConfirm(null); }} label={confirm ? `${ACTION[confirm]} transactions` : "Transactions"}>
-        <div className="flex flex-col gap-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"><h2 className="text-lg font-semibold">{confirm ? `${ACTION[confirm]} ${applicable(confirm).length} ${applicable(confirm).length === 1 ? "transaction" : "transactions"}?` : "Transactions"}</h2><p className="text-sm text-zinc-600 dark:text-zinc-400">Only transactions that can still be changed are included. The same rules as the conversation apply.</p><div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy} onClick={() => setConfirm(null)} className="h-11 rounded-lg border border-zinc-300 font-medium dark:border-zinc-700">Keep</button><button type="button" disabled={busy} onClick={() => void run()} className="h-11 rounded-lg bg-red-600 font-medium text-white disabled:opacity-60">{busy ? "Working…" : confirm ? ACTION[confirm] : "Continue"}</button></div></div>
-      </BottomSheet>
       {toast ? <button type="button" onClick={() => setToast(null)} className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-sm rounded-lg bg-zinc-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900">{toast}</button> : null}
     </>
   );

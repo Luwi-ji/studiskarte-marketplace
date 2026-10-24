@@ -1,4 +1,5 @@
 import { and, count, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { checkBio } from "@/lib/identity/bio";
 import { follow, image, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import {
@@ -21,6 +22,8 @@ import { countFollowers, countFollowing } from "@/lib/social/follow";
 export type OwnProfile = {
   handle: string | null;
   displayName: string;
+  /** The short line about themselves, or null. */
+  bio: string | null;
   school: string;
   avatarKey: string | null;
   avatarThumbKey: string | null;
@@ -31,6 +34,7 @@ export async function getOwnProfile(studentId: string, now = new Date()): Promis
   const [row] = await getDb()
     .select({
       handle: student.handle,
+      bio: student.bio,
       displayName: student.name,
       schoolDomain: student.schoolDomain,
       schoolName: school.name,
@@ -44,6 +48,7 @@ export async function getOwnProfile(studentId: string, now = new Date()): Promis
     .where(eq(student.id, studentId));
   if (!row) return null;
   return {
+    bio: row.bio,
     handle: row.handle,
     displayName: row.displayName,
     school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
@@ -58,6 +63,8 @@ export type PublicProfile = {
   id: string;
   handle: string;
   displayName: string;
+  /** The short line the student wrote about themselves, or null. */
+  bio: string | null;
   school: string;
   avatarKey: string | null;
   /** How many active, visible people follow this student. */
@@ -84,6 +91,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
       id: student.id,
       handle: student.handle,
       displayName: student.name,
+      bio: student.bio,
       schoolName: school.name,
       schoolDomain: school.domain,
       avatarKey: image.key,
@@ -105,6 +113,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
   return {
     id: row.id,
     handle: row.handle,
+    bio: row.bio,
     displayName: row.displayName,
     school: row.schoolName ?? row.schoolDomain ?? NO_SCHOOL_LABEL,
     avatarKey: row.avatarKey,
@@ -175,6 +184,14 @@ export async function changeDisplayName(studentId: string, raw: string): Promise
   const name = checkDisplayName(raw);
   if (!name.ok) return { ok: false, field: "displayName", message: name.message };
   await getDb().update(student).set({ name: name.name, updatedAt: new Date() }).where(and(eq(student.id, studentId), eq(student.accountStatus, "active")));
+  return { ok: true };
+}
+
+/** Saves the bio (blank clears it). */
+export async function changeBio(studentId: string, raw: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const bio = checkBio(raw);
+  if (!bio.ok) return { ok: false, message: bio.message };
+  await getDb().update(student).set({ bio: bio.bio, updatedAt: new Date() }).where(and(eq(student.id, studentId), eq(student.accountStatus, "active")));
   return { ok: true };
 }
 

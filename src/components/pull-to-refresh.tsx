@@ -7,20 +7,17 @@ import { haptic } from "@/lib/haptics";
 /** Sent on `window` once a pull-to-refresh has brought in fresh data, so a list that keeps pages of its own can start over. */
 export const PAGE_REFRESHED_EVENT = "studiskarte:refreshed";
 
-/** The indicator never follows the finger further than this (px). */
-const MAX_PULL = 80;
+/** The page never follows the finger further than this (px). */
+const MAX_PULL = 72;
 /** Letting go from this far (px) refreshes. */
-const THRESHOLD = 64;
+const THRESHOLD = 56;
 /** The finger must move this far (px) down, more down than sideways, before it counts as a pull. */
 const SLOP = 6;
 /** The spinner stays at least this long (ms), so a quick refresh is still seen. */
 const MIN_SPIN_MS = 600;
-const SIZE = 40;
-const GAP = 8;
 const FADE_MS = 200;
-/** Where the indicator sits while it spins: the pull distance of the threshold. */
-const REST_Y = THRESHOLD - SIZE - GAP;
-const HIDDEN_Y = -SIZE - GAP;
+/** How far the page stays open while it refreshes (px). */
+const REST_Y = 48;
 
 /** Where a pull must not start: text fields, a text selection being dragged, and anything that opts out with `data-no-pull`. */
 const BLOCKED = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-no-pull]';
@@ -44,10 +41,13 @@ function canPullFrom(target: EventTarget | null): boolean {
   return true;
 }
 
+/** Opens a gap of `y` px at the top of the page (`--ptr`, read by `body` in globals.css); the spinner sits centred in it. */
 function place(disc: HTMLElement, y: number, opacity: number, animate: boolean) {
   const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  disc.style.transition = animate && !calm ? `transform ${FADE_MS}ms ease-out, opacity ${FADE_MS}ms ease-out` : "none";
-  disc.style.transform = `translateY(${y}px)`;
+  const ease = animate && !calm ? `${FADE_MS}ms ease-out` : "none";
+  document.body.style.transition = ease === "none" ? "none" : `padding-top ${ease}`;
+  document.documentElement.style.setProperty("--ptr", `${y}px`);
+  disc.style.transition = ease === "none" ? "none" : `opacity ${ease}`;
   disc.style.opacity = String(opacity);
 }
 
@@ -83,7 +83,7 @@ export function PullToRefresh() {
     let listening = false;
 
     function hide() {
-      if (el) place(el, HIDDEN_Y, 0, true);
+      if (el && !busy.current) place(el, 0, 0, true);
     }
 
     function stop(hideIndicator = false) {
@@ -125,9 +125,9 @@ export function PullToRefresh() {
       pull = resist(Math.max(0, y - finger.base));
       const progress = Math.min(1, pull / THRESHOLD);
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        place(el, pull > 0 ? REST_Y : HIDDEN_Y, pull > 0 ? 1 : 0, false);
+        place(el, pull > 0 ? REST_Y : 0, pull > 0 ? 1 : 0, false);
       } else {
-        place(el, pull - SIZE - GAP, Math.min(1, pull / 24), false);
+        place(el, pull, Math.min(1, pull / 24), false);
         turn.style.transform = `rotate(${progress * 270}deg)`;
       }
       const past = pull >= THRESHOLD;
@@ -174,7 +174,7 @@ export function PullToRefresh() {
       () => {
         busy.current = false;
         setPhase("idle");
-        if (disc.current) place(disc.current, HIDDEN_Y, 0, true);
+        if (disc.current) place(disc.current, 0, 0, true);
         if (icon.current) icon.current.style.transform = "";
       },
       Math.max(0, MIN_SPIN_MS - (performance.now() - startedAt.current)),
@@ -183,10 +183,11 @@ export function PullToRefresh() {
   }, [phase, refreshing]);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[env(safe-area-inset-top)] z-[70] flex justify-center" aria-live="polite">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[70] flex justify-center" aria-live="polite">
       <div
         ref={disc}
-        className="flex h-10 w-10 -translate-y-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-brand opacity-0 shadow-md dark:border-zinc-700 dark:bg-zinc-800"
+        style={{ transform: "translateY(calc(env(safe-area-inset-top) + var(--ptr, 0px) / 2 - 1.25rem))" }}
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-brand opacity-0 shadow-md dark:border-zinc-700 dark:bg-zinc-800"
       >
         <div ref={icon}>
           <svg

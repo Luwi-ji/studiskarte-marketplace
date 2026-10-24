@@ -3,12 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { HeartButton } from "@/components/heart-button";
-import { SellerTrust } from "@/components/seller-trust";
+import { SellerStats } from "@/components/seller-trust";
 import { PostSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
+import { REPLY_LABEL } from "@/lib/messaging/response-time";
 import { expiryNotice, formatAvailability, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
 import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
@@ -110,7 +111,13 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
           <span className="truncate font-medium">{detail.seller.displayName || `@${detail.seller.handle}`}</span>
           <VerifiedBadge interactive={false} />
         </p>
-        {detail.seller.handle ? <p className="truncate text-sm text-zinc-500">@{detail.seller.handle}</p> : null}
+        {/* Stars and units sold sit beside the handle; the whole card is one link, so they are not links themselves. */}
+        <div className="flex min-w-0 items-center gap-x-2 text-sm text-zinc-600 dark:text-zinc-400">
+          {detail.seller.handle ? <span className="min-w-0 truncate text-zinc-500">@{detail.seller.handle}</span> : null}
+          <span className="flex shrink-0 items-center gap-x-2">
+            <SellerStats rating={detail.seller.rating} sold={detail.seller.sold} />
+          </span>
+        </div>
         {/* The whole school name, on its own line: it is what tells one school from another. */}
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{detail.seller.school}</p>
       </div>
@@ -201,9 +208,7 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
           ) : (
             <div className="flex items-center gap-3">{sellerWho}</div>
           )}
-          <div className="pl-15">
-            <SellerTrust handle={detail.seller.handle} rating={detail.seller.rating} sold={detail.seller.sold} replies={detail.seller.replies} />
-          </div>
+          {detail.seller.replies ? <p className="pl-15 text-sm text-zinc-600 dark:text-zinc-400">Replies {REPLY_LABEL[detail.seller.replies]}</p> : null}
         </section>
 
         <Section title="Description">

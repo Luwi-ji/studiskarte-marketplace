@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, googleEnabled } from "@/lib/identity/auth";
 import { loginWithPassword } from "@/lib/identity/password";
-import { safeReturnTo } from "@/lib/identity/return-to";
+import { safeReturnTo, withReturnTo } from "@/lib/identity/return-to";
 
 export type SignInState = { error?: string; identifier?: string };
 
@@ -29,7 +29,7 @@ export async function continueWithGoogle(formData: FormData): Promise<void> {
     body: {
       provider: "google",
       callbackURL: next,
-      newUserCallbackURL: "/",
+      newUserCallbackURL: withReturnTo("/welcome", next === "/" ? null : next),
       errorCallbackURL: "/sign-in?google=failed",
     },
     headers: await headers(),

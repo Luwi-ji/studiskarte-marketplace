@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { documentKindsFor, MAX_REJECTED_CHECKS, verificationEnabled } from "@/lib/verification/config";
 import { getMyCheck, type MyCheck } from "@/lib/verification/service";
-import { ConsentForm, UploadStep, WithdrawSection } from "./verify-forms";
+import { VerifyWizard, WithdrawSection } from "./verify-forms";
 
 export const metadata = { title: "ID check · Studiskarte Marketplace" };
 
@@ -29,7 +29,7 @@ function Status({ title, text, done = false, children }: { title: string; text: 
 }
 
 function Steps({ document, holding, sent }: { document: boolean; holding: boolean; sent: boolean }) {
-  const rows = [["Consent", true], ["Document picture", document], ["Photo holding it", holding], ["Owner review", sent]] as const;
+  const rows = [["Consent", true], ["ID picture", document], ["Photo holding it", holding], ["Owner review", sent]] as const;
   return <ol className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">{rows.map(([label, done], index) => <li key={label} className="flex min-h-12 items-center gap-3"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${done ? "bg-brand text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800"}`}>{done ? "✓" : index + 1}</span><span className={done ? "font-medium" : "text-zinc-500"}>{label}</span></li>)}</ol>;
 }
 
@@ -49,10 +49,10 @@ async function Verify() {
   if (!check.enabled) notFound();
   if (check.checked) {
     const until = check.expiresAt?.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
-    return <Status title={until ? `ID checked until ${until}` : "ID checked"} text="Your profile shows the ID checked badge. Your pictures were deleted when the owner decided." done><WithdrawSection /></Status>;
+    return <Status title={until ? `ID checked until ${until}` : "ID checked"} text="Your profile shows the ID checked badge. Your pictures were deleted when the owner decided." done><WithdrawSection state="approved" /></Status>;
   }
-  if (check.open?.status === "pending") return <Status title="Waiting for review" text="The owner will decide. Your pictures are deleted as soon as they decide, or after 7 days."><Steps document holding sent /><WithdrawSection /></Status>;
-  if (check.open) return <Status title="Add two pictures" text="Complete the remaining steps, then send them to the owner."><Steps document={check.open.hasDocument} holding={check.open.hasHolding} sent={false} /><UploadStep hasDocument={check.open.hasDocument} hasHolding={check.open.hasHolding} /><WithdrawSection /></Status>;
+  if (check.open?.status === "pending") return <Status title="Waiting for review" text="The owner will decide. Your pictures are deleted as soon as they decide, or after 7 days."><Steps document holding sent /><WithdrawSection state="pending" /></Status>;
+  if (check.open) return <div className="flex flex-col gap-6"><VerifyWizard key={check.open.id} kinds={documentKindsFor(me.role)} draft={{ documentKind: check.open.documentKind, hasDocument: check.open.hasDocument, hasHolding: check.open.hasHolding }} /><WithdrawSection state="draft" /></div>;
   if (check.cannotAskBecause) return <Status title="ID check unavailable" text={check.cannotAskBecause}><Rejection check={check} /></Status>;
-  return <Status title="Check your ID" text="Optional. It adds an ID checked icon so other members know the owner reviewed your document."><Rejection check={check} /><ConsentForm kinds={documentKindsFor(me.role)} /></Status>;
+  return <div className="flex flex-col gap-6"><VerifyWizard key="new" kinds={documentKindsFor(me.role)} draft={null} notice={<Rejection check={check} />} /></div>;
 }

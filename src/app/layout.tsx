@@ -6,6 +6,7 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 import { BlockedNotice } from "./safety/blocked-notice";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 import { UpdateNotice } from "./update-notice";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 // One variable font for the whole app, self-hosted at build time (no request to Google when a page loads).
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
@@ -34,7 +35,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${figtree.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${figtree.variable} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col">
         {children}
         <ServiceWorkerRegistration />

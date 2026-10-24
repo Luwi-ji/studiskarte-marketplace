@@ -258,6 +258,54 @@ export async function listPendingChecks(): Promise<PendingCheck[]> {
   return rows.map((r) => ({ ...r, documentKind: r.documentKind as DocumentKind, submittedAt: r.submittedAt ?? new Date(0), earlierRejections: rejectedBy.get(r.studentId) ?? 0 }));
 }
 
+export const CHECK_STATUSES = ["pending", "approved", "rejected", "withdrawn", "expired", "draft"] as const;
+export type CheckStatus = (typeof CHECK_STATUSES)[number];
+export type CheckCounts = Record<CheckStatus, number>;
+
+/** How many checks are in each status, for the admin filter chips. Reads counts only. */
+export async function countChecksByStatus(): Promise<CheckCounts> {
+  const rows = await getDb().select({ status: idVerification.status, n: count() }).from(idVerification).groupBy(idVerification.status);
+  const counts: CheckCounts = { pending: 0, approved: 0, rejected: 0, withdrawn: 0, expired: 0, draft: 0 };
+  for (const row of rows) if (row.status in counts) counts[row.status as CheckStatus] = row.n;
+  return counts;
+}
+
+export type PastCheck = {
+  id: string;
+  handle: string | null;
+  displayName: string;
+  schoolDomain: string | null;
+  claimedRole: string;
+  documentKind: DocumentKind;
+  status: CheckStatus;
+  /** When it was decided, or else when it was started. */
+  at: Date;
+  reason: string | null;
+};
+
+/** The newest checks in one status other than pending (no pictures are left for these), for the admin list. No email address is read. */
+export async function listChecksByStatus(status: Exclude<CheckStatus, "pending">, limit = 50): Promise<PastCheck[]> {
+  const rows = await getDb()
+    .select({
+      id: idVerification.id,
+      handle: student.handle,
+      displayName: student.name,
+      schoolDomain: student.schoolDomain,
+      claimedRole: idVerification.claimedRole,
+      documentKind: idVerification.documentKind,
+      status: idVerification.status,
+      decidedAt: idVerification.decidedAt,
+      createdAt: idVerification.createdAt,
+      reason: idVerification.reason,
+    })
+    .from(idVerification)
+    .innerJoin(student, eq(student.id, idVerification.studentId))
+    .where(eq(idVerification.status, status))
+    .orderBy(desc(idVerification.createdAt))
+    .limit(limit);
+  return rows.map(({ decidedAt, createdAt, ...r }) => ({ ...r, documentKind: r.documentKind as DocumentKind, status: r.status as CheckStatus, at: decidedAt ?? createdAt }));
+}
+
 /**
  * A short-lived link to one picture of a pending check, for the admin. The view is written down first; with no
  * record there is no link.

@@ -3,12 +3,15 @@
 import { useRef, useState } from "react";
 import { ConfirmSheet } from "@/components/confirm-sheet";
 import { SettingsSection, SettingsIcon, SettingsRow } from "@/components/settings-list";
+import { setDeviceValue, useDeviceValue } from "@/lib/device-value";
 import { createCalendarLinkAction, revokeCalendarLinkAction } from "../actions";
 
 type Link = { url: string; webcalUrl: string };
 type Ask = "renew" | "revoke" | null;
 
 const BUTTON = "press flex h-11 w-full items-center justify-center rounded-lg border border-zinc-300 text-sm font-medium dark:border-zinc-700";
+const MADE_KEY = "studiskarte:calendar-link-made";
+const dayFormat = new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
 
 /**
  * The private calendar link. The server keeps only a hash, so a link is shown
@@ -25,6 +28,10 @@ export function CalendarSettings({ active }: { active: boolean }) {
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const isLinked = linked ?? active;
+  // Only this device knows when it made the link: the server keeps a hash and nothing else.
+  const madeAt = useDeviceValue(MADE_KEY);
+  const madeOn = isLinked && madeAt ? dayFormat.format(new Date(madeAt)) : null;
+  const [showHow, setShowHow] = useState(false);
 
   async function make() {
     setBusy(true);
@@ -33,6 +40,7 @@ export function CalendarSettings({ active }: { active: boolean }) {
       const result = await createCalendarLinkAction();
       if (result.ok) {
         setLink({ url: result.url, webcalUrl: result.webcalUrl });
+        setDeviceValue(MADE_KEY, new Date().toISOString());
         setLinked(true);
         setAsk(null);
         setCopyHint(null);
@@ -54,6 +62,7 @@ export function CalendarSettings({ active }: { active: boolean }) {
       if (result.ok) {
         setLink(null);
         setLinked(false);
+        setDeviceValue(MADE_KEY, null);
         setAsk(null);
       } else {
         setError(result.error);
@@ -77,6 +86,8 @@ export function CalendarSettings({ active }: { active: boolean }) {
     }
   }
 
+  const showInstructions = !isLinked || link !== null || showHow;
+
   return (
     <div id="calendar" className="flex flex-col">
       <div className="flex flex-col items-center gap-2 px-6 pb-2 pt-6 text-center">
@@ -84,9 +95,14 @@ export function CalendarSettings({ active }: { active: boolean }) {
           <SettingsIcon name="calendar" className="h-8 w-8" />
         </span>
         <p className="text-lg font-semibold">{isLinked ? "Linked" : "Not linked"}</p>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Add your scheduled handovers to Google or iPhone Calendar, as &ldquo;Studiskarte transactions&rdquo;. Changes and cancellations update by themselves (Google Calendar can take several hours). Only you can use the link.
-        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Subscribe once. Your calendar then keeps every handover time up to date by itself.</p>
+        {isLinked ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {madeOn ? `Link made on this phone on ${madeOn}. ` : ""}Your calendar app updates by itself, so there is nothing to do when a time changes. Google Calendar can take several hours. Only you can use the link.
+          </p>
+        ) : (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Handovers show up as &ldquo;Studiskarte transactions&rdquo; in Google or iPhone Calendar. Only you can use the link.</p>
+        )}
       </div>
 
       {link ? (
@@ -125,6 +141,7 @@ export function CalendarSettings({ active }: { active: boolean }) {
         <SettingsSection>
           {isLinked ? (
             <>
+              {!link ? <SettingsRow icon={<SettingsIcon name="doc" />} label={showHow ? "Hide how to subscribe" : "Show how to subscribe"} onClick={() => setShowHow((v) => !v)} /> : null}
               <SettingsRow icon={<SettingsIcon name="refresh" />} label="Make a new link" onClick={() => { setError(null); setAsk("renew"); }} />
               <SettingsRow icon={<SettingsIcon name="off" />} label="Turn off the link" danger onClick={() => { setError(null); setAsk("revoke"); }} />
             </>
@@ -134,16 +151,19 @@ export function CalendarSettings({ active }: { active: boolean }) {
         </SettingsSection>
       </div>
 
-      <SettingsSection label="How to add it">
-        <li className="flex flex-col gap-1 px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-          <p>
-            <span className="font-medium text-[var(--foreground)]">Google Calendar:</span> Other calendars, From URL, paste the link.
-          </p>
-          <p>
-            <span className="font-medium text-[var(--foreground)]">iPhone:</span> right after making a link, tap Add to iPhone Calendar.
-          </p>
-        </li>
-      </SettingsSection>
+      {showInstructions ? (
+        <SettingsSection label="How to subscribe">
+          <li className="flex flex-col gap-1 px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+            <p>
+              <span className="font-medium text-[var(--foreground)]">Google Calendar:</span> Other calendars, From URL, paste the link.
+            </p>
+            <p>
+              <span className="font-medium text-[var(--foreground)]">iPhone:</span> right after making a link, tap Add to iPhone Calendar.
+            </p>
+            <p>Subscribe only once. Subscribing twice shows every handover twice.</p>
+          </li>
+        </SettingsSection>
+      ) : null}
 
       <ConfirmSheet
         open={ask === "renew"}
@@ -155,7 +175,7 @@ export function CalendarSettings({ active }: { active: boolean }) {
         error={error}
         onConfirm={() => void make()}
       >
-        The old link will stop working.
+        The old link will stop working. Your calendar app then needs the new link: remove the old subscription from it first, and subscribe once with the new link, or you will see each handover twice.
       </ConfirmSheet>
       <ConfirmSheet
         open={ask === "revoke"}

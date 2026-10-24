@@ -49,7 +49,7 @@ export function Card({ card }: { card: PostCardData }) {
           <p className={`min-w-0 truncate text-lg font-bold ${accent.price}`}>{formatPrice(card.priceKind, card.priceAmount)}</p>
           <CardHeart postId={card.id} initial={card.hearted} />
         </div>
-        <Link href={`/posts/${card.id}`} className="line-clamp-2 text-sm font-medium leading-snug after:absolute after:inset-0 active:scale-100 active:opacity-100">
+        <Link href={`/posts/${card.id}`} className="line-clamp-2 text-sm font-medium leading-snug after:absolute after:inset-0 active:[scale:none] active:opacity-100">
           {card.title}
         </Link>
         <p className="mt-auto flex min-w-0 items-center gap-1 pt-0.5 text-xs text-zinc-500 dark:text-zinc-400">

@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { AGE_CHECKBOX, UNDER_18_NOTICE } from "@/lib/identity/age";
 import { acceptTermsAction, type AcceptState } from "./actions";
 
-export function AcceptForm({ version }: { version: string }) {
+export function AcceptForm({ version, next }: { version: string; next: string | null }) {
   const [state, action, pending] = useActionState<AcceptState, FormData>(acceptTermsAction, {});
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -25,6 +25,7 @@ export function AcceptForm({ version }: { version: string }) {
         ))}
       </ul>
       <input type="hidden" name="terms" value={version} />
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <label className="flex items-start gap-3">
         <input type="checkbox" name="age" required className="mt-1 h-5 w-5 shrink-0" />
         <span className="text-sm">

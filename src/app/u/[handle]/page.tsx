@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { PostGrid } from "@/components/post-grid";
-import { BoughtCount, NewPill, SoldCount } from "@/components/seller-trust";
+import { BoughtCount, FollowersCount, FollowingCount, NewPill, SoldCount, STAT_LINK, STAT_ROW } from "@/components/seller-trust";
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { IdCheckedBadge } from "@/components/id-checked-badge";
@@ -102,69 +102,89 @@ async function Profile({
   const openCount = own?.filter((p) => p.status === "open").length ?? 0;
   const noun = tab === "wishlist" ? "wishlist posts" : "showcase posts";
 
+  // The counts that sit beside followers in the one stats row. A count of zero would be a link to an empty list, so it is left out.
+  const soldLink =
+    rep.sold > 0 ? (
+      <Link href={`${base}/sold`} className={STAT_LINK} aria-label={`${rep.sold} sold, see the list`}>
+        <SoldCount count={rep.sold} />
+      </Link>
+    ) : null;
+  // Bought is private: only on your own profile.
+  const boughtLink =
+    profile.isSelf && rep.bought > 0 ? (
+      <Link href={`${base}/bought`} className={STAT_LINK} aria-label={`${rep.bought} bought, see the list`}>
+        <BoughtCount count={rep.bought} />
+      </Link>
+    ) : null;
+
   return (
     <div className="flex flex-col gap-6">
-      <section className="mx-auto flex w-full max-w-md flex-col items-center gap-3 text-center">
-        {pictureUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={pictureUrl} alt="" className="h-24 w-24 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-200 text-4xl font-semibold dark:bg-zinc-800" aria-hidden>
-            {(profile.displayName || profile.handle).slice(0, 1).toUpperCase()}
-          </div>
-        )}
-        <div className="flex min-w-0 max-w-full flex-col items-center gap-1">
-          {/* The badges are icons beside the name; tapping one says what it means. */}
-          <div className="flex max-w-full items-center justify-center gap-2">
-            <h2 className="min-w-0 truncate text-xl font-semibold">{profile.displayName}</h2>
-            <VerifiedBadge />
-            {profile.idChecked ? <IdCheckedBadge /> : null}
-          </div>
-          <p className="min-w-0 max-w-full truncate text-base text-zinc-500">@{profile.handle}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</p>
-          <div className="flex max-w-full flex-wrap items-center justify-center gap-x-4 text-sm text-zinc-600 dark:text-zinc-400">
-            {rep.rating ? (
-              <Link href={`${base}/reviews`} className="press inline-flex min-h-11 items-center" aria-label={`Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews`}>
-                <Stars average={rep.rating.average} count={rep.rating.count} />
-              </Link>
-            ) : rep.sold === 0 && rep.granted === 0 ? (
-              <span className="inline-flex min-h-11 items-center">
-                <NewPill />
+      <section className="mx-auto flex w-full max-w-md flex-col gap-3 px-1">
+        <div className="flex items-center gap-4">
+          {pictureUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={pictureUrl} alt="" className="h-20 w-20 shrink-0 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-3xl font-semibold dark:bg-zinc-800" aria-hidden>
+              {(profile.displayName || profile.handle).slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <h2 className="line-clamp-2 break-words text-xl font-semibold leading-tight">{profile.displayName}</h2>
+            {/* The star rating sits beside the handle. Its link keeps a 44 px target without making the line taller. */}
+            <div className="flex min-w-0 items-center gap-x-2 text-sm text-zinc-500">
+              <p className="min-w-0 truncate">@{profile.handle}</p>
+              <span className="flex shrink-0 items-center text-zinc-600 dark:text-zinc-400">
+                {rep.rating ? (
+                  <Link href={`${base}/reviews`} className="press -my-3 inline-flex min-h-11 items-center" aria-label={`Reviews: ${rep.rating.average.toFixed(1)} out of 5 from ${rep.rating.count} reviews`}>
+                    <Stars average={rep.rating.average} count={rep.rating.count} />
+                  </Link>
+                ) : rep.sold === 0 && rep.granted === 0 ? (
+                  <NewPill />
+                ) : (
+                  <Stars average={null} count={0} />
+                )}
               </span>
-            ) : (
-              <span className="inline-flex min-h-11 items-center">
-                <Stars average={null} count={0} />
-              </span>
-            )}
-            {/* A count of zero would be a link to an empty list, so it is left out. */}
-            {rep.sold > 0 ? (
-              <Link href={`${base}/sold`} className="press inline-flex min-h-11 items-center" aria-label={`${rep.sold} sold, see the list`}>
-                <SoldCount count={rep.sold} />
-              </Link>
-            ) : null}
-            {/* Bought is private: only on your own profile. */}
-            {profile.isSelf && rep.bought > 0 ? (
-              <Link href={`${base}/bought`} className="press inline-flex min-h-11 items-center" aria-label={`${rep.bought} bought, see the list`}>
-                <BoughtCount count={rep.bought} />
-              </Link>
-            ) : null}
+            </div>
+            {/* Badges: tapping one opens its name in place. */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <VerifiedBadge />
+              {profile.idChecked ? <IdCheckedBadge /> : null}
+            </div>
           </div>
-          {rep.granted > 0 ? (
-            <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center text-sm text-zinc-600 underline dark:text-zinc-400">
-              Given free {rep.granted}
-            </Link>
-          ) : null}
-          {reply ? <p className="text-xs text-zinc-500">Typically replies {REPLY_LABEL[reply]}</p> : null}
         </div>
+
+        {profile.bio ? <p className="break-words text-sm leading-snug text-zinc-600 dark:text-zinc-400">{profile.bio}</p> : null}
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{profile.school}</p>
+
         {profile.isSelf ? (
           // Who you follow is private: the count and its list exist only on your own profile.
-          <p className="flex items-center justify-center gap-6 text-sm">
-            <CountLink href={`${base}/followers`} n={profile.followerCount} one="follower" many="followers" />
-            <CountLink href={`${base}/following`} n={profile.followingCount ?? 0} one="following" many="following" />
-          </p>
+          <div className={STAT_ROW}>
+            <Link href={`${base}/followers`} className={STAT_LINK} aria-label={`${profile.followerCount} ${profile.followerCount === 1 ? "follower" : "followers"}, see the list`}>
+              <FollowersCount count={profile.followerCount} />
+            </Link>
+            <Link href={`${base}/following`} className={STAT_LINK} aria-label={`${profile.followingCount ?? 0} following, see the list`}>
+              <FollowingCount count={profile.followingCount ?? 0} />
+            </Link>
+            {soldLink}
+            {boughtLink}
+          </div>
         ) : (
-          <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount} />
+          <FollowControls handle={profile.handle} initial={profile.isFollowing} followerCount={profile.followerCount}>
+            {soldLink}
+          </FollowControls>
         )}
+
+        {rep.granted > 0 || reply ? (
+          <div className="flex flex-wrap items-center gap-x-4 text-sm text-zinc-600 dark:text-zinc-400">
+            {rep.granted > 0 ? (
+              <Link href={`${base}/granted`} className="inline-flex min-h-11 items-center underline">
+                Given free {rep.granted}
+              </Link>
+            ) : null}
+            {reply ? <p className="text-xs text-zinc-500">Typically replies {REPLY_LABEL[reply]}</p> : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-3">
@@ -215,14 +235,5 @@ async function Profile({
         </div>
       )}
     </div>
-  );
-}
-
-/** A count with its label as a 44 px link, including an empty list. */
-function CountLink({ href, n, one, many }: { href: string; n: number; one: string; many: string }) {
-  return (
-    <Link href={href} className="press inline-flex min-h-11 items-center gap-1">
-      <span className="font-semibold">{n}</span> {n === 1 ? one : many}
-    </Link>
   );
 }

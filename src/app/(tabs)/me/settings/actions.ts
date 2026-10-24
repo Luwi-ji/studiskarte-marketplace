@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { refresh } from "next/cache";
 import { requireActiveStudent } from "@/lib/access";
 import { createCalendarToken, revokeCalendarToken } from "@/lib/calendar/token";
-import { changeDisplayName, changeHandle } from "@/lib/identity/profile";
+import { changeBio, changeDisplayName, changeHandle } from "@/lib/identity/profile";
 import { unstable_rethrow } from "next/navigation";
 import { signOut } from "@/app/(public)/sign-in/actions";
 import { deleteAccount } from "@/lib/identity/delete-account";
@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { checkDisplayName, checkHandle, HANDLE_PROBLEM_MESSAGE } from "@/lib/identity/names";
+import { checkBio } from "@/lib/identity/bio";
 
 export type HandleAvailability = { ok: true; handle: string } | { ok: false; message: string };
 
@@ -29,24 +30,28 @@ export async function checkHandleAction(raw: unknown): Promise<HandleAvailabilit
   return taken ? { ok: false, message: "That handle is taken. Choose another." } : { ok: true, handle: checked.handle };
 }
 
-export type SaveProfileResult = { ok: true } | { ok: false; errors: { displayName?: string; handle?: string } };
+export type SaveProfileResult = { ok: true } | { ok: false; errors: { displayName?: string; handle?: string; bio?: string } };
 
 /**
- * Saves what the Edit profile page staged: a new display name and/or handle (the picture goes through /api/me/avatar).
- * Both are checked before either is written, so a bad name does not leave a handle changed.
+ * Saves what the Edit profile page staged: a new display name, handle and/or bio (the picture goes through /api/me/avatar).
+ * All are checked before any is written, so a bad name does not leave a handle changed.
  */
-export async function saveProfileAction(input: { displayName?: string; handle?: string }): Promise<SaveProfileResult> {
+export async function saveProfileAction(input: { displayName?: string; handle?: string; bio?: string }): Promise<SaveProfileResult> {
   const me = await requireActiveStudent();
-  const errors: { displayName?: string; handle?: string } = {};
+  const errors: { displayName?: string; handle?: string; bio?: string } = {};
   if (input.displayName !== undefined) {
     const name = checkDisplayName(String(input.displayName));
     if (!name.ok) errors.displayName = name.message;
+  }
+  if (input.bio !== undefined) {
+    const bio = checkBio(String(input.bio));
+    if (!bio.ok) errors.bio = bio.message;
   }
   if (input.handle !== undefined) {
     const handle = await checkHandleAction(input.handle);
     if (!handle.ok) errors.handle = handle.message;
   }
-  if (errors.displayName || errors.handle) return { ok: false, errors };
+  if (errors.displayName || errors.handle || errors.bio) return { ok: false, errors };
 
   // The handle first: it is the one that can still be refused (taken a moment ago, 30-day wait).
   if (input.handle !== undefined) {
@@ -56,6 +61,10 @@ export async function saveProfileAction(input: { displayName?: string; handle?: 
   if (input.displayName !== undefined) {
     const result = await changeDisplayName(me.id, String(input.displayName));
     if (!result.ok) return { ok: false, errors: { displayName: result.message } };
+  }
+  if (input.bio !== undefined) {
+    const result = await changeBio(me.id, String(input.bio));
+    if (!result.ok) return { ok: false, errors: { bio: result.message } };
   }
   refresh();
   return { ok: true };

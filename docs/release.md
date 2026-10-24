@@ -81,3 +81,10 @@ Beyond 6 hours there is no automatic copy. A weekly `pg_dump` of production to a
 2. If there is a migration: make the `pre-<change>` branch, then `node --env-file=%USERPROFILE%\.studiskarte\production.env node_modules/drizzle-kit/bin.cjs migrate`.
 3. `git push origin main`. CI runs; Vercel deploys the push.
 4. Check `/api/version`, sign in, open the changed page. After adding a scheduled job, call `/api/jobs/run?job=<name>` once with the bearer secret so the workflow does not report it as never run.
+## Testing relist
+
+A post only expires after 30 days. To try Relist on the dev database now:
+
+1. Open the post and copy its id from the address (`/posts/<id>`).
+2. `node scripts/expire-post.mjs <id>` (dev only: reads `.env.local`, refuses production).
+3. Refresh Me > My posts, open the expired post and tap Relist.

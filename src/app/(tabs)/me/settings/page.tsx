@@ -7,6 +7,7 @@ import { hasVisiblePerks } from "@/lib/perks/list";
 import { ROLE_LABEL } from "@/lib/identity/roles";
 import { getObjectStore } from "@/lib/images/store";
 import { AlertsRowValue } from "@/components/alerts-toggle";
+import { AppearanceRowValue } from "@/components/appearance-settings";
 import { currentLegal, LEGAL_SLUGS, LEGAL_TITLES, type LegalSlug } from "@/lib/legal/documents";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { hasCalendarToken } from "@/lib/calendar/token";
@@ -98,6 +99,7 @@ async function Settings() {
           value={<AlertsRowValue publicKey={alertsConfigured() ? (process.env.VAPID_PUBLIC_KEY ?? null) : null} />}
         />
         <SettingsRow href="/me/settings/calendar" icon={<SettingsIcon name="calendar" />} label="Calendar" value={calendarActive ? "Linked" : "Not linked"} />
+        <SettingsRow href="/me/settings/appearance" icon={<SettingsIcon name="sun" />} label="Appearance" value={<AppearanceRowValue />} />
         {activity.map((row) => (
           <SettingsRow key={row.href} href={row.href} icon={<SettingsIcon name={row.icon} />} label={row.label} />
         ))}

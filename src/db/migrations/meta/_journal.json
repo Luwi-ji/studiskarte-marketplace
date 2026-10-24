@@ -281,6 +281,13 @@
       "when": 1792729446596,
       "tag": "0039_school_short_name",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792812544448,
+      "tag": "0040_student_bio",
+      "breakpoints": true
     }
   ]
 }

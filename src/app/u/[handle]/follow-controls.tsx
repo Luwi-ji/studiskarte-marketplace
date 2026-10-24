@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { FollowersCount, STAT_LINK, STAT_ROW } from "@/components/seller-trust";
 import { setFollowAction } from "@/app/social/actions";
 
 /**
- * The follower count and the Follow button, kept together so the count moves
- * with the button at once. If the server refuses, both go back.
+ * The stats row (the follower count, then whatever else `children` adds) and the Follow button, kept together so the
+ * count moves with the button at once. If the server refuses, both go back.
  */
-export function FollowControls({ handle, initial, followerCount }: { handle: string; initial: boolean; followerCount: number }) {
+export function FollowControls({ handle, initial, followerCount, children }: { handle: string; initial: boolean; followerCount: number; children?: ReactNode }) {
   const [following, setFollowing] = useState(initial);
   const [count, setCount] = useState(followerCount);
   const [busy, setBusy] = useState(false);
@@ -32,11 +33,12 @@ export function FollowControls({ handle, initial, followerCount }: { handle: str
 
   return (
     <>
-      <p className="text-sm">
-        <Link href={`/u/${handle}/followers`} className="press inline-flex min-h-11 items-center gap-1">
-          <span className="font-semibold">{count}</span> {count === 1 ? "follower" : "followers"}
+      <div className={STAT_ROW}>
+        <Link href={`/u/${handle}/followers`} className={STAT_LINK} aria-label={`${count} ${count === 1 ? "follower" : "followers"}, see the list`}>
+          <FollowersCount count={count} />
         </Link>
-      </p>
+        {children}
+      </div>
       <div className="w-full">
         <button
           type="button"

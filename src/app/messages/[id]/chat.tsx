@@ -1,11 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { markReadAction, sendMessageAction } from "../actions";
 import { ProductCard } from "@/components/product-card";
 import { Composer } from "../composer";
 import { OfferCardView, type OfferCardData } from "./offer-card";
+import { useLiveThread } from "./use-live-thread";
 import type { ListingCardData } from "./transactions";
 
 export type ChatPictureData = { url: string; thumbUrl: string; width: number; height: number };
@@ -20,8 +20,6 @@ export type ChatMessageData = {
   offer: OfferCardData | null;
 };
 
-// New messages appear within this many seconds while the conversation is open.
-const REFRESH_SECONDS = 5;
 // Within this many pixels of the bottom counts as reading the newest messages.
 const AT_BOTTOM_PX = 120;
 
@@ -38,9 +36,9 @@ const timeFormat = new Intl.DateTimeFormat("en-PH", { hour: "numeric", minute: "
 const dayFormat = new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Manila" });
 
 /**
- * The thread and the message box. The page refreshes itself every few seconds
- * while it is showing, so the other person's replies appear without a reload,
- * and anything they sent is marked read.
+ * The thread and the message box. The page keeps itself current while it is
+ * showing (see use-live-thread.ts), so the other person's replies and steps
+ * appear without a reload, and anything they sent is marked read.
  */
 export function Chat({
   conversationId,
@@ -58,7 +56,6 @@ export function Chat({
   readOnlyReason: string | null;
   otherName: string;
 }) {
-  const router = useRouter();
   const viewer = useRef<HTMLDialogElement>(null);
   const [shown, setShown] = useState<ChatPictureData | null>(null);
   const lastId = messages.at(-1)?.id;
@@ -70,12 +67,8 @@ export function Chat({
   const [seenId, setSeenId] = useState(lastId);
   const behind = lastId !== undefined && seenId !== lastId && !lastMine;
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
-    }, REFRESH_SECONDS * 1000);
-    return () => clearInterval(timer);
-  }, [router]);
+  const pinnedKey = pinned.map((o) => `${o.id}:${o.deal?.activityAt}:${o.deal?.status}`).join("|");
+  const liveStatus = useLiveThread(conversationId, `${lastId}|${unread}|${pinnedKey}`);
 
   // Track whether the reader is at the bottom.
   useEffect(() => {
@@ -97,7 +90,6 @@ export function Chat({
   }, [lastId, lastMine]);
 
   // A reservation changed (a step by either person, a new one): stay at the bottom with it, unless the reader scrolled up.
-  const pinnedKey = pinned.map((o) => `${o.id}:${o.deal?.activityAt}:${o.deal?.status}`).join("|");
   useEffect(() => {
     if (following.current) scrollToBottom();
   }, [pinnedKey]);
@@ -191,6 +183,14 @@ export function Chat({
           >
             New message ↓
           </button>
+        ) : null}
+        {liveStatus ? (
+          <p role="status" className="mb-2 flex min-h-9 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm dark:bg-zinc-800">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 animate-spin fill-none stroke-current motion-reduce:animate-none" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+              <path d="M12 3a9 9 0 1 1-9 9" />
+            </svg>
+            {liveStatus}
+          </p>
         ) : null}
         {readOnlyReason ? (
           <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">{readOnlyReason}</p>

@@ -3,14 +3,13 @@ import { alias } from "drizzle-orm/pg-core";
 import { conversation, conversationListing, deal, dealReport, image, message, messageImage, offer, post, postPhoto, review, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { transactionLabel } from "@/lib/deals/rules";
-import { getReputation, type Reputation } from "@/lib/deals/stats";
+import { shortSchool } from "@/lib/discovery/cards";
 import { NO_SCHOOL_LABEL } from "@/lib/identity/roles";
 import { loadAvailability } from "@/lib/posts/availability";
 import type { Availability } from "@/lib/posts/schema";
 import { asMethod, type HandoverMethod } from "@/lib/deals/handover";
 import { readOnlyReason } from "@/lib/messaging/rules";
 import { isBlockedEitherWay } from "@/lib/safety/block";
-import { getReplyTime, type ReplyBucket } from "@/lib/messaging/response-time";
 import { paymentModesOf, type PaymentMode } from "@/lib/payment";
 import { canReport, isSecured, paymentStage, REPORT_REASONS, type PaymentStage, type ReportReason } from "@/lib/deals/slot";
 
@@ -127,8 +126,8 @@ export type ConversationView = {
   id: string;
   /** The other person, with their student id (for blocking and reporting them). */
   other: Person & { id: string };
-  /** What the thread header says about them: school, stars, units sold, whether a school email was checked. */
-  profile: { school: string; schoolEmailChecked: boolean; rating: Reputation["rating"]; sold: number };
+  /** What the thread header says about them: the school's abbreviation and whether a school email was checked. */
+  profile: { schoolShort: string; schoolEmailChecked: boolean };
   messages: ChatMessage[];
   /** Every listing the two have dealt about, the one with the newest message first. */
   listings: ThreadListing[];
@@ -137,8 +136,6 @@ export type ConversationView = {
   /** Null when the conversation takes new messages; otherwise why not. */
   readOnlyReason: string | null;
   unread: number;
-  /** How fast the other person typically answers; null when there is not enough history. */
-  replyTime: ReplyBucket | null;
 };
 
 const personA = alias(student, "person_a");
@@ -420,21 +417,16 @@ function reviewsOf(rows: ReviewRow[], viewerId: string): NonNullable<DealCard["r
   return { mine: pick(rows.find((r) => r.reviewerId === viewerId)), theirs: pick(rows.find((r) => r.reviewerId !== viewerId)) };
 }
 
-/** The other person's school, stars and units sold, for the thread header. */
+/** The other person's school abbreviation and school-email check, for the thread header. */
 async function otherProfile(studentId: string): Promise<ConversationView["profile"]> {
-  const [[row], reputation] = await Promise.all([
-    getDb()
-      .select({ schoolName: school.name, schoolDomain: student.schoolDomain })
-      .from(student)
-      .leftJoin(school, eq(school.domain, student.schoolDomain))
-      .where(eq(student.id, studentId)),
-    getReputation(studentId),
-  ]);
+  const [row] = await getDb()
+    .select({ schoolName: school.name, schoolDomain: student.schoolDomain, schoolShort: school.shortName })
+    .from(student)
+    .leftJoin(school, eq(school.domain, student.schoolDomain))
+    .where(eq(student.id, studentId));
   return {
-    school: row?.schoolName ?? row?.schoolDomain ?? NO_SCHOOL_LABEL,
+    schoolShort: row?.schoolDomain ? shortSchool(row.schoolName ?? row.schoolDomain, row.schoolShort) : NO_SCHOOL_LABEL,
     schoolEmailChecked: row?.schoolDomain != null,
-    rating: reputation.rating,
-    sold: reputation.sold,
   };
 }
 
@@ -574,7 +566,7 @@ export async function getConversation(viewerId: string, conversationId: string):
   pinned.sort((a, b) => a.deal.activityAt.getTime() - b.deal.activityAt.getTime());
 
   const { other, otherId, readUpTo } = split(row, viewerId);
-  const [replyTime, blocked, profile] = await Promise.all([getReplyTime(otherId), isBlockedEitherWay(viewerId, otherId), otherProfile(otherId)]);
+  const [blocked, profile] = await Promise.all([isBlockedEitherWay(viewerId, otherId), otherProfile(otherId)]);
   return {
     id: row.id,
     other: { ...other, id: otherId },
@@ -594,7 +586,6 @@ export async function getConversation(viewerId: string, conversationId: string):
     pinned,
     readOnlyReason: readOnlyReason({ aStatus: row.aStatus, bStatus: row.bStatus, blocked }),
     unread: newest.filter((m) => m.senderId !== viewerId && m.id > readUpTo).length,
-    replyTime,
     profile,
   };
 }

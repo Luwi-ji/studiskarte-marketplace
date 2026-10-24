@@ -78,11 +78,16 @@ async function Preview({ params }: { params: PageProps<"/s/[id]">["params"] }) {
         <p className={`text-3xl font-bold ${wishlist ? "text-amber-700 dark:text-amber-300" : "text-brand-text"}`}>{card.price}</p>
         <h1 className="text-xl font-semibold leading-snug [overflow-wrap:anywhere]">{card.title}</h1>
       </div>
-      <div className="flex flex-col gap-1">
-        <Link href={`/posts/${parsed.data}`} className="flex min-h-12 w-full items-center justify-center rounded-lg bg-brand px-3 py-3 text-center text-base font-semibold text-white">
-          Open in Studiskarte
+      <div className="flex flex-col gap-3">
+        <Link href={`/sign-up?next=${encodeURIComponent(`/posts/${parsed.data}`)}`} className="flex min-h-12 w-full items-center justify-center rounded-lg bg-brand px-3 py-3 text-center text-base font-semibold text-white">
+          Sign up to view
         </Link>
-        <CreateAccount />
+        <Link
+          href={`/sign-in?next=${encodeURIComponent(`/posts/${parsed.data}`)}`}
+          className="flex min-h-12 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-3 text-center text-base font-medium text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        >
+          I have an account
+        </Link>
       </div>
     </Shell>
   );

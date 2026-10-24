@@ -49,7 +49,7 @@ export function SignInForm({ google, googleFailed, next }: { google: boolean; go
       ) : null}
       <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
         New here?{" "}
-        <Link href="/sign-up" className={inlineLinkClass}>
+        <Link href={next ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up"} className={inlineLinkClass}>
           Create an account
         </Link>
       </p>

@@ -1,0 +1,2 @@
+ALTER TABLE "student" ADD COLUMN "bio" text;--> statement-breakpoint
+ALTER TABLE "student" ADD CONSTRAINT "student_bio_length" CHECK ("student"."bio" is null or (char_length("student"."bio") between 1 and 160 and "student"."bio" !~ '[\r\n]'));

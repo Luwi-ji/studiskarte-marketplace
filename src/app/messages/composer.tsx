@@ -102,7 +102,7 @@ export function Composer({
                 type="button"
                 onClick={() => setPhotos((current) => current.filter((p) => p.id !== photo.id))}
                 aria-label="Remove photo"
-                className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white"
+                className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white before:absolute before:-inset-2 before:content-['']"
               >
                 ×
               </button>

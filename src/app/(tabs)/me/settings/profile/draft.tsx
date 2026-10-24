@@ -3,11 +3,14 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { canGoBackInApp } from "@/components/page-header";
+import { checkBio } from "@/lib/identity/bio";
 
 export const EDIT_PROFILE = "/me/settings/profile";
 
 export type ProfileInitial = {
   displayName: string;
+  /** The saved bio, or "" when there is none. */
+  bio: string;
   handle: string;
   pictureUrl: string | null;
   /** When the handle may be changed again, already formatted, or null if it may be changed now. */
@@ -18,13 +21,16 @@ type Draft = {
   initial: ProfileInitial;
   /** What the student has staged (or the saved value when nothing is staged). Nothing here is on the server until Save. */
   name: string;
+  bio: string;
   handle: string;
   /** The staged picture and a local link to show it by. */
   picture: { blob: Blob; previewUrl: string } | null;
   setName: (name: string) => void;
+  setBio: (bio: string) => void;
   setHandle: (handle: string) => void;
   setPicture: (blob: Blob | null) => void;
   nameChanged: boolean;
+  bioChanged: boolean;
   handleChanged: boolean;
   dirty: boolean;
 };
@@ -36,6 +42,12 @@ export function normalizeHandle(raw: string): string {
   return raw.trim().replace(/^@/, "").toLowerCase();
 }
 
+/** The bio as the server will store it ("" for none); an over-long one stays as typed, so it still counts as changed. */
+function cleanBioText(raw: string): string {
+  const checked = checkBio(raw);
+  return checked.ok ? (checked.bio ?? "") : raw;
+}
+
 /**
  * Holds the Edit profile page's unsaved changes while the student moves between it and the Display name and Handle
  * pages. It lives in the layout of /me/settings/profile, so it survives those navigations and is gone when the student
@@ -43,6 +55,7 @@ export function normalizeHandle(raw: string): string {
  */
 export function DraftProvider({ initial, children }: { initial: ProfileInitial; children: ReactNode }) {
   const [stagedName, setName] = useState<string | null>(null);
+  const [stagedBio, setBio] = useState<string | null>(null);
   const [stagedHandle, setHandle] = useState<string | null>(null);
   const [picture, setPictureState] = useState<Draft["picture"]>(null);
   const previewUrl = useRef<string | null>(null);
@@ -63,10 +76,13 @@ export function DraftProvider({ initial, children }: { initial: ProfileInitial; 
   const value = useMemo<Draft>(() => {
     const name = stagedName ?? initial.displayName;
     const handle = stagedHandle ?? initial.handle;
+    const bio = stagedBio ?? initial.bio;
     const nameChanged = name.trim() !== initial.displayName;
     const handleChanged = normalizeHandle(handle) !== initial.handle;
-    return { initial, name, handle, picture, setName, setHandle, setPicture, nameChanged, handleChanged, dirty: nameChanged || handleChanged || picture !== null };
-  }, [initial, stagedName, stagedHandle, picture, setPicture]);
+    // The server stores the cleaned text, so only a change after cleaning counts.
+    const bioChanged = cleanBioText(bio) !== initial.bio;
+    return { initial, name, handle, bio, picture, setName, setHandle, setBio, setPicture, nameChanged, handleChanged, bioChanged, dirty: nameChanged || handleChanged || bioChanged || picture !== null };
+  }, [initial, stagedName, stagedHandle, stagedBio, picture, setPicture]);
 
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
 }

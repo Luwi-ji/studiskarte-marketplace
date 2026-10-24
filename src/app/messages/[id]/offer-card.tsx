@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { acceptOfferAction, cancelDealAction, declineOfferAction, withdrawOfferAction } from "@/app/deals/actions";
 import { ProductCard } from "@/components/product-card";
@@ -8,6 +7,7 @@ import { formatPrice } from "@/lib/posts/format";
 import { CalendarActions } from "./calendar-actions";
 import { HandoverPanel, type DealCardData } from "./handover-panel";
 import type { PostCardData } from "./transactions";
+import { useSettledRefresh } from "./use-settled-refresh";
 
 export type OfferCardData = {
   id: string;
@@ -70,7 +70,6 @@ function updatedAgo(iso: string, now = Date.now()): string {
  */
 export function OfferCardView({ offer, responderName, placement, dealPinned = false }: Props) {
   const { viewerIsOwner } = offer;
-  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [busy, setBusy] = useState<"accept" | "decline" | "withdraw" | "cancel" | null>(null);
@@ -81,6 +80,13 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
   const [done, setDone] = useState<string | null>(null);
   const status = offer.status !== "pending" ? offer.status : (done ?? "pending");
 
+  // The other cards read the new state as soon as the refreshed page arrives; the buttons stay busy until then.
+  const refreshAndSettle = useSettledRefresh(() => {
+    setBusy(null);
+    setConfirming(false);
+    setConfirmingCancel(false);
+  });
+
   async function run(kind: "accept" | "decline" | "withdraw" | "cancel") {
     setBusy(kind);
     setError(null);
@@ -89,19 +95,21 @@ export function OfferCardView({ offer, responderName, placement, dealPinned = fa
         kind === "cancel"
           ? await cancelDealAction(offer.deal?.id)
           : await (kind === "accept" ? acceptOfferAction : kind === "decline" ? declineOfferAction : withdrawOfferAction)(offer.id);
-      if (!result.ok) setError(result.error);
-      else {
-        if (kind === "cancel") setDealDone("cancelled");
-        else setDone(kind === "accept" ? "accepted" : kind === "decline" ? "declined" : "withdrawn");
-        // The Transactions bar and the other cards read the new state now, not at the next refresh.
-        router.refresh();
+      if (!result.ok) {
+        setError(result.error);
+        setBusy(null);
+        setConfirming(false);
+        setConfirmingCancel(false);
+        return;
       }
-      setConfirming(false);
-      setConfirmingCancel(false);
+      if (kind === "cancel") setDealDone("cancelled");
+      else setDone(kind === "accept" ? "accepted" : kind === "decline" ? "declined" : "withdrawn");
+      refreshAndSettle();
     } catch {
       setError("Could not do that. Check your connection and try again.");
-    } finally {
       setBusy(null);
+      setConfirming(false);
+      setConfirmingCancel(false);
     }
   }
 

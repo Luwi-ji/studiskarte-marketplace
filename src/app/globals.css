@@ -20,7 +20,7 @@
   /* Border of a text field, select or text area: 3:1 against the page (WCAG 1.4.11), where zinc-300 is only 1.5:1. */
   --field-border: #8592a8;
   /* Native controls (radios, checkboxes, scrollbars, date pickers) follow the phone's light or dark setting. */
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -52,14 +52,16 @@
   --color-zinc-950: #0b101a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b101a;
-    --foreground: #e8edf5;
-    --zinc-500: #8c97aa;
-    --field-border: #5d6b83;
-    --brand-text: #6aa5ff;
-  }
+/* Dark follows the `dark` class on <html>, set before paint from the saved choice or the phone's setting (see the inline script in layout.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root.dark {
+  --background: #0b101a;
+  --foreground: #e8edf5;
+  --zinc-500: #8c97aa;
+  --field-border: #5d6b83;
+  --brand-text: #6aa5ff;
+  color-scheme: dark;
 }
 
 html {
@@ -76,6 +78,8 @@ body {
   touch-action: manipulation;
   /* The page, not the browser chrome, handles pull past the edges. */
   overscroll-behavior-y: none;
+  /* Pull-to-refresh opens a gap at the top (set by pull-to-refresh.tsx). */
+  padding-top: var(--ptr, 0px);
 }
 
 /* Bottom tab bar height, used to keep content and sticky bars clear of it. */
@@ -302,5 +306,13 @@ dialog[data-slide="left"][open] {
 @media (prefers-reduced-motion: reduce) {
   dialog[data-slide][open] {
     animation: none;
+  }
+}
+
+/* A confirmation step slides in from the right inside the same bar or sheet. */
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
   }
 }

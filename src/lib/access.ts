@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/identity/auth";
-import { signInUrl } from "@/lib/identity/return-to";
+import { signInUrl, withReturnTo } from "@/lib/identity/return-to";
 import type { Role } from "@/lib/identity/roles";
 import { currentLegal, needsTerms } from "@/lib/legal/documents";
 
@@ -55,8 +55,8 @@ export function hasFinishedSignUp(current: SignedInStudent): current is ActiveSt
 export async function requireActiveStudent(returnTo?: string): Promise<ActiveStudent> {
   const current = await getSignedInStudent();
   if (!current) redirect(signInUrl(returnTo ?? null));
-  if (!hasFinishedSignUp(current)) redirect("/welcome");
-  if (current.mustAcceptTerms) redirect("/accept-terms");
+  if (!hasFinishedSignUp(current)) redirect(withReturnTo("/welcome", returnTo));
+  if (current.mustAcceptTerms) redirect(withReturnTo("/accept-terms", returnTo));
   return current;
 }
 

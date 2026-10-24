@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
 import { completeSignUp } from "@/lib/identity/profile";
 import { setFirstPassword } from "@/lib/identity/password";
+import { safeReturnTo, withReturnTo } from "@/lib/identity/return-to";
 import { parseSchoolRole } from "@/lib/identity/roles";
 
 export type WelcomeState = {
@@ -19,7 +20,7 @@ export async function finishSignUp(_prev: WelcomeState, formData: FormData): Pro
   };
   const me = await getSignedInStudent();
   if (!me) redirect("/sign-in");
-  if (me.handle) redirect("/");
+  if (me.handle) redirect(safeReturnTo(formData.get("next")) ?? "/");
 
   // The box carries the version that was on screen; the server checks it is still the current one.
   const shown = formData.get("terms");
@@ -30,7 +31,7 @@ export async function finishSignUp(_prev: WelcomeState, formData: FormData): Pro
     ageConfirmed: formData.get("age") === "on",
   });
   if (!result.ok) return { values, error: { field: result.field, message: result.message } };
-  redirect("/");
+  redirect(safeReturnTo(formData.get("next")) ?? "/");
 }
 
 export type PasswordState = { error?: string };
@@ -43,5 +44,5 @@ export async function choosePassword(_prev: PasswordState, formData: FormData): 
   if (password !== String(formData.get("confirm") ?? "")) return { error: "The two passwords are not the same." };
   const result = await setFirstPassword(password, await headers());
   if (!result.ok) return { error: result.message };
-  redirect("/welcome");
+  redirect(withReturnTo("/welcome", formData.get("next")));
 }

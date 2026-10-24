@@ -11,7 +11,7 @@ const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 
 /** `terms` is the version of the legal documents to accept, or null when there are none. `askRole` is true for someone with a school email. */
-export function WelcomeForm({ terms, askRole }: { terms: string | null; askRole: boolean }) {
+export function WelcomeForm({ terms, askRole, next }: { terms: string | null; askRole: boolean; next: string | null }) {
   const [state, action, pending] = useActionState<WelcomeState, FormData>(finishSignUp, {
     values: { handle: "", displayName: "" },
   });
@@ -24,6 +24,7 @@ export function WelcomeForm({ terms, askRole }: { terms: string | null; askRole:
 
   return (
     <form action={action} className="flex flex-col gap-5">
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       {askRole ? (
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium">I am a</span>
