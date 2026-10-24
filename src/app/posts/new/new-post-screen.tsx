@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
+import { IdCheckReminder } from "@/components/id-check-reminder";
 import { requireActiveStudent } from "@/lib/access";
+import { getDb } from "@/lib/db";
 import { SHOWCASE_STUDENTS_ONLY } from "@/lib/posts/audience";
 import { listCategories } from "@/lib/posts/categories";
 import type { PostKind } from "@/lib/posts/schema";
+import { showcaseStanding } from "@/lib/posts/showcase-limit";
 import { PostFormSkeleton } from "../form-skeleton";
 import { PostForm } from "../post-form";
 import { prefillFrom } from "./prefill";
@@ -43,6 +46,12 @@ async function Guarded({ kind, searchParams }: { kind: PostKind; searchParams: P
     );
   }
   const prefill = prefillFrom(await searchParams);
+  const standing = kind === "showcase" ? await showcaseStanding(getDb(), me.id) : "off";
   // A new key starts a fresh form even when Next.js has kept an earlier one alive.
-  return <PostForm key={prefill ? JSON.stringify(prefill) : "blank"} mode="create" kind={kind} categories={await listCategories()} prefill={prefill} studentId={me.id} />;
+  return (
+    <>
+      <IdCheckReminder standing={standing} className="mb-5" />
+      <PostForm key={prefill ? JSON.stringify(prefill) : "blank"} mode="create" kind={kind} categories={await listCategories()} prefill={prefill} studentId={me.id} />
+    </>
+  );
 }

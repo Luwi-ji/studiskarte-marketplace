@@ -15,6 +15,7 @@ import {
   writeDetails,
   type SaveResult,
 } from "@/lib/posts/create";
+import { SHOWCASE_BLOCK_MESSAGE, showcaseBlock } from "@/lib/posts/showcase-limit";
 import { manilaToday, OPEN_POSTS_MAX, parsePostEdit, type Availability } from "@/lib/posts/schema";
 
 /** A listing lasts 30 days from when it is listed (or relisted). */
@@ -54,7 +55,7 @@ export async function updatePost(args: {
         if (!me || me.status === "deleted") return null;
       }
       const [current] = await tx
-        .select({ id: post.id })
+        .select({ id: post.id, kind: post.kind })
         .from(post)
         .where(and(eq(post.id, args.postId), eq(post.ownerId, args.ownerId), isNull(post.ownerDeletedAt), inArray(post.status, relist ? ["expired"] : ["open", "reserved"])))
         .for("update");
@@ -67,6 +68,12 @@ export async function updatePost(args: {
           .from(post)
           .where(and(eq(post.ownerId, args.ownerId), eq(post.status, "open")));
         if (open >= OPEN_POSTS_MAX) return "limit" as const;
+        // Relisting a showcase adds an open one: the same ID-check rule as posting a new showcase.
+        if (current.kind === "showcase") {
+          const [me] = await tx.select({ checkedAt: student.idCheckedAt, expiresAt: student.idCheckExpiresAt }).from(student).where(eq(student.id, args.ownerId));
+          const block = me ? await showcaseBlock(tx, args.ownerId, me) : null;
+          if (block) return { showcase: block };
+        }
       }
       const photoIds = data.photos.map((p) => p.id);
       if (!(await checkPhotos(tx, args.ownerId, photoIds, args.postId))) return "photos" as const;
@@ -113,6 +120,9 @@ export async function updatePost(args: {
     }
     if (outcome === "limit") {
       return { ok: false, errors: { form: `You can have at most ${OPEN_POSTS_MAX} open posts. Withdraw one first.` } };
+    }
+    if (!Array.isArray(outcome) && typeof outcome === "object") {
+      return { ok: false, errors: { form: SHOWCASE_BLOCK_MESSAGE[outcome.showcase] } };
     }
     removed = outcome;
   } catch (error) {

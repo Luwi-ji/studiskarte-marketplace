@@ -5,7 +5,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { idConsent, idImageView, idVerification, image, notification, post, rateLimitEvent, student } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
-import { createPost, type SaveResult, SHOWCASE_NEEDS_ID_CHECK } from "@/lib/posts/create";
+import { createPost, type SaveResult } from "@/lib/posts/create";
+import { SHOWCASE_NEEDS_ID_CHECK } from "@/lib/posts/showcase-limit";
 import type { NewPostInput } from "@/lib/posts/schema";
 import { CHECK_VALID_DAYS, MAX_REJECTED_CHECKS, OPEN_CHECK_KEEP_DAYS } from "@/lib/verification/config";
 import { ID_CONSENT_VERSION } from "@/lib/verification/consent";

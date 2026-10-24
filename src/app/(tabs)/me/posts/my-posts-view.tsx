@@ -5,9 +5,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { bulkPostsAction } from "@/app/posts/bulk-actions";
 import { PageHeader } from "@/components/page-header";
 import { BackToTop } from "@/components/back-to-top";
+import { IdCheckReminder } from "@/components/id-check-reminder";
 import { PendingResults, useNavigate, usePendingHref } from "@/components/pending-nav";
 import { NewPostButton } from "@/components/post-chooser";
 import { formatPrice, kindLabel } from "@/lib/posts/format";
+import type { ShowcaseStanding } from "@/lib/posts/showcase-limit";
 import {
   BULK_ELIGIBLE,
   OWN_STATUS_LABEL,
@@ -51,6 +53,8 @@ type Props = {
   expiredKeepDays: number;
   /** Only students can offer things; anyone can look for them. */
   canSell: boolean;
+  /** Where an unverified student stands on showcases and the ID check, for a reminder. */
+  idStanding: ShowcaseStanding;
 };
 
 const NO_ANSWER = "Could not reach the app. If it was just updated, reload the page and try again.";
@@ -244,7 +248,7 @@ function summarize(action: BulkAction, results: { ok: boolean; reason?: string }
   return `${head} ${failed} could not be changed: ${reasons}.`;
 }
 
-export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKeepDays, canSell }: Props) {
+export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKeepDays, canSell, idStanding }: Props) {
   const shown = useShownView(view);
   const strip = useScrollToCurrent(shown.status);
   const [selecting, setSelecting] = useState(false);
@@ -416,6 +420,7 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
               </section>
             </>
           ) : null}
+          <IdCheckReminder standing={idStanding} className="my-1" />
 
           <PendingResults skeleton={<OwnPostsSkeleton />} className="pt-1">
             {rows.length === 0 ? (
