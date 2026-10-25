@@ -3,6 +3,23 @@ import { describe, expect, it } from "vitest";
 import { scrubEvent } from "@/lib/sentry-options";
 
 describe("scrubEvent", () => {
+  it("hides a shop's report token wherever the link can appear", () => {
+    const link = "/partner/AbCdEfGhIjKlMnOpQrStUvWxYz012345";
+    const event = {
+      request: { url: `https://studiskarte.com${link}` },
+      transaction: `GET ${link}`,
+      message: `Failed on ${link}`,
+      exception: { values: [{ value: `Not found: ${link}` }] },
+      breadcrumbs: [{ message: `navigate ${link}` }],
+    } as unknown as ErrorEvent;
+    const clean = scrubEvent(event);
+    expect(clean.request?.url).toBe("https://studiskarte.com/partner/[token]");
+    expect(clean.transaction).toBe("GET /partner/[token]");
+    expect(clean.message).toBe("Failed on /partner/[token]");
+    expect(clean.exception?.values?.[0].value).toBe("Not found: /partner/[token]");
+    expect(clean.breadcrumbs?.[0].message).toBe("navigate /partner/[token]");
+  });
+
   it("removes identity, cookies, headers, bodies and query strings", () => {
     const event = {
       user: { id: "u1", email: "ana@school.edu.ph", ip_address: "1.2.3.4" },

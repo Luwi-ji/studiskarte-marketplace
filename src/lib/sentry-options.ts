@@ -2,6 +2,11 @@ import type { ErrorEvent } from "@sentry/nextjs";
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
+/** A shop's private report link carries its secret in the path; the secret never goes into an error report. */
+export function redactPartnerLinks(text: string): string {
+  return text.replace(/\/partner\/[A-Za-z0-9_-]{32}/g, "/partner/[token]");
+}
+
 /** Error reports must never carry an email address: it can sit inside an error message or a URL. */
 function redact(text: string): string {
   return text.replace(EMAIL, "[email]");
@@ -19,13 +24,15 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     delete event.request.headers;
     delete event.request.data;
     delete event.request.query_string;
+    if (event.request.url) event.request.url = redactPartnerLinks(event.request.url);
   }
-  if (event.message) event.message = redact(event.message);
+  if (event.transaction) event.transaction = redactPartnerLinks(event.transaction);
+  if (event.message) event.message = redactPartnerLinks(redact(event.message));
   for (const exception of event.exception?.values ?? []) {
-    if (exception.value) exception.value = redact(exception.value);
+    if (exception.value) exception.value = redactPartnerLinks(redact(exception.value));
   }
   for (const crumb of event.breadcrumbs ?? []) {
-    if (crumb.message) crumb.message = redact(crumb.message);
+    if (crumb.message) crumb.message = redactPartnerLinks(redact(crumb.message));
     delete crumb.data;
   }
   return event;
