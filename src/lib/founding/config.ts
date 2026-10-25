@@ -5,6 +5,6 @@
  * src/lib/landing/content.ts so the landing page stops promising it.
  */
 export const FOUNDING_LIMIT = 100;
-export const FOUNDING_OPENS_AT = new Date("2026-10-26T00:00:00+08:00");
+export const FOUNDING_OPENS_AT = new Date("2026-10-25T00:00:00+08:00");
 /** Any stable number: the lock that keeps two sign-ups at once from taking the last place twice. */
 export const FOUNDING_LOCK_KEY = 4_100_100;
