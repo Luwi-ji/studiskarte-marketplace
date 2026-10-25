@@ -143,7 +143,7 @@ export default function LandingPage() {
                 <p>Ako si {FOUNDER.name}, o {FOUNDER.nickname}. I&apos;m a student in Manila, and I sell empanada, pancakes and ice cream to support my studies.</p>
                 <p>Here is what kept happening. I posted what I was selling in a school group, then waited for the admin to approve it. Sometimes it went up late, and by then newer posts had pushed it down before my classmates ever saw it.</p>
                 <p>I had food to sell and students who might have wanted it. They just never met. So I built the place I wished existed.</p>
-                <p>On Studiskarte your listing goes live right away, students at your school can see it, and you agree a safe meet-up in one chat. Be one of the first sellers. Tara, mag-post na tayo.</p>
+                <p>On Studiskarte your listing goes live right away, students at your school can see it, and you agree a safe meet-up in one chat. Be one of the first sellers. Simulan na natin.</p>
                 <a href={FOUNDER.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-base font-semibold underline">
                   Follow the journey: @{FOUNDER.instagramHandle} on Instagram<span className="sr-only"> (opens in a new tab)</span>
                 </a>
@@ -271,7 +271,7 @@ export default function LandingPage() {
 
         <section className="bg-brand text-white">
           <div className={`${WRAP} flex flex-col items-center gap-5 py-14 text-center`}>
-            <h2 className="text-3xl font-bold tracking-tight">Tara, mag-post na!</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Simulan na ang diskarte mo.</h2>
             {FOUNDING_SELLER_ENABLED ? (
               <p className="max-w-md text-lg text-white/90">Be one of the first 100 students to join and get a Founding Seller badge on your profile.</p>
             ) : null}
