@@ -1087,3 +1087,19 @@ export const perkSuggestion = pgTable(
   },
   (t) => [check("perk_suggestion_shop_length", sql`char_length(${t.shop}) between 2 and 80 and ${t.shop} !~ '[\\r\\n]'`)],
 );
+
+// A "Message us" note from the landing page: kept until the owner has answered it and deletes it in the admin Inbox.
+export const contactMessage = pgTable(
+  "contact_message",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name"),
+    email: text("email").notNull(),
+    message: text("message").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("contact_message_lengths", sql`char_length(${t.email}) <= 120 and char_length(${t.message}) between 1 and 4000 and (${t.name} is null or char_length(${t.name}) <= 60)`),
+    index("contact_message_created_idx").on(t.createdAt),
+  ],
+);

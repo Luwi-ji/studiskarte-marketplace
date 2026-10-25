@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useAction } from "@/app/safety/use-action";
 import { createPerkAction, updatePerkAction } from "./actions";
+import { ErrorLine, Field, field, primary, quiet } from "./ui";
 
-const field = "h-11 w-full min-w-0 rounded-lg border border-zinc-300 bg-transparent px-3 text-base dark:border-zinc-700";
-const button = "h-11 shrink-0 rounded-lg bg-brand px-4 text-sm font-medium text-white disabled:opacity-50";
+const digits = (value: string) => value.replace(/\D/g, "");
 
-/** Adds a perk (live at once) to one partner. */
-export function AddPerkForm({ partnerId }: { partnerId: string }) {
+/** Adds a perk (live at once) to one shop. Closed it is one button. */
+export function AddPerkForm({ partnerId, first }: { partnerId: string; first: boolean }) {
   const step = useAction();
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [terms, setTerms] = useState("");
   const [limit, setLimit] = useState("");
@@ -17,9 +18,16 @@ export function AddPerkForm({ partnerId }: { partnerId: string }) {
   const [total, setTotal] = useState("");
   const [endsAt, setEndsAt] = useState("");
 
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className={first ? primary : quiet}>
+        Add a perk
+      </button>
+    );
+  }
   return (
     <form
-      className="flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800"
+      className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800"
       onSubmit={(event) => {
         event.preventDefault();
         void step.run(
@@ -30,37 +38,52 @@ export function AddPerkForm({ partnerId }: { partnerId: string }) {
             setLimit("");
             setTotal("");
             setEndsAt("");
+            setOpen(false);
           },
         );
       }}
     >
-      <h3 className="text-sm font-semibold">Add a perk</h3>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title, e.g. Buy 5 get 1 free" aria-label="Perk title" maxLength={120} className={field} required />
-      <textarea value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="Terms the student sees" aria-label="Terms" maxLength={500} rows={2} className={`${field} h-auto py-2`} required />
-      <div className="grid grid-cols-2 gap-2">
-        <input value={limit} onChange={(e) => setLimit(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Limit per student" aria-label="Limit per student" className={field} />
-        <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Limit period" className={field} disabled={limit === ""}>
-          <option value="day">a day</option>
-          <option value="week">a week</option>
-          <option value="month">a month</option>
-          <option value="ever">in total</option>
-        </select>
-        <input value={total} onChange={(e) => setTotal(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Total quantity" aria-label="Total quantity" className={field} />
-        <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} aria-label="Ends on" className={field} />
+      <h3 className="text-sm font-semibold">New perk</h3>
+      <Field label="Title" hint="For example “Buy 5 get 1 free”.">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} className={field} required />
+      </Field>
+      <Field label="Terms" hint="What the cashier should know. The student reads this too.">
+        <textarea value={terms} onChange={(e) => setTerms(e.target.value)} maxLength={500} rows={2} className={`${field} h-auto py-2`} required />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Uses per student" hint="Empty = no limit.">
+          <input value={limit} onChange={(e) => setLimit(digits(e.target.value))} inputMode="numeric" className={field} />
+        </Field>
+        <Field label="Per">
+          <select value={period} onChange={(e) => setPeriod(e.target.value)} className={field} disabled={limit === ""}>
+            <option value="day">day</option>
+            <option value="week">week</option>
+            <option value="month">month</option>
+            <option value="ever">forever</option>
+          </select>
+        </Field>
+        <Field label="Total available" hint="Empty = unlimited.">
+          <input value={total} onChange={(e) => setTotal(digits(e.target.value))} inputMode="numeric" className={field} />
+        </Field>
+        <Field label="Ends on" hint="Empty = no end date.">
+          <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className={field} />
+        </Field>
       </div>
-      {step.error ? (
-        <p role="alert" className="text-sm text-red-600">
-          {step.error}
-        </p>
-      ) : null}
-      <button type="submit" disabled={step.busy} className={button}>
-        {step.busy ? "Adding…" : "Add perk"}
-      </button>
+      <ErrorLine message={step.error} />
+      <div className="flex gap-2">
+        <button type="submit" disabled={step.busy} className={`${primary} flex-1`}>
+          {step.busy ? "Adding…" : "Add perk"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className={quiet}>
+          Cancel
+        </button>
+      </div>
+      <p className="text-xs text-zinc-500">The limit can’t be changed later. To change it, end this perk and add a new one.</p>
     </form>
   );
 }
 
-/** Edit a perk's title, terms, total quantity and end date. */
+/** Edit a perk's title, terms, total available and end date. */
 export function EditPerkForm({ perkId, title: t, terms: tm, totalQuantity, endsAt: end }: { perkId: string; title: string; terms: string; totalQuantity: number | null; endsAt: string }) {
   const step = useAction();
   const [title, setTitle] = useState(t);
@@ -70,24 +93,28 @@ export function EditPerkForm({ perkId, title: t, terms: tm, totalQuantity, endsA
   const unchanged = title === t && terms === tm && total === (totalQuantity === null ? "" : String(totalQuantity)) && endsAt === end;
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();
         void step.run(() => updatePerkAction(perkId, { title, terms, totalQuantity: total, endsAt }));
       }}
     >
-      <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Perk title" maxLength={120} className={field} required />
-      <textarea value={terms} onChange={(e) => setTerms(e.target.value)} aria-label="Terms" maxLength={500} rows={2} className={`${field} h-auto py-2`} required />
-      <div className="grid grid-cols-2 gap-2">
-        <input value={total} onChange={(e) => setTotal(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Total quantity" aria-label="Total quantity" className={field} />
-        <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} aria-label="Ends on" className={field} />
+      <Field label="Title">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} className={field} required />
+      </Field>
+      <Field label="Terms">
+        <textarea value={terms} onChange={(e) => setTerms(e.target.value)} maxLength={500} rows={2} className={`${field} h-auto py-2`} required />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Total available" hint="Empty = unlimited.">
+          <input value={total} onChange={(e) => setTotal(digits(e.target.value))} inputMode="numeric" className={field} />
+        </Field>
+        <Field label="Ends on" hint="Empty = no end date.">
+          <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className={field} />
+        </Field>
       </div>
-      {step.error ? (
-        <p role="alert" className="text-sm text-red-600">
-          {step.error}
-        </p>
-      ) : null}
-      <button type="submit" disabled={step.busy || unchanged} className={button}>
+      <ErrorLine message={step.error} />
+      <button type="submit" disabled={step.busy || unchanged} className={primary}>
         {step.busy ? "Saving…" : "Save"}
       </button>
     </form>
