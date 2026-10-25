@@ -3,7 +3,6 @@ import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { requireActiveStudent } from "@/lib/access";
 import { getOwnProfile } from "@/lib/identity/profile";
-import { hasVisiblePerks } from "@/lib/perks/list";
 import { ROLE_LABEL } from "@/lib/identity/roles";
 import { getObjectStore } from "@/lib/images/store";
 import { AlertsRowValue } from "@/components/alerts-toggle";
@@ -14,6 +13,9 @@ import { hasCalendarToken } from "@/lib/calendar/token";
 import { verificationEnabled } from "@/lib/verification/config";
 import { getMyCheck, type MyCheck } from "@/lib/verification/service";
 import { ProfileAvatar, SettingsSection, SettingsIcon, SettingsRow } from "@/components/settings-list";
+import { SettingsDrawer } from "@/components/settings-drawer";
+import { ReplayTourRow } from "@/components/onboarding-tour";
+import { tourKindFor } from "@/lib/tour/steps";
 import { SocialLinks } from "@/components/social-links";
 import { FACEBOOK_REVIEWS_URL, HELP_PATHS } from "@/lib/support/config";
 import { SettingsSkeleton } from "@/components/list-skeletons";
@@ -63,10 +65,8 @@ async function Settings() {
   const idCheck = verificationEnabled() ? await getMyCheck(me.id) : null;
   const legal = currentLegal();
 
-  const hasPerks = await hasVisiblePerks(me.schoolDomain);
-  // The tab bar shows Perks when the school has any, and My posts otherwise; the other one is a row here.
   const activity = [
-    hasPerks ? { href: "/me/posts", label: "My posts", icon: "grid" as const } : { href: "/perks", label: "Perks", icon: "gift" as const },
+    { href: "/me/posts", label: "My posts", icon: "grid" as const },
     { href: `/u/${profile.handle}`, label: "My profile", icon: "user" as const },
     { href: "/me/hearts", label: "Hearted posts", icon: "heart" as const },
     { href: "/notifications", label: "Notifications", icon: "bell" as const },
@@ -75,9 +75,28 @@ async function Settings() {
     ...(me.isAdmin ? [{ href: "/admin", label: "Admin", icon: "tool" as const }] : []),
   ];
 
+  const verified = me.role !== "visitor";
   return (
     <>
       <SavedToast />
+      {/* The most important thing to do comes first: it unlocks selling and earns a badge. */}
+      <SettingsSection label="Verification" note={verified ? undefined : "Guests can buy and post Wishlists. A school email makes you a student, who can also sell."}>
+        {verified ? (
+          <SettingsRow icon={<SettingsIcon name="school" />} label="School email" description="Confirmed. It is never shown to others." value="Verified" />
+        ) : (
+          <SettingsRow href="/me/settings/school-email" icon={<SettingsIcon name="school" />} label="Verify your school email" description="Become a student: sell, and earn the School email badge." value="Not verified" />
+        )}
+        {idCheck ? (
+          <SettingsRow
+            href="/me/verify"
+            icon={<SettingsIcon name="shield" />}
+            label="ID check"
+            description={idCheck.checked ? undefined : "Optional. Adds an ID checked badge and lifts the selling limits."}
+            value={idCheckState(idCheck)}
+          />
+        ) : null}
+      </SettingsSection>
+
       <SettingsSection label="Your account">
         <SettingsRow
           href="/me/settings/profile"
@@ -86,14 +105,20 @@ async function Settings() {
           label={<span className="font-semibold">{profile.displayName}</span>}
           description={`@${profile.handle} · Edit profile`}
         />
-        {me.role === "visitor" ? (
-          <SettingsRow href="/me/settings/school-email" icon={<SettingsIcon name="school" />} label="Become a student" description="Add your school email to join your school." />
-        ) : (
-          <SettingsRow icon={<SettingsIcon name="school" />} label={ROLE_LABEL[me.role]} description={`${profile.school}. Set from your school email, which is never shown to others.`} />
-        )}
+        <SettingsRow icon={<SettingsIcon name="user" />} label={ROLE_LABEL[me.role]} description={me.role === "visitor" ? "Signed up with a personal email." : `${profile.school}. Set from your school email.`} />
       </SettingsSection>
 
-      <SettingsSection label="How you use Studiskarte">
+      <SettingsSection label="Perks">
+        <SettingsRow href="/perks" icon={<SettingsIcon name="gift" />} label="Student perks" description="Discounts from shops for students." />
+      </SettingsSection>
+
+      <SettingsSection label="Your activity">
+        {activity.map((row) => (
+          <SettingsRow key={row.href} href={row.href} icon={<SettingsIcon name={row.icon} />} label={row.label} />
+        ))}
+      </SettingsSection>
+
+      <SettingsSection label="Preferences">
         <SettingsRow
           href="/me/settings/alerts"
           icon={<SettingsIcon name="bell" />}
@@ -102,30 +127,25 @@ async function Settings() {
         />
         <SettingsRow href="/me/settings/calendar" icon={<SettingsIcon name="calendar" />} label="Calendar" value={calendarActive ? "Linked" : "Not linked"} />
         <SettingsRow href="/me/settings/appearance" icon={<SettingsIcon name="sun" />} label="Appearance" value={<AppearanceRowValue />} />
-        {activity.map((row) => (
-          <SettingsRow key={row.href} href={row.href} icon={<SettingsIcon name={row.icon} />} label={row.label} />
-        ))}
+        <ReplayTourRow kind={tourKindFor(me.role)} name={profile.displayName} />
       </SettingsSection>
 
-      {idCheck ? (
-        <SettingsSection label="Verification">
-          <SettingsRow
-            href="/me/verify"
-            icon={<SettingsIcon name="shield" />}
-            label="ID check"
-            description={idCheck.checked ? undefined : "Optional. Adds an ID checked badge."}
-            value={idCheckState(idCheck)}
-          />
-        </SettingsSection>
-      ) : null}
-
-      <SettingsSection label="Help and support">
-        <SettingsRow href={HELP_PATHS.faq} icon={<SettingsIcon name="help" />} label="FAQs" description="Answers to common questions about Studiskarte." />
-        <SettingsRow href={HELP_PATHS.reportListing} icon={<SettingsIcon name="flag" />} label="Report a listing" description="Paste the listing's link." />
-        <SettingsRow href={HELP_PATHS.reportUser} icon={<SettingsIcon name="user" />} label="Report a user" description="Enter their username." />
-        <SettingsRow href={HELP_PATHS.bug} icon={<SettingsIcon name="bug" />} label="Report a bug" description="Something is not working." />
-        <SettingsRow href={HELP_PATHS.feedback} icon={<SettingsIcon name="chat" />} label="Send feedback" description="Suggestions, compliments and ideas." />
-        <SettingsRow href={HELP_PATHS.contact} icon={<SettingsIcon name="mail" />} label="Contact us" description="Write to the Studiskarte team." />
+      <SettingsSection label="Help and legal">
+        <SettingsDrawer icon={<SettingsIcon name="help" />} label="Help and support" description="FAQs, reports, bugs, feedback and contact." title="Help and support">
+          <SettingsRow href={HELP_PATHS.faq} icon={<SettingsIcon name="help" />} label="FAQs" description="Answers to common questions about Studiskarte." />
+          <SettingsRow href={HELP_PATHS.reportListing} icon={<SettingsIcon name="flag" />} label="Report a listing" description="Paste the listing's link." />
+          <SettingsRow href={HELP_PATHS.reportUser} icon={<SettingsIcon name="user" />} label="Report a user" description="Enter their username." />
+          <SettingsRow href={HELP_PATHS.bug} icon={<SettingsIcon name="bug" />} label="Report a bug" description="Something is not working." />
+          <SettingsRow href={HELP_PATHS.feedback} icon={<SettingsIcon name="chat" />} label="Send feedback" description="Suggestions, compliments and ideas." />
+          <SettingsRow href={HELP_PATHS.contact} icon={<SettingsIcon name="mail" />} label="Contact us" description="Write to the Studiskarte team." />
+        </SettingsDrawer>
+        {legal ? (
+          <SettingsDrawer icon={<SettingsIcon name="doc" />} label="Legal and safety" description="Terms, privacy, guidelines and child safety." title="Legal and safety">
+            {LEGAL_SLUGS.map((slug) => (
+              <SettingsRow key={slug} href={`/legal/${slug}`} icon={<SettingsIcon name="doc" />} label={LEGAL_TITLES[slug]} description={LEGAL_BLURB[slug]} />
+            ))}
+          </SettingsDrawer>
+        ) : null}
       </SettingsSection>
 
       <SettingsSection label="Follow Studiskarte">
@@ -135,14 +155,6 @@ async function Settings() {
         </li>
         <SettingsRow href={FACEBOOK_REVIEWS_URL} external icon={<SettingsIcon name="star" />} label="Leave a review on Facebook" description="Tell others what you think of Studiskarte." />
       </SettingsSection>
-
-      {legal ? (
-        <SettingsSection label="Legal and safety">
-          {LEGAL_SLUGS.map((slug) => (
-            <SettingsRow key={slug} href={`/legal/${slug}`} icon={<SettingsIcon name="doc" />} label={LEGAL_TITLES[slug]} description={LEGAL_BLURB[slug]} />
-          ))}
-        </SettingsSection>
-      ) : null}
 
       <SettingsSection label="Account">
         <SignOutRow />

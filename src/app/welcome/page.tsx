@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { StepHeader } from "@/components/auth-steps";
 import { getSignedInStudent } from "@/lib/access";
 import { hasPassword } from "@/lib/identity/password";
 import { getOwnProfile } from "@/lib/identity/profile";
@@ -13,7 +14,10 @@ export const metadata = { title: "Welcome · Studiskarte Marketplace" };
 
 export default function WelcomePage({ searchParams }: PageProps<"/welcome">) {
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
+    // Content sits in the upper half, so a password manager's pop-up at the bottom of the screen does not cover it.
+    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-8 px-6 pb-24 pt-8">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.png" alt="Studiskarte" className="h-12 w-12 rounded-2xl shadow-md" />
       <Suspense>
         <Guarded searchParams={searchParams} />
       </Suspense>
@@ -31,26 +35,21 @@ async function Guarded({ searchParams }: { searchParams: PageProps<"/welcome">["
   if (me.handle) redirect(next ?? "/");
   if (!(await hasPassword(me.id))) {
     return (
-      <>
-        <header className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold">Choose a password</h1>
-          <p className="text-zinc-600 dark:text-zinc-400">Your email is confirmed. Now choose the password you will log in with.</p>
-        </header>
+      <div className="flex flex-col gap-6">
+        <StepHeader step={3} title="Choose a password" subtitle="Your email is confirmed. This is what you log in with." />
         <PasswordForm next={next} />
-      </>
+      </div>
     );
   }
   const school = me.schoolDomain ? (await getOwnProfile(me.id))?.school : null;
   return (
-    <>
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Welcome to Studiskarte</h1>
-        {school ? <p className="font-medium">Your school: {school}</p> : null}
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Choose how other people will find you. Your email is never shown.
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <StepHeader
+        step={4}
+        title="Make it yours"
+        subtitle={school ? <>You are joining <strong className="text-[var(--foreground)]">{school}</strong>. Pick how others find you.</> : "Pick how other students find you. Your email is never shown."}
+      />
       <WelcomeForm terms={currentLegal()?.version ?? null} askRole={me.role !== "visitor"} defaultRole={chosenRole} next={next} />
-    </>
+    </div>
   );
 }

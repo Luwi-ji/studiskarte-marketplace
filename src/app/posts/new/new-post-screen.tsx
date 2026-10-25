@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { IdCheckReminder } from "@/components/id-check-reminder";
 import { requireActiveStudent } from "@/lib/access";
 import { getDb } from "@/lib/db";
+import { RemindOnMount } from "@/components/reminder-host";
 import { SHOWCASE_STUDENTS_ONLY } from "@/lib/posts/audience";
 import { listCategories } from "@/lib/posts/categories";
 import type { PostKind } from "@/lib/posts/schema";
@@ -38,6 +39,7 @@ async function Guarded({ kind, searchParams }: { kind: PostKind; searchParams: P
   if (kind === "showcase" && me.role !== "student") {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
+        <RemindOnMount trigger="post_showcase" />
         <p className="text-zinc-700 dark:text-zinc-300">{SHOWCASE_STUDENTS_ONLY}</p>
         <Link href="/posts/new/wishlist" className="flex h-12 items-center rounded-full bg-brand px-6 font-medium text-white">
           Post to Wishlist
@@ -50,6 +52,7 @@ async function Guarded({ kind, searchParams }: { kind: PostKind; searchParams: P
   // A new key starts a fresh form even when Next.js has kept an earlier one alive.
   return (
     <>
+      {standing === "limit" || standing === "sold" ? <RemindOnMount trigger="post_showcase" /> : null}
       <IdCheckReminder standing={standing} className="mb-5" />
       <PostForm key={prefill ? JSON.stringify(prefill) : "blank"} mode="create" kind={kind} categories={await listCategories()} prefill={prefill} studentId={me.id} />
     </>

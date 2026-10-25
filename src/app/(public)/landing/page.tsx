@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { SettingsIcon, type SettingsIconName } from "@/components/settings-list";
 import { SocialLinks } from "@/components/social-links";
-import { FOUNDER, FOUNDING_SELLER_ENABLED, isFilled, QUOTES, SURVEY_N, TOP_FINDINGS } from "@/lib/landing/content";
+import { FOUNDER, FOUNDING_USER_ENABLED, isFilled, QUOTES, SURVEY_N, TOP_FINDINGS } from "@/lib/landing/content";
 import { currentLegal, LEGAL_SLUGS, LEGAL_TITLES } from "@/lib/legal/documents";
 import { SUPPORT_EMAIL } from "@/lib/support/config";
 import { BackToTop } from "./back-to-top";
@@ -194,7 +194,7 @@ export default function LandingPage() {
                   Ako si {FOUNDER.nickname}, estudyanteng komsay in Manila, and I sell empanada, pancakes and ice cream-dy to support my studies.
                 </p>
                 <blockquote className="border-l-4 border-brand pl-5 text-2xl font-bold leading-snug tracking-tight">
-                  The hard part was never the preparation of the products I sell. It was being seen.
+                  The hard part was never the preparation of the products I sell, because I love the idea of selling. It was being seen and getting traction on what I sell.
                 </blockquote>
                 <div className="flex flex-col gap-2 text-lg">
                   <p>Posts sank. Group posts waited for admin approval.</p>
@@ -327,24 +327,24 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Founding Seller */}
-        {FOUNDING_SELLER_ENABLED ? (
+        {/* Founding User */}
+        {FOUNDING_USER_ENABLED ? (
           <section aria-labelledby="founding-heading" className={SECTION}>
             <div className={WRAP}>
               <div className="grid items-center gap-8 rounded-3xl bg-gradient-to-br from-amber-100 via-amber-50 to-white p-7 ring-1 ring-amber-200 sm:p-10 md:grid-cols-2 dark:from-amber-950 dark:via-zinc-950 dark:to-zinc-950 dark:ring-amber-900">
                 <div className="flex flex-col gap-4">
-                  <p className="text-sm font-bold uppercase tracking-wide text-amber-900 dark:text-amber-200">First 100 students</p>
+                  <p className="text-sm font-bold uppercase tracking-wide text-amber-900 dark:text-amber-200">First 100 members</p>
                   <h2 id="founding-heading" className="text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-                    Become a Founding Seller
+                    Become a Founding User
                   </h2>
-                  <p className="text-pretty text-lg text-zinc-700 dark:text-zinc-300">The first 100 students to join get a Founding Seller badge on their profile, for good.</p>
+                  <p className="text-pretty text-lg text-zinc-700 dark:text-zinc-300">The first 100 members to join get a Founding User badge on their profile, for good.</p>
                   <Link href="/sign-up" className={`${SOLID} self-start`}>
                     Claim my place
                   </Link>
                 </div>
                 <div className="flex flex-col gap-4">
                   {/* A drawing of the badge on a profile row, not a real person. */}
-                  <div role="img" aria-label="Example of a profile with the Founding Seller badge" className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-md ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+                  <div role="img" aria-label="Example of a profile with the Founding User badge" className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-md ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
                     <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200 text-lg font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                       Y
                     </span>
@@ -354,7 +354,7 @@ export default function LandingPage() {
                       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />
                       </svg>
-                      Founding Seller
+                      Founding User
                     </span>
                     </div>
                   </div>
@@ -375,7 +375,7 @@ export default function LandingPage() {
         ) : null}
 
         {/* Safety */}
-        <section aria-labelledby="safety-heading" className={`${SECTION} ${FOUNDING_SELLER_ENABLED ? "bg-zinc-50 dark:bg-zinc-900" : ""}`}>
+        <section aria-labelledby="safety-heading" className={`${SECTION} ${FOUNDING_USER_ENABLED ? "bg-zinc-50 dark:bg-zinc-900" : ""}`}>
           <div className={`${WRAP} flex flex-col gap-10`}>
             <Heading id="safety-heading" eyebrow="Safety" title="Verified students, safer meet-ups" />
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -432,8 +432,8 @@ export default function LandingPage() {
               <h2 id="cta-heading" className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
                 Simulan na ang diskarte mo.
               </h2>
-              {FOUNDING_SELLER_ENABLED ? (
-                <p className="max-w-md text-pretty text-lg text-white/90">Be one of the first 100 students to join and get a Founding Seller badge on your profile.</p>
+              {FOUNDING_USER_ENABLED ? (
+                <p className="max-w-md text-pretty text-lg text-white/90">Be one of the first 100 members to join and get a Founding User badge on your profile.</p>
               ) : null}
               <Link href="/sign-up" className={PRIMARY}>
                 Join Studiskarte

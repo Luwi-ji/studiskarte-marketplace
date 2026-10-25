@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { canGoBackInApp } from "@/components/page-header";
 import { checkBio } from "@/lib/identity/bio";
+import { checkLocation } from "@/lib/identity/location";
 
 export const EDIT_PROFILE = "/me/settings/profile";
 
@@ -11,6 +12,8 @@ export type ProfileInitial = {
   displayName: string;
   /** The saved bio, or "" when there is none. */
   bio: string;
+  /** The saved location, or "" when there is none. */
+  location: string;
   handle: string;
   pictureUrl: string | null;
   /** When the handle may be changed again, already formatted, or null if it may be changed now. */
@@ -22,15 +25,18 @@ type Draft = {
   /** What the student has staged (or the saved value when nothing is staged). Nothing here is on the server until Save. */
   name: string;
   bio: string;
+  location: string;
   handle: string;
   /** The staged picture and a local link to show it by. */
   picture: { blob: Blob; previewUrl: string } | null;
   setName: (name: string) => void;
   setBio: (bio: string) => void;
+  setLocation: (location: string) => void;
   setHandle: (handle: string) => void;
   setPicture: (blob: Blob | null) => void;
   nameChanged: boolean;
   bioChanged: boolean;
+  locationChanged: boolean;
   handleChanged: boolean;
   dirty: boolean;
 };
@@ -48,6 +54,12 @@ function cleanBioText(raw: string): string {
   return checked.ok ? (checked.bio ?? "") : raw;
 }
 
+/** The location as the server will store it ("" for none); an invalid one stays as typed, so it still counts as changed. */
+function cleanLocationText(raw: string): string {
+  const checked = checkLocation(raw);
+  return checked.ok ? (checked.location ?? "") : raw;
+}
+
 /**
  * Holds the Edit profile page's unsaved changes while the student moves between it and the Display name and Handle
  * pages. It lives in the layout of /me/settings/profile, so it survives those navigations and is gone when the student
@@ -56,6 +68,7 @@ function cleanBioText(raw: string): string {
 export function DraftProvider({ initial, children }: { initial: ProfileInitial; children: ReactNode }) {
   const [stagedName, setName] = useState<string | null>(null);
   const [stagedBio, setBio] = useState<string | null>(null);
+  const [stagedLocation, setLocation] = useState<string | null>(null);
   const [stagedHandle, setHandle] = useState<string | null>(null);
   const [picture, setPictureState] = useState<Draft["picture"]>(null);
   const previewUrl = useRef<string | null>(null);
@@ -77,12 +90,14 @@ export function DraftProvider({ initial, children }: { initial: ProfileInitial; 
     const name = stagedName ?? initial.displayName;
     const handle = stagedHandle ?? initial.handle;
     const bio = stagedBio ?? initial.bio;
+    const location = stagedLocation ?? initial.location;
     const nameChanged = name.trim() !== initial.displayName;
     const handleChanged = normalizeHandle(handle) !== initial.handle;
     // The server stores the cleaned text, so only a change after cleaning counts.
     const bioChanged = cleanBioText(bio) !== initial.bio;
-    return { initial, name, handle, bio, picture, setName, setHandle, setBio, setPicture, nameChanged, handleChanged, bioChanged, dirty: nameChanged || handleChanged || bioChanged || picture !== null };
-  }, [initial, stagedName, stagedHandle, stagedBio, picture, setPicture]);
+    const locationChanged = cleanLocationText(location) !== initial.location;
+    return { initial, name, handle, bio, location, picture, setName, setHandle, setBio, setLocation, setPicture, nameChanged, handleChanged, bioChanged, locationChanged, dirty: nameChanged || handleChanged || bioChanged || locationChanged || picture !== null };
+  }, [initial, stagedName, stagedHandle, stagedBio, stagedLocation, picture, setPicture]);
 
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
 }

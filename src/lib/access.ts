@@ -9,7 +9,7 @@ import type { Role } from "@/lib/identity/roles";
 import { currentLegal, needsTerms } from "@/lib/legal/documents";
 
 /** A signed-in, active account. `handle` is null until sign-up is finished; `schoolDomain` is null for a visitor. */
-export type SignedInStudent = { id: string; schoolDomain: string | null; role: Role; handle: string | null; isAdmin: boolean; mustAcceptTerms: boolean };
+export type SignedInStudent = { id: string; schoolDomain: string | null; role: Role; handle: string | null; isAdmin: boolean; mustAcceptTerms: boolean; tourSeen: boolean };
 /** A student who has finished sign-up and may use the app. */
 export type ActiveStudent = SignedInStudent & { handle: string };
 
@@ -31,6 +31,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
       isAdmin: student.isAdmin,
       termsVersion: student.termsVersion,
       ageConfirmedAt: student.ageConfirmedAt,
+      tourSeenAt: student.tourSeenAt,
     })
     .from(student)
     .where(eq(student.id, session.user.id));
@@ -41,6 +42,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
     role: row.role as Role,
     handle: row.handle,
     isAdmin: row.isAdmin,
+    tourSeen: row.tourSeenAt !== null,
     // Asked again when the legal text changed, or when they have never confirmed their age.
     mustAcceptTerms: needsTerms(row.termsVersion, currentLegal()?.version ?? null) || (currentLegal() !== null && row.ageConfirmedAt === null),
   };

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Disclosure } from "@/components/auth-steps";
 import { AGE_CHECKBOX, UNDER_18_NOTICE } from "@/lib/identity/age";
 import { DISPLAY_NAME_MAX, HANDLE_MAX } from "@/lib/identity/names";
 import { ROLE_LABEL, SCHOOL_ROLES, type SchoolRole } from "@/lib/identity/roles";
@@ -15,6 +16,7 @@ export function WelcomeForm({ terms, askRole, defaultRole, next }: { terms: stri
   const [state, action, pending] = useActionState<WelcomeState, FormData>(finishSignUp, {
     values: { handle: "", displayName: "" },
   });
+  const [role, setRole] = useState<SchoolRole>(defaultRole);
   const errorFor = (field: "handle" | "displayName" | "terms" | "age") =>
     state.error?.field === field ? (
       <p role="alert" className="text-sm text-red-600">
@@ -23,25 +25,28 @@ export function WelcomeForm({ terms, askRole, defaultRole, next }: { terms: stri
     ) : null;
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form action={action} className="flex flex-col gap-6">
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {askRole ? (
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium">I am a</span>
-          <select name="role" defaultValue={defaultRole} className={input}>
-            {SCHOOL_ROLES.map((role) => (
-              <option key={role} value={role}>
-                {ROLE_LABEL[role]}
-              </option>
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-1 text-sm font-semibold">I am a</legend>
+          <div className="flex flex-wrap gap-2">
+            {SCHOOL_ROLES.map((r) => (
+              <label key={r} className="cursor-pointer">
+                <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="peer sr-only" />
+                <span className="inline-flex min-h-11 items-center rounded-full border border-zinc-300 px-4 text-base font-medium transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 dark:border-zinc-700">
+                  {ROLE_LABEL[r]}
+                </span>
+              </label>
             ))}
-          </select>
-          <span className="text-xs text-zinc-500">Choose the one that is true for you. Only students can sell; everyone else can post Wishlists and buy where a seller allows it.</span>
-        </label>
+          </div>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{role === "student" ? "Students can buy, sell and post Wishlists." : "You can buy and post Wishlists. Selling is for students."}</p>
+        </fieldset>
       ) : null}
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Handle</span>
-        <div className="flex items-center gap-1">
-          <span className="text-zinc-500">@</span>
+        <span className="text-sm font-semibold">Handle</span>
+        <div className="flex items-center gap-2">
+          <span className="text-lg text-zinc-500">@</span>
           <input
             name="handle"
             defaultValue={state.values.handle}
@@ -51,72 +56,69 @@ export function WelcomeForm({ terms, askRole, defaultRole, next }: { terms: stri
             autoCorrect="off"
             spellCheck={false}
             maxLength={HANDLE_MAX + 1}
+            placeholder="your_handle"
             className={input}
           />
         </div>
-        <span className="text-xs text-zinc-500">
-          3–20 letters, numbers, dots or underscores. You can change it later, once every 30 days.
-        </span>
+        <span className="text-sm text-zinc-600 dark:text-zinc-400">3 to 20 letters, numbers, dots or underscores.</span>
         {errorFor("handle")}
       </label>
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Display name</span>
-        <input
-          name="displayName"
-          defaultValue={state.values.displayName}
-          required
-          autoComplete="name"
-          maxLength={DISPLAY_NAME_MAX * 4}
-          className={input}
-        />
-        <span className="text-xs text-zinc-500">How other students see you. You can change it any time.</span>
+        <span className="text-sm font-semibold">Display name</span>
+        <input name="displayName" defaultValue={state.values.displayName} required autoComplete="name" maxLength={DISPLAY_NAME_MAX * 4} className={input} />
+        <span className="text-sm text-zinc-600 dark:text-zinc-400">How other students see you.</span>
         {errorFor("displayName")}
       </label>
-      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
-        <li>Meet in a public place, between 6:00 AM and 8:00 PM.</li>
-        <li>The app never handles money.</li>
-        <li>The owner reads reports within 24 hours.</li>
-      </ul>
+
       {terms ? (
-        <label className="flex items-start gap-3">
-          <input type="checkbox" name="terms" value={terms} required className="mt-1 h-5 w-5 shrink-0" />
-          <span className="text-sm">
-            I accept the{" "}
-            <Link href="/legal/terms" target="_blank" className="underline">
-              Terms of Service
-            </Link>
-            ,{" "}
-            <Link href="/legal/privacy" target="_blank" className="underline">
-              Privacy Policy
-            </Link>{" "}
-            and{" "}
-            <Link href="/legal/guidelines" target="_blank" className="underline">
-              Community Guidelines
-            </Link>
-            .
-          </span>
-        </label>
+        <div className="flex flex-col gap-3 rounded-2xl bg-zinc-100 p-4 dark:bg-zinc-900">
+          <label className="flex items-start gap-3">
+            <input type="checkbox" name="terms" value={terms} required className="mt-1 h-5 w-5 shrink-0" />
+            <span className="text-sm">
+              I accept the{" "}
+              <Link href="/legal/terms" target="_blank" className="underline">
+                Terms
+              </Link>
+              ,{" "}
+              <Link href="/legal/privacy" target="_blank" className="underline">
+                Privacy Policy
+              </Link>{" "}
+              and{" "}
+              <Link href="/legal/guidelines" target="_blank" className="underline">
+                Community Guidelines
+              </Link>
+              .
+            </span>
+          </label>
+          <label className="flex items-start gap-3">
+            <input type="checkbox" name="age" required className="mt-1 h-5 w-5 shrink-0" />
+            <span className="text-sm">{AGE_CHECKBOX}</span>
+          </label>
+          {errorFor("terms")}
+          {errorFor("age")}
+          <details className="text-sm text-zinc-600 dark:text-zinc-400">
+            <summary className="flex min-h-11 cursor-pointer items-center font-medium">Under 18?</summary>
+            <p className="pb-2">
+              {UNDER_18_NOTICE}{" "}
+              <Link href="/legal/child-safety" target="_blank" className="underline">
+                Child Safety Standards
+              </Link>
+              .
+            </p>
+          </details>
+        </div>
       ) : null}
-      {terms ? (
-        <label className="flex items-start gap-3">
-          <input type="checkbox" name="age" required className="mt-1 h-5 w-5 shrink-0" />
-          <span className="text-sm">
-            {AGE_CHECKBOX} {UNDER_18_NOTICE}{" "}
-            <Link href="/legal/child-safety" target="_blank" className="underline">
-              Child Safety Standards
-            </Link>
-            .
-          </span>
-        </label>
-      ) : null}
-      {errorFor("terms")}
-      {errorFor("age")}
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-brand px-3 py-3 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Saving…" : "Continue"}
+
+      <Disclosure summary="Safety in three lines">
+        <ul className="flex list-disc flex-col gap-1 pl-5">
+          <li>Meet in a public place, between 6:00 AM and 8:00 PM.</li>
+          <li>The app never handles money.</li>
+          <li>The owner reads reports within 24 hours.</li>
+        </ul>
+      </Disclosure>
+
+      <button type="submit" disabled={pending} className="w-full rounded-lg bg-brand px-3 py-3 text-base font-medium text-white disabled:opacity-60">
+        {pending ? "Saving…" : "Finish"}
       </button>
     </form>
   );

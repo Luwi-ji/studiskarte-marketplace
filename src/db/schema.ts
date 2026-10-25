@@ -88,7 +88,11 @@ export const student = pgTable(
     utmMedium: text("utm_medium"),
     utmCampaign: text("utm_campaign"),
     // One of the first students to join; see src/lib/founding/config.ts.
-    foundingSellerAt: timestamp("founding_seller_at", { withTimezone: true }),
+    foundingUserAt: timestamp("founding_user_at", { withTimezone: true }),
+    // Where the person is based ("Sampaloc, Manila"); optional, shown on the profile, changed in Edit profile.
+    location: text("location"),
+    // When they finished or skipped the first-time tour; null means it has not been shown. Replayed from Settings.
+    tourSeenAt: timestamp("tour_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -134,6 +138,7 @@ export const student = pgTable(
       "student_utm_length",
       sql`char_length(coalesce(${t.utmSource}, '')) <= 64 and char_length(coalesce(${t.utmMedium}, '')) <= 64 and char_length(coalesce(${t.utmCampaign}, '')) <= 64`,
     ),
+    check("student_location_length", sql`${t.location} is null or (char_length(btrim(${t.location})) between 2 and 60 and ${t.location} !~ '[\\r\\n]')`),
     unique("student_calendar_token_hash").on(t.calendarTokenHash),
   ],
 );

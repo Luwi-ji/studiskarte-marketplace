@@ -15,6 +15,7 @@ import { REPLY_LABEL } from "@/lib/messaging/response-time";
 import { expiryNotice, formatAvailability, formatPrice, kindLabel, quantityLine, STATUS_LABEL } from "@/lib/posts/format";
 import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
+import { RemindButton, RemindLink } from "@/components/reminder-host";
 import { audienceRefusal } from "@/lib/posts/audience";
 import { PAYMENT_LABEL } from "@/lib/payment";
 import { CONDITION_LABEL, CONDITIONS } from "@/lib/posts/schema";
@@ -282,7 +283,12 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
       {canMessage ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[var(--background)]/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur dark:border-zinc-800">
           {studentsOnly ? (
-            <p className="mx-auto max-w-md text-center text-sm text-zinc-600 dark:text-zinc-400">{studentsOnly}</p>
+            <div className="mx-auto flex max-w-md flex-col gap-2">
+              <RemindButton trigger={wishlist ? "answer_wishlist" : "students_only_listing"} className="press flex h-12 items-center justify-center rounded-lg bg-brand font-medium text-white">
+                {wishlist ? labels.reserve : "Message"}
+              </RemindButton>
+              <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">{studentsOnly}</p>
+            </div>
           ) : detail.myTransaction ? (
             <BuyerShortcuts transaction={detail.myTransaction} />
           ) : (
@@ -293,14 +299,14 @@ async function Post({ params, searchParams }: { params: Promise<{ id: string }>;
                   Message
                 </Link>
                 {options.offer ? (
-                  <Link href={`/offers/new?post=${detail.id}&type=offer`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
+                  <RemindLink trigger={wishlist ? "answer_wishlist" : "students_only_listing"} href={`/offers/new?post=${detail.id}&type=offer`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
                     {labels.offer}
-                  </Link>
+                  </RemindLink>
                 ) : null}
                 {options.reserve ? (
-                  <Link href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
+                  <RemindLink trigger={wishlist ? "answer_wishlist" : "students_only_listing"} href={`/offers/new?post=${detail.id}&type=reserve`} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-zinc-300 px-3 text-sm font-medium dark:border-zinc-700">
                     {labels.reserve}
-                  </Link>
+                  </RemindLink>
                 ) : null}
               </div>
               {bothButtons ? (

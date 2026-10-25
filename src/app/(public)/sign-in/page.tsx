@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LegalLinks } from "@/components/legal-links";
 import { getSignedInStudent } from "@/lib/access";
 import { googleEnabled } from "@/lib/identity/auth";
 import { parseRole, ROLE_LABEL, type Role } from "@/lib/identity/roles";
@@ -23,7 +22,6 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
       <Suspense>
         <Form searchParams={searchParams} />
       </Suspense>
-      <LegalLinks />
       <Suspense>
         <SkipIfSignedIn searchParams={searchParams} />
       </Suspense>

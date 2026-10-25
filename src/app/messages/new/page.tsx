@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { ProductCard } from "@/components/product-card";
+import { RemindOnMount } from "@/components/reminder-host";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getPostDetail } from "@/lib/posts/detail";
@@ -51,6 +52,7 @@ async function NewMessageView({ searchParams }: { searchParams: Promise<Record<s
           post={{ id: detail.id, title: detail.title, priceKind: detail.priceKind, priceAmount: detail.priceAmount, status: detail.status, thumbKey: detail.photos[0].key, kind: detail.kind }}
           thumbUrl={thumbUrl}
         />
+        {audienceRefusal({ role: me.role, kind: detail.kind, allowNonStudents: detail.allowNonStudents }) ? <RemindOnMount trigger={detail.kind === "wishlist" ? "answer_wishlist" : "students_only_listing"} /> : null}
         <p className="flex-1 px-1 text-sm text-zinc-600 dark:text-zinc-400">
           {closed ? closed : "Your message goes only to the person who posted this, with this post attached. Meet in a public place, and pay in person."}
         </p>

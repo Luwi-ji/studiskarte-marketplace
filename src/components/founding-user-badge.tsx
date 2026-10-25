@@ -1,11 +1,11 @@
 import { BadgeButton } from "@/components/badge-button";
 
 /** Shown on the profile of one of the first students to join. An amber chip; tapping it shows its name. */
-export function FoundingSellerBadge() {
+export function FoundingUserBadge() {
   return (
     <BadgeButton
-      title="Founding Seller"
-      description="One of the first 100 students to join Studiskarte."
+      title="Founding User"
+      description="One of the first 100 members to join Studiskarte."
       tone="amber"
       icon={
         <svg viewBox="0 0 24 24" className="h-full w-full" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>

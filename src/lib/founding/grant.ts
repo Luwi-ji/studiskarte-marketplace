@@ -4,33 +4,32 @@ import { getDb } from "@/lib/db";
 import { FOUNDING_LIMIT, FOUNDING_LOCK_KEY, FOUNDING_OPENS_AT } from "@/lib/founding/config";
 
 /**
- * Gives the Founding Seller badge to a student who has just finished sign-up, while places remain.
- * Only students (not faculty, staff, alumni or guests, who cannot sell) on or after FOUNDING_OPENS_AT.
+ * Gives the Founding User badge to a member who has just finished sign-up, while places remain. Any role counts
+ * (student, faculty, staff, alumni, guest), on or after FOUNDING_OPENS_AT.
  * The lock makes the count and the grant one step, so two sign-ups at once cannot take the last place twice.
  * Never blocks sign-up: a failure is logged.
  */
-export async function grantFoundingSeller(studentId: string, now = new Date(), limit = FOUNDING_LIMIT): Promise<boolean> {
+export async function grantFoundingUser(memberId: string, now = new Date(), limit = FOUNDING_LIMIT): Promise<boolean> {
   if (now < FOUNDING_OPENS_AT) return false;
   try {
     return await getDb().transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(${FOUNDING_LOCK_KEY})`);
       const granted = await tx
         .update(student)
-        .set({ foundingSellerAt: now })
+        .set({ foundingUserAt: now })
         .where(
           and(
-            eq(student.id, studentId),
-            eq(student.role, "student"),
+            eq(student.id, memberId),
             eq(student.accountStatus, "active"),
-            isNull(student.foundingSellerAt),
-            sql`(select count(*) from ${student} where ${student.foundingSellerAt} is not null) < ${limit}`,
+            isNull(student.foundingUserAt),
+            sql`(select count(*) from ${student} where ${student.foundingUserAt} is not null) < ${limit}`,
           ),
         )
         .returning({ id: student.id });
       return granted.length > 0;
     });
   } catch (error) {
-    console.error("granting the Founding Seller badge failed", error);
+    console.error("granting the Founding User badge failed", error);
     return false;
   }
 }

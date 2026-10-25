@@ -26,6 +26,7 @@ import {
   type PostKind,
 } from "@/lib/posts/schema";
 import { DRAFT_DEBOUNCE_MS, clearDraft, loadDraft, saveDraft, savedAgo, type LoadedDraft } from "@/lib/posts/draft";
+import { forgetReminderContext, remind } from "@/components/reminder-host";
 import { createPostAction, relistPostAction, updatePostAction } from "./actions";
 import { checkDraftPhotosAction } from "./draft-actions";
 import { AvailabilityPicker } from "./availability-picker";
@@ -293,9 +294,15 @@ export function PostForm(props: Props) {
       }
       setErrors(problems);
       if (problems.content) setNotAllowed(blockedFields(problems));
+      // A refusal the person could have been told about first (role, ID check, open-post limit) also opens its reminder.
+      if (props.mode === "create" && (problems.kind || problems.form)) {
+        forgetReminderContext();
+        void remind(kind === "showcase" ? "post_showcase" : "post_wishlist");
+      }
       return;
     }
     saved.current = true;
+    forgetReminderContext();
     // Next.js keeps this page alive after navigating away; start fresh next time.
     if (props.mode === "create") {
       clearDraft(studentId, kind);

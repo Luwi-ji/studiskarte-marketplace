@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
 import "./globals.css";
 import { HapticsProvider } from "@/components/haptics";
+import { ReminderHost } from "@/components/reminder-host";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { BlockedNotice } from "./safety/blocked-notice";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <HapticsProvider />
         <PullToRefresh />
         <UpdateNotice />
+        <ReminderHost />
         <BlockedNotice />
       </body>
     </html>

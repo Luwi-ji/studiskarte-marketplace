@@ -309,6 +309,13 @@
       "when": 1792893536440,
       "tag": "0043_founding_seller",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792900665153,
+      "tag": "0044_founding_user_location_tour",
+      "breakpoints": true
     }
   ]
 }

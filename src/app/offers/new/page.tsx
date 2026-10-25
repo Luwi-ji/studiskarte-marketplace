@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { ProductCard } from "@/components/product-card";
+import { RemindOnMount } from "@/components/reminder-host";
 import { requireActiveStudent } from "@/lib/access";
 import { unitsLeft } from "@/lib/deals/capacity";
 import { offerLabels, offerOptions } from "@/lib/deals/rules";
@@ -84,6 +85,7 @@ async function NewOffer({ searchParams }: { searchParams: Promise<Record<string,
           />
         ) : (
           <div className="flex flex-col gap-4 py-6 text-center">
+            {studentsOnly || needsId ? <RemindOnMount trigger={detail.kind === "wishlist" ? "answer_wishlist" : "students_only_listing"} /> : null}
             <p className="text-zinc-600 dark:text-zinc-400">{studentsOnly ?? (needsId ? WISHLIST_NEEDS_ID_AFTER_SALE : null) ?? options.reason ?? (kind === "reserve" ? "This post has no price to reserve at. Make an offer instead." : "This post is free. Reserve it instead.")}</p>
             {needsId ? (
               <Link href="/me/verify" className="mx-auto flex h-12 items-center rounded-lg bg-brand px-6 font-medium text-white">

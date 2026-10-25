@@ -28,5 +28,5 @@ export const FOUNDER = {
   photoFile: "founder.jpg",
 } as const;
 
-/** Founding Seller: the landing page promises a badge to the first 100 students (src/lib/founding/config.ts). Set to false when the places run out. */
-export const FOUNDING_SELLER_ENABLED = true;
+/** Founding User: the landing page promises a badge to the first 100 members (src/lib/founding/config.ts). Set to false when the places run out. */
+export const FOUNDING_USER_ENABLED = true;

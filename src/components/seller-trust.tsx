@@ -20,6 +20,16 @@ function IconCount({ count, label, children }: { count: number; label: string; c
   );
 }
 
+/** A map pin, for where someone is based. */
+export function PinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </svg>
+  );
+}
+
 /** Items sold as a small bag-with-check icon and the number; the icon replaces the word "Sold". */
 export function SoldCount({ count }: { count: number }) {
   return (

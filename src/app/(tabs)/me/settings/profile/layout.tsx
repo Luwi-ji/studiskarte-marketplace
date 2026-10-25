@@ -35,5 +35,5 @@ async function Loaded({ children }: { children: ReactNode }) {
   const handleChangeOn = profile.nextHandleChangeAt
     ? profile.nextHandleChangeAt.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" })
     : null;
-  return <DraftProvider initial={{ displayName: profile.displayName, bio: profile.bio ?? "", handle: profile.handle, pictureUrl, handleChangeOn }}>{children}</DraftProvider>;
+  return <DraftProvider initial={{ displayName: profile.displayName, bio: profile.bio ?? "", location: profile.location ?? "", handle: profile.handle, pictureUrl, handleChangeOn }}>{children}</DraftProvider>;
 }
