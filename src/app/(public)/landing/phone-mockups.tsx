@@ -55,6 +55,13 @@ export function FeedMock({ className = "" }: { className?: string }) {
           </div>
         ))}
       </div>
+      <div className="mt-auto flex items-center justify-around border-t border-zinc-200 px-2 pb-3 pt-1.5 text-[7px] font-medium text-zinc-500 dark:border-zinc-800">
+        <span className="text-brand-text">Feed</span>
+        <span>Messages</span>
+        <span className="flex h-5 w-8 items-center justify-center rounded-full bg-brand text-[11px] font-bold text-white">+</span>
+        <span>My posts</span>
+        <span>Me</span>
+      </div>
     </PhoneFrame>
   );
 }

@@ -11,13 +11,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bad origin" }, { status: 403 });
   }
   let query = "";
+  let consent = false;
   try {
     const body: unknown = await request.json();
-    if (body && typeof body === "object" && "query" in body && typeof body.query === "string") {
-      query = body.query.slice(0, 500);
+    if (body && typeof body === "object") {
+      if ("consent" in body) consent = body.consent === true;
+      if ("query" in body && typeof body.query === "string") query = body.query.slice(0, 500);
     }
   } catch {
     query = "";
+  }
+  // Without a yes from the visitor nothing is counted and no cookie is set; a "no" also drops an earlier campaign cookie.
+  if (!consent) {
+    const declined = new NextResponse(null, { status: 204 });
+    declined.cookies.delete(UTM_COOKIE);
+    return declined;
   }
   const allowed = await consume({
     action: "funnel_landing",

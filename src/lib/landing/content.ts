@@ -5,10 +5,10 @@ export const SURVEY_N = "From our survey of 47 students from several schools.";
 // Counted from the raw responses sheet (Form responses 1), all 47 respondents. "Which of these problems have you
 // personally experienced?" gives 29 buried and 22 repost; "Have you ever had a bad experience...?" gives 25 ghosted.
 // Recount from the sheet if the data changes.
-export const TOP_FINDINGS: readonly string[] = [
-  "29 of 47 said their selling posts get buried quickly.",
-  "22 of 47 said they have to repeatedly repost.",
-  "25 of 47 had a seller or buyer stop replying (ghosted).",
+export const TOP_FINDINGS: readonly { figure: string; text: string }[] = [
+  { figure: "29 of 47", text: "said their selling posts get buried quickly." },
+  { figure: "22 of 47", text: "said they have to repeatedly repost." },
+  { figure: "25 of 47", text: "had a seller or buyer stop replying (ghosted)." },
 ];
 
 /** Verbatim from the survey answers, unattributed (the last is trimmed at the start). */
