@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SettingsIcon } from "@/components/settings-list";
 import { markTourSeenAction } from "@/app/tour/actions";
+import { InstallPanel, useInstall } from "@/components/install";
 import { tourSteps, type TourKind } from "@/lib/tour/steps";
 
 /**
@@ -14,7 +15,9 @@ import { tourSteps, type TourKind } from "@/lib/tour/steps";
 export function OnboardingTour({ kind, name, auto = false, open: openProp, onClose }: { kind: TourKind; name: string; auto?: boolean; open?: boolean; onClose?: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [index, setIndex] = useState(0);
-  const steps = tourSteps(kind, name);
+  const { installed } = useInstall();
+  // The home-screen step is for a browser tab; the installed app already has it.
+  const steps = tourSteps(kind, name).filter((s) => !(s.id === "install" && installed));
   const step = steps[index];
   const last = index === steps.length - 1;
 
@@ -71,6 +74,7 @@ export function OnboardingTour({ kind, name, auto = false, open: openProp, onClo
             </h2>
             <p className="text-pretty text-lg text-zinc-600 dark:text-zinc-400">{step.body}</p>
           </div>
+          {step.id === "install" ? <InstallPanel /> : null}
           {step.points ? (
             <ul className="flex flex-col gap-3">
               {step.points.map((point) => (

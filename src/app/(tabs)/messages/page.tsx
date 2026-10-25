@@ -25,7 +25,7 @@ export default function MessagesPage() {
     <Suspense
       fallback={
         <>
-          <PageHeader title="Messages" />
+          <PageHeader title="Messages" logo />
           <main className="mx-auto w-full max-w-md flex-1">
             <p className="p-4 text-zinc-500">Loading…</p>
           </main>
@@ -65,7 +65,7 @@ async function Inbox() {
 
   return (
     <>
-      <PageHeader title="Messages" action={<OngoingTransactions rows={rows} />} />
+      <PageHeader title="Messages" logo action={<OngoingTransactions rows={rows} />} />
       <main className="mx-auto w-full max-w-md flex-1">
         <Conversations conversations={conversations} turns={turns} />
       </main>

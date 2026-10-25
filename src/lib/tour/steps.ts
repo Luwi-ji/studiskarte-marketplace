@@ -8,7 +8,7 @@ export function tourKindFor(role: Role): TourKind {
   return role === "visitor" ? "guest" : "member";
 }
 
-export type TourIcon = "star" | "grid" | "tool" | "heart" | "chat" | "calendar" | "shield" | "school" | "gift";
+export type TourIcon = "link" | "star" | "grid" | "tool" | "heart" | "chat" | "calendar" | "shield" | "school" | "gift";
 export type TourStep = {
   id: string;
   icon: TourIcon;
@@ -44,6 +44,14 @@ const TRUST: TourStep = {
   points: ["Badges show what was checked: school email, optional ID check", "Reviews come from completed deals", "Report or block anyone from their profile or a post", "Student perks from local shops are coming"],
 };
 
+/** Once they have a first win in view, not before: add the app to the home screen. The tour hides it for the installed app. */
+const INSTALL: TourStep = {
+  id: "install",
+  icon: "link",
+  title: "Use it like an app",
+  body: "Put Studiskarte on your home screen, so it is one tap away.",
+};
+
 function welcome(name: string, line: string): TourStep {
   return { id: "welcome", icon: "star", title: `Welcome, ${name}!`, body: line };
 }
@@ -70,6 +78,7 @@ export function tourSteps(kind: TourKind, name: string): TourStep[] {
         points: ["Students who have it will reach out", "You can answer other students' Wishlists too"],
       },
       DEAL,
+      INSTALL,
       { ...TRUST, cta: { label: "Post my first listing", href: "/posts/new/showcase" } },
     ];
   }
@@ -91,6 +100,7 @@ export function tourSteps(kind: TourKind, name: string): TourStep[] {
         points: ["Look for listings that are open to you", "Selling is for students, so Showcases are theirs to post"],
       },
       DEAL,
+      INSTALL,
       { ...TRUST, cta: { label: "Post a Wishlist", href: "/posts/new/wishlist" } },
     ];
   }
@@ -110,6 +120,7 @@ export function tourSteps(kind: TourKind, name: string): TourStep[] {
       body: "You joined as a Guest. Add your school email in Settings to become a student, earn the School email badge and post Showcases.",
     },
     DEAL,
+    INSTALL,
     { ...TRUST, cta: { label: "Verify my school email", href: "/me/settings/school-email" } },
   ];
 }

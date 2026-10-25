@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
@@ -12,8 +13,11 @@ export default function SignUpPage({ searchParams }: PageProps<"/sign-up">) {
   return (
     // Content sits in the upper half, so a password manager's pop-up at the bottom of the screen does not cover it.
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-8 px-6 pb-24 pt-8">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="Studiskarte" className="h-12 w-12 rounded-2xl shadow-md" />
+      {/* The logo goes back to the landing page. */}
+      <Link href="/" aria-label="Studiskarte home" className="press -ml-1 self-start rounded-2xl p-1">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-12 w-12 rounded-2xl shadow-md" />
+      </Link>
       <Suspense>
         <Form searchParams={searchParams} />
       </Suspense>

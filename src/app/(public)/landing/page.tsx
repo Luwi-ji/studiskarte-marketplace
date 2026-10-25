@@ -7,7 +7,7 @@ import { SettingsIcon, type SettingsIconName } from "@/components/settings-list"
 import { SocialLinks } from "@/components/social-links";
 import { FOUNDER, FOUNDING_USER_ENABLED, isFilled, QUOTES, SURVEY_N, TOP_FINDINGS } from "@/lib/landing/content";
 import { currentLegal, LEGAL_SLUGS, LEGAL_TITLES } from "@/lib/legal/documents";
-import { SUPPORT_EMAIL } from "@/lib/support/config";
+import { FACEBOOK_URL, INSTAGRAM_URL, SUPPORT_EMAIL } from "@/lib/support/config";
 import { BackToTop } from "./back-to-top";
 import { ContactDrawer } from "./contact-drawer";
 import { CookieModal, CookieSettingsButton } from "./cookie-modal";
@@ -22,10 +22,48 @@ const DESCRIPTION =
 // The page is served at studiskarte.com for anyone who is not signed in (see src/proxy.ts); this is its own address too.
 export const metadata: Metadata = {
   metadataBase: new URL("https://studiskarte.com"),
-  title: TITLE,
+  title: { absolute: TITLE },
   description: DESCRIPTION,
+  applicationName: "Studiskarte",
+  keywords: ["student marketplace", "buy and sell for students", "Philippines student marketplace", "school email marketplace", "student wishlist", "Studiskarte"],
   alternates: { canonical: "/" },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "Studiskarte Marketplace", type: "website", images: [{ url: "/logo.png" }] },
+  robots: { index: true, follow: true },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/",
+    siteName: "Studiskarte Marketplace",
+    type: "website",
+    locale: "en_PH",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Studiskarte: where student hustle meets student needs" }],
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/og.png"] },
+};
+
+// What search engines read to show the name, logo and links under a result: who we are, and the site itself.
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://studiskarte.com/#organization",
+      name: "Studiskarte Marketplace",
+      alternateName: "Studiskarte",
+      url: "https://studiskarte.com/",
+      logo: "https://studiskarte.com/logo.png",
+      email: SUPPORT_EMAIL,
+      sameAs: [FACEBOOK_URL, INSTAGRAM_URL],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://studiskarte.com/#website",
+      url: "https://studiskarte.com/",
+      name: "Studiskarte Marketplace",
+      description: DESCRIPTION,
+      inLanguage: "en-PH",
+      publisher: { "@id": "https://studiskarte.com/#organization" },
+    },
+  ],
 };
 
 // Real screens from the app. Every claim in a caption is something the screen shows.
@@ -106,6 +144,7 @@ export default function LandingPage() {
 
   return (
     <div id="top" className="flex flex-1 flex-col">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }} />
       <FunnelBeacon />
       <CookieModal />
       <BackToTop />

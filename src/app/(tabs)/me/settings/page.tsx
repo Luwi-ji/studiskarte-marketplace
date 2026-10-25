@@ -15,6 +15,7 @@ import { getMyCheck, type MyCheck } from "@/lib/verification/service";
 import { ProfileAvatar, SettingsSection, SettingsIcon, SettingsRow } from "@/components/settings-list";
 import { SettingsDrawer } from "@/components/settings-drawer";
 import { ReplayTourRow } from "@/components/onboarding-tour";
+import { InstallRow } from "@/components/install";
 import { tourKindFor } from "@/lib/tour/steps";
 import { SocialLinks } from "@/components/social-links";
 import { FACEBOOK_REVIEWS_URL, HELP_PATHS } from "@/lib/support/config";
@@ -65,12 +66,18 @@ async function Settings() {
   const idCheck = verificationEnabled() ? await getMyCheck(me.id) : null;
   const legal = currentLegal();
 
+  // Pages that are also tabs or profiles carry ?from=settings, so their back arrow returns here.
+  const from = "?from=settings";
+  const selling = [
+    { href: `/me/posts${from}`, label: "My posts", icon: "grid" as const, description: "Track, edit and relist your listings." },
+    { href: `/u/${profile.handle}/sold${from}`, label: "Items sold", icon: "receipt" as const, description: "What you have sold to other students." },
+    { href: `/u/${profile.handle}/bought${from}`, label: "Items bought", icon: "receipt" as const, description: "What you have bought. Only you can see this." },
+    { href: "/me/transactions", label: "Transactions", icon: "refresh" as const, description: "Deals in progress and finished." },
+  ];
   const activity = [
-    { href: "/me/posts", label: "My posts", icon: "grid" as const },
-    { href: `/u/${profile.handle}`, label: "My profile", icon: "user" as const },
+    { href: `/u/${profile.handle}${from}`, label: "My profile", icon: "user" as const },
     { href: "/me/hearts", label: "Hearted posts", icon: "heart" as const },
-    { href: "/notifications", label: "Notifications", icon: "bell" as const },
-    { href: "/me/transactions", label: "Transactions", icon: "receipt" as const },
+    { href: `/notifications${from}`, label: "Notifications", icon: "bell" as const },
     { href: "/me/blocked", label: "Blocked people", icon: "block" as const },
     ...(me.isAdmin ? [{ href: "/admin", label: "Admin", icon: "tool" as const }] : []),
   ];
@@ -80,6 +87,17 @@ async function Settings() {
     <>
       <SavedToast />
       {/* The most important thing to do comes first: it unlocks selling and earns a badge. */}
+      <SettingsSection label="Your account">
+        <SettingsRow
+          href="/me/settings/profile"
+          tall
+          icon={<ProfileAvatar src={pictureUrl} name={profile.displayName} size="md" />}
+          label={<span className="font-semibold">{profile.displayName}</span>}
+          description={`@${profile.handle} · Edit profile`}
+        />
+        <SettingsRow icon={<SettingsIcon name="user" />} label={ROLE_LABEL[me.role]} description={me.role === "visitor" ? "Signed up with a personal email." : `${profile.school}. Set from your school email.`} />
+      </SettingsSection>
+
       <SettingsSection label="Verification" note={verified ? undefined : "Guests can buy and post Wishlists. A school email makes you a student, who can also sell."}>
         {verified ? (
           <SettingsRow icon={<SettingsIcon name="school" />} label="School email" description="Confirmed. It is never shown to others." value="Verified" />
@@ -97,25 +115,8 @@ async function Settings() {
         ) : null}
       </SettingsSection>
 
-      <SettingsSection label="Your account">
-        <SettingsRow
-          href="/me/settings/profile"
-          tall
-          icon={<ProfileAvatar src={pictureUrl} name={profile.displayName} size="md" />}
-          label={<span className="font-semibold">{profile.displayName}</span>}
-          description={`@${profile.handle} · Edit profile`}
-        />
-        <SettingsRow icon={<SettingsIcon name="user" />} label={ROLE_LABEL[me.role]} description={me.role === "visitor" ? "Signed up with a personal email." : `${profile.school}. Set from your school email.`} />
-      </SettingsSection>
-
       <SettingsSection label="Perks">
-        <SettingsRow href="/perks" icon={<SettingsIcon name="gift" />} label="Student perks" description="Discounts from shops for students." />
-      </SettingsSection>
-
-      <SettingsSection label="Your activity">
-        {activity.map((row) => (
-          <SettingsRow key={row.href} href={row.href} icon={<SettingsIcon name={row.icon} />} label={row.label} />
-        ))}
+        <SettingsRow href="/perks?from=settings" icon={<SettingsIcon name="gift" />} label="Student perks" description="Discounts from shops for students." />
       </SettingsSection>
 
       <SettingsSection label="Preferences">
@@ -127,7 +128,20 @@ async function Settings() {
         />
         <SettingsRow href="/me/settings/calendar" icon={<SettingsIcon name="calendar" />} label="Calendar" value={calendarActive ? "Linked" : "Not linked"} />
         <SettingsRow href="/me/settings/appearance" icon={<SettingsIcon name="sun" />} label="Appearance" value={<AppearanceRowValue />} />
+        <InstallRow />
         <ReplayTourRow kind={tourKindFor(me.role)} name={profile.displayName} />
+      </SettingsSection>
+
+      <SettingsSection label="Selling and buying">
+        {selling.map((row) => (
+          <SettingsRow key={row.href} href={row.href} icon={<SettingsIcon name={row.icon} />} label={row.label} description={row.description} />
+        ))}
+      </SettingsSection>
+
+      <SettingsSection label="Your activity">
+        {activity.map((row) => (
+          <SettingsRow key={row.href} href={row.href} icon={<SettingsIcon name={row.icon} />} label={row.label} />
+        ))}
       </SettingsSection>
 
       <SettingsSection label="Help and legal">

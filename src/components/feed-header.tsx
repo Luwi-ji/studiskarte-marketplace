@@ -18,7 +18,8 @@ export type FeedNav = {
   filters: { options: FilterOptions; activeCount: number };
 };
 
-// The top row (48 px) and the tab strip slide with `translateY` only; the header keeps its full height, so the page never jumps.
+// The brand row (44 px) with the top row (44 px), and the tab strip, slide with `translateY` only; the header keeps its full height, so the page never jumps.
+const HIDE = "-translate-y-[5.5rem]";
 const pinned = "pointer-events-auto bg-[var(--background)] will-change-transform motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out";
 // The underline is always there, collapsed; the current tab grows it (under 150 ms, not at all with reduced motion).
 const tabBase =
@@ -52,8 +53,14 @@ export function FeedHeader({ bell, nav }: { bell: ReactNode; nav?: FeedNav }) {
       {/* The notch area stays covered while the top row has slid away under it. */}
       <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-[env(safe-area-inset-top)] bg-[var(--background)]" />
       <h1 className="sr-only">Studiskarte</h1>
-      <div inert={hidden} aria-hidden={hidden || undefined} className={`${pinned} ${hidden ? "-translate-y-12" : ""}`}>
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-1 px-2 pt-1">
+      <div inert={hidden} aria-hidden={hidden || undefined} className={`${pinned} ${hidden ? HIDE : ""}`}>
+        {/* The brand, centred above the search row. It goes away with the row when scrolling down and comes back with it. */}
+        <div aria-hidden className="flex h-11 items-center justify-center gap-2 pt-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" width={24} height={24} className="h-6 w-6 rounded-md" />
+          <span className="text-lg font-bold tracking-tight text-brand-text">Studiskarte</span>
+        </div>
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-1 px-2">
           <CategoriesButton />
           <Link href="/search" className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-zinc-500 dark:bg-zinc-900">
             <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
@@ -67,7 +74,7 @@ export function FeedHeader({ bell, nav }: { bell: ReactNode; nav?: FeedNav }) {
         </div>
       </div>
 
-      <div className={`${pinned} border-b border-zinc-200 dark:border-zinc-800 ${hidden ? "-translate-y-12" : ""}`}>
+      <div className={`${pinned} border-b border-zinc-200 dark:border-zinc-800 ${hidden ? HIDE : ""}`}>
         <div className="mx-auto flex w-full max-w-3xl items-center pl-2 pr-2">
           <nav ref={strip} aria-label="Show posts from" className="relative flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {nav ? (

@@ -3,8 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, googleEnabled } from "@/lib/identity/auth";
-import { findByIdentifier, loginWithPassword } from "@/lib/identity/password";
-import { parseRole } from "@/lib/identity/roles";
+import { loginWithPassword } from "@/lib/identity/password";
 import { safeReturnTo, withReturnTo } from "@/lib/identity/return-to";
 
 export type SignInState = { error?: string; identifier?: string };
@@ -19,12 +18,8 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const password = String(formData.get("password") ?? "");
   const result = await loginWithPassword(identifier, password, await headers());
   if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : result.reason === "suspended" ? SUSPENDED : WRONG };
-  const next = safeReturnTo(formData.get("next"));
-  // The saved role decides what the account can do. A different choice is told so, not refused.
-  const chosen = parseRole(formData.get("role"));
-  const saved = chosen ? (await findByIdentifier(identifier))?.role : null;
-  if (chosen && saved && saved !== chosen) redirect(`/sign-in?chose=${chosen}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
-  redirect(next ?? "/");
+  // The role was chosen when the account was made and decides what it can do, so signing in does not ask.
+  redirect(safeReturnTo(formData.get("next")) ?? "/");
 }
 
 /** Starts Google sign-in: the person leaves for Google and comes back to /api/auth/callback/google. */

@@ -21,10 +21,13 @@ const AI_CRAWLERS = [
 
 export default function robots(): MetadataRoute.Robots {
   return {
+    sitemap: "https://studiskarte.com/sitemap.xml",
     rules: [
       {
         userAgent: "*",
         allow: "/",
+        // Pages that need an account, and the places the app talks to itself.
+        disallow: ["/api/", "/me/", "/admin/", "/messages", "/notifications", "/offers/", "/posts/", "/welcome", "/sign-in", "/forgot-password", "/search"],
         other: { "Content-Signal": "search=yes, ai-input=no, ai-train=no" },
       },
       { userAgent: AI_CRAWLERS, disallow: "/" },

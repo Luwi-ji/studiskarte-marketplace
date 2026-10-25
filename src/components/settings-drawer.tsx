@@ -25,7 +25,8 @@ export function SettingsDrawer({ icon, label, description, value, title, childre
         <div data-sheet-drag className="shrink-0 touch-none border-b border-zinc-200 px-4 pb-3 pt-1 text-center dark:border-zinc-800">
           <h2 className="text-lg font-semibold">{title ?? label}</h2>
         </div>
-        <div className="min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+        {/* Choosing a row leaves the page, so the sheet closes with it. */}
+        <div onClick={(event) => (event.target as HTMLElement).closest("a") && setOpen(false)} className="min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           <ul>{children}</ul>
         </div>
       </BottomSheet>

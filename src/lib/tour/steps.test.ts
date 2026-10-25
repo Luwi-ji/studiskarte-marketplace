@@ -18,7 +18,7 @@ describe("tour", () => {
   it("puts an action on the last step only, and keeps every tour short", () => {
     for (const kind of ["student", "member", "guest"] as const) {
       const steps = tourSteps(kind, "Ana");
-      expect(steps.length).toBeLessThanOrEqual(6);
+      expect(steps.length).toBeLessThanOrEqual(7);
       expect(steps.slice(0, -1).some((step) => step.cta)).toBe(false);
     }
   });
@@ -28,6 +28,13 @@ describe("tour", () => {
     expect(sells("student")).toBe(true);
     expect(sells("member")).toBe(false);
     expect(sells("guest")).toBe(false);
+  });
+
+  it("offers the home-screen step to everyone, before the last step", () => {
+    for (const kind of ["student", "member", "guest"] as const) {
+      const steps = tourSteps(kind, "Ana");
+      expect(steps.at(-2)?.id).toBe("install");
+    }
   });
 
   it("greets by first name", () => {

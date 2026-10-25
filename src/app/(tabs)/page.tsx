@@ -9,6 +9,7 @@ import { HeaderSheets } from "@/components/header-sheets";
 import { requireActiveStudent } from "@/lib/access";
 import { FirstRunStrip } from "@/components/first-run-strip";
 import { OnboardingTour } from "@/components/onboarding-tour";
+import { InstallStrip } from "@/components/install";
 import { tourKindFor } from "@/lib/tour/steps";
 import { listFeed } from "@/lib/discovery/feed";
 import { hasStarted } from "@/lib/discovery/started";
@@ -81,6 +82,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Record<string, str
       <FeedHeader bell={<NotificationBell />} nav={nav} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-3">
         <div className="flex flex-col gap-3">
+          {me.tourSeen ? <InstallStrip /> : null}
           {showStrip ? <FirstRunStrip studentId={me.id} displayName={profile?.displayName || me.handle} canSell={me.role === "student"} /> : null}
           <PendingResults skeleton={<CardGridSkeleton />} className="flex flex-col gap-3">
             {items.length === 0 ? (
