@@ -55,7 +55,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
     q: "How do I pay?",
     a: "In cash at the meet-up, or another way the listing allows, agreed between the two of you. Studiskarte never holds money and gives no payment protection, so do not pay before you have agreed a time and a place for the handover.",
   },
-  { q: "Why TUP-Manila?", a: "We are launching there first. Students from any school can still join." },
+  { q: "Is Studiskarte part of a school?", a: "No. Studiskarte is independent and is not affiliated with any school. Your school email only shows that you are a student." },
   {
     q: "Who can join, and do I need a school email?",
     a: "Anyone aged 16 or older. Students, faculty, teachers, staff and alumni of any school join with their school email (it ends in .edu.ph), which also earns the School email badge. Without a school email you may be able to join as a Guest with a personal email; the sign-up page shows whether that is open. Guests can buy and post Wishlists but cannot sell.",
@@ -98,14 +98,14 @@ export default function LandingPage() {
         <section className="overflow-hidden bg-brand pb-0 text-white">
           <div className={`${WRAP} grid items-center gap-10 pb-0 pt-8 md:grid-cols-2 md:pb-14 md:pt-14`}>
             <div className="flex flex-col gap-5">
-              <p className="text-sm font-semibold uppercase tracking-wide text-white/90">For TUP-Manila students</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-white/90">For students in the Philippines</p>
               <h1 className="text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl">Your post got buried. Your product didn&apos;t deserve that.</h1>
               <p className="max-w-md text-lg text-white/90">
-                One student marketplace for TUP-Manila where every listing is seen. Students from any school can join too.
+                One student marketplace where every listing is seen. Open to students from any school.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Link href="/sign-up" className={PRIMARY}>
-                  Join TUP-Manila&apos;s marketplace
+                  Join Studiskarte
                 </Link>
                 <Link href="/sign-in" className={SECONDARY}>
                   Log in
@@ -140,7 +140,7 @@ export default function LandingPage() {
                 className="aspect-square w-40 rounded-2xl object-cover"
               />
               <div className="flex max-w-xl flex-col gap-4 text-lg">
-                <p>Ako si {FOUNDER.name}, o {FOUNDER.nickname}. I&apos;m a TUP-Manila student, and I sell empanada, pancakes and ice cream to support my studies.</p>
+                <p>Ako si {FOUNDER.name}, o {FOUNDER.nickname}. I&apos;m a student in Manila, and I sell empanada, pancakes and ice cream to support my studies.</p>
                 <p>Here is what kept happening. I posted what I was selling in a school group, then waited for the admin to approve it. Sometimes it went up late, and by then newer posts had pushed it down before my classmates ever saw it.</p>
                 <p>I had food to sell and students who might have wanted it. They just never met. So I built the place I wished existed.</p>
                 <p>On Studiskarte your listing goes live right away, students at your school can see it, and you agree a safe meet-up in one chat. Be one of the first sellers. Tara, mag-post na tayo.</p>
@@ -276,7 +276,7 @@ export default function LandingPage() {
               <p className="max-w-md text-lg text-white/90">Be one of the first 100 students to join and get a Founding Seller badge on your profile.</p>
             ) : null}
             <Link href="/sign-up" className={PRIMARY}>
-              Join TUP-Manila&apos;s marketplace
+              Join Studiskarte
             </Link>
             <Link href="/sign-in" className="inline-flex min-h-11 items-center text-base underline">
               Already a member? Log in

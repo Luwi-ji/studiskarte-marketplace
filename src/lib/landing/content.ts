@@ -1,7 +1,7 @@
 /** A value still holding a {{PLACEHOLDER}} (or blank) is "not filled": its section is not rendered. */
 export const isFilled = (value: string): boolean => value.trim() !== "" && !value.includes("{{");
 
-export const SURVEY_N = "From our survey of 47 students, from TUP and other schools.";
+export const SURVEY_N = "From our survey of 47 students from several schools.";
 // Counted from the raw responses sheet (Form responses 1), all 47 respondents. "Which of these problems have you
 // personally experienced?" gives 29 buried and 22 repost; "Have you ever had a bad experience...?" gives 25 ghosted.
 // Recount from the sheet if the data changes.

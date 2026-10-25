@@ -519,7 +519,7 @@ export function PostForm(props: Props) {
         {values.exchangeMeetup ? (
           <label className="flex flex-col gap-1">
             <span className={labelClass}>Where to meet</span>
-            <input name="meetupLocation" enterKeyHint="next" value={values.meetupLocation} onChange={(e) => set("meetupLocation", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. TUP Manila main gate" className={fieldClass} />
+            <input name="meetupLocation" enterKeyHint="next" value={values.meetupLocation} onChange={(e) => set("meetupLocation", e.target.value)} maxLength={PLACE_MAX} placeholder="e.g. Main gate" className={fieldClass} />
             <span className={hintClass}>For your safety, choose a busy public spot on campus.</span>
             <FieldError message={errors.meetupLocation} />
           </label>

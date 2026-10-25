@@ -85,7 +85,7 @@ export function PerkVote() {
 
       <form onSubmit={suggest} className="flex flex-col gap-3">
         <label htmlFor="perk-shop" className="text-lg font-semibold">
-          Which shop near TUP should we ask first?
+          Which shop near your school should we ask first?
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
