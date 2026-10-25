@@ -804,9 +804,17 @@ export const partner = pgTable(
     // Email domains of the schools it serves; null means every school.
     schoolDomains: text("school_domains").array(),
     status: text("status").notNull().default("pending"),
+    // The shop's 4-digit PIN: the cashier types it on a student's phone to redeem a voucher. Plain text on purpose: the
+    // admin reads it back to tell the shop. Compared on the server only, never sent to a browser.
+    pin: text("pin"),
+    // The secret in the shop's private report link (/partner/<token>); replaced to revoke the link.
+    reportToken: text("report_token"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("partner_pin_format", sql`${t.pin} is null or ${t.pin} ~ '^[0-9]{4}$'`),
+    unique("partner_report_token").on(t.reportToken),
+    check("partner_report_token_format", sql`${t.reportToken} is null or ${t.reportToken} ~ '^[A-Za-z0-9_-]{32}$'`),
     check("partner_name_length", sql`char_length(btrim(${t.name})) between 1 and 120`),
     check("partner_area_length", sql`char_length(btrim(${t.area})) between 1 and 120`),
     check("partner_kind", sql`${t.kind} in ('food', 'clothes', 'printing', 'services', 'other')`),
@@ -830,6 +838,8 @@ export const perk = pgTable(
     limitPeriod: text("limit_period"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull().defaultNow(),
     endsAt: timestamp("ends_at", { withTimezone: true }),
+    // How many vouchers may be live at once; null means no cap.
+    totalQuantity: integer("total_quantity"),
     status: text("status").notNull().default("draft"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -843,6 +853,36 @@ export const perk = pgTable(
       sql`(${t.limitPerStudent} is null and ${t.limitPeriod} is null) or (${t.limitPerStudent} > 0 and ${t.limitPeriod} in ('day', 'week', 'month', 'ever'))`,
     ),
     check("perk_dates", sql`${t.endsAt} is null or ${t.endsAt} > ${t.startsAt}`),
+    check("perk_total_quantity", sql`${t.totalQuantity} is null or ${t.totalQuantity} > 0`),
+  ],
+);
+
+// A student's claim on a perk. claimed: waiting for the shop's PIN. redeemed: the cashier typed the PIN. expired: unused past
+// expires_at. A "live" voucher is redeemed, or claimed and not yet expired; only live ones count toward limits and stock.
+export const perkVoucher = pgTable(
+  "perk_voucher",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    perkId: uuid("perk_id")
+      .notNull()
+      .references(() => perk.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    // Shown to the student and in reports (ST-4F8K); the cashier never types it.
+    code: text("code").notNull(),
+    status: text("status").notNull().default("claimed"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  },
+  (t) => [
+    unique("perk_voucher_code").on(t.code),
+    check("perk_voucher_status", sql`${t.status} in ('claimed', 'redeemed', 'expired')`),
+    check("perk_voucher_redeemed_at", sql`(${t.status} = 'redeemed') = (${t.redeemedAt} is not null)`),
+    // One open voucher per student per perk.
+    uniqueIndex("perk_voucher_one_open").on(t.perkId, t.studentId).where(sql`${t.status} = 'claimed'`),
+    index("perk_voucher_lookup_idx").on(t.perkId, t.studentId, t.claimedAt),
   ],
 );
 
