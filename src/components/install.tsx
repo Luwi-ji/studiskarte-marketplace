@@ -83,63 +83,63 @@ export function useInstall(): InstallState {
   };
 }
 
-const STEPS: Record<"ios" | "android", string[]> = {
-  ios: ["Open Studiskarte in Safari.", "Tap the Share button (the square with an arrow) at the bottom of the screen.", "Scroll down and choose Add to Home Screen, then tap Add."],
-  android: ["Open Studiskarte in Chrome.", "Tap the menu (the three dots) at the top right.", "Choose Install app or Add to Home screen, then tap Install."],
+// Short on purpose: the bold part is the thing to find on the screen.
+const STEPS: Record<"ios" | "android", { bold: string; rest: string }[]> = {
+  ios: [
+    { bold: "Safari", rest: "Open Studiskarte in" },
+    { bold: "Share", rest: "Tap" },
+    { bold: "Add to Home Screen", rest: "Choose" },
+  ],
+  android: [
+    { bold: "Chrome", rest: "Open Studiskarte in" },
+    { bold: "⋮ menu", rest: "Tap the" },
+    { bold: "Install app", rest: "Choose" },
+  ],
 };
+const LABEL = { ios: "iPhone", android: "Android" } as const;
 
 /**
- * How to get the app on the home screen, for both kinds of phone. The tab for this device is chosen first, and the
- * other is one tap away (a person may be setting it up for a friend, or reading on a computer). Where the browser can
- * start the install itself, a button does it.
+ * How to get the app on the home screen: three short steps for this phone, picked from the browser. A small link shows
+ * the other phone's steps, for a wrong guess or for a computer. Where the browser can start the install itself, a button does it.
  */
 export function InstallPanel() {
   const { platform, canPrompt, prompt } = useInstall();
   const [picked, setPicked] = useState<"ios" | "android" | null>(null);
   const tab = picked ?? (platform === "ios" ? "ios" : "android");
+  const other = tab === "ios" ? "android" : "ios";
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="Your phone" className="grid grid-cols-2 gap-1 rounded-full bg-zinc-100 p-1 dark:bg-zinc-900">
-        {([["ios", "iPhone"], ["android", "Android"]] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setPicked(id)}
-            className={`press flex h-10 items-center justify-center rounded-full text-sm font-semibold ${tab === id ? "bg-white text-[var(--foreground)] shadow-sm dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"}`}
-          >
-            {label}
-            {platform === id ? <span className="ml-1.5 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand-text">This phone</span> : null}
-          </button>
+      {tab === "android" && canPrompt ? (
+        <button type="button" onClick={() => void prompt()} className="press flex h-12 items-center justify-center rounded-full bg-brand text-base font-semibold text-white">
+          Install Studiskarte
+        </button>
+      ) : null}
+      <ol className="flex flex-col gap-3 text-base">
+        {STEPS[tab].map((step, i) => (
+          <li key={step.bold} className="flex items-center gap-3">
+            <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
+              {i + 1}
+            </span>
+            <span>
+              {step.rest} <strong>{step.bold}</strong>
+            </span>
+          </li>
         ))}
+      </ol>
+      <div className="flex flex-col items-start">
+        <button type="button" onClick={() => setPicked(other)} className="press inline-flex min-h-11 items-center text-sm font-semibold text-brand-text">
+          Using {LABEL[other]}? Show those steps
+        </button>
+        <details className="group w-full text-sm text-zinc-600 dark:text-zinc-400">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+            Opened from Instagram or Facebook?
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-none stroke-current transition-transform group-[[open]]:rotate-90 motion-reduce:transition-none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </summary>
+          <p className="pb-2">Open the link in {tab === "ios" ? "Safari" : "Chrome"} first. Their built-in pages cannot add it.</p>
+        </details>
       </div>
-
-      <div role="tabpanel" className="flex flex-col gap-4">
-        {tab === "android" && canPrompt ? (
-          <button type="button" onClick={() => void prompt()} className="press flex h-12 items-center justify-center rounded-full bg-brand text-base font-semibold text-white">
-            Install Studiskarte
-          </button>
-        ) : null}
-        <ol className="flex flex-col gap-3 text-base">
-          {STEPS[tab].map((line, i) => (
-            <li key={line} className="flex items-start gap-3">
-              <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-                {i + 1}
-              </span>
-              {line}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <div className="flex flex-col gap-1.5 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-        <p>
-          <strong>Opened this from Instagram or Facebook?</strong> Open the link in {tab === "ios" ? "Safari" : "Chrome"} first; those in-app pages cannot add it.
-        </p>
-        <p>On a computer, look for the install icon at the right of the address bar in Chrome or Edge.</p>
-      </div>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">It opens full screen like an app, loads faster, and sits next to your other apps. Nothing to download from a store.</p>
     </div>
   );
 }
@@ -151,7 +151,7 @@ export function InstallSheet({ open, onOpenChange }: { open: boolean; onOpenChan
       <div className="flex flex-col gap-4 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
         <div className="flex flex-col gap-1.5">
           <h2 className="text-xl font-bold tracking-tight">Add Studiskarte to your home screen</h2>
-          <p className="text-base text-zinc-600 dark:text-zinc-400">Use it like an app.</p>
+          <p className="text-base text-zinc-600 dark:text-zinc-400">It opens full screen, like an app.</p>
         </div>
         <InstallPanel />
         <button type="button" onClick={() => onOpenChange(false)} className="press flex h-11 items-center justify-center text-base font-medium text-zinc-600 dark:text-zinc-400">
