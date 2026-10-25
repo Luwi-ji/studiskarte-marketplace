@@ -5,6 +5,7 @@ import {
   block,
   deal,
   follow,
+  funnelEvent,
   heart,
   image,
   notification,
@@ -149,6 +150,7 @@ export async function deleteAccount(args: {
       .delete(verification)
       .where(inArray(verification.identifier, [...OTP_TYPES.map((type) => `${type}-otp-${me.email}`), `school-link:${args.studentId}`]));
     await tx.delete(rateLimitEvent).where(inArray(rateLimitEvent.key, [me.email, ...(me.schoolEmail ? [me.schoolEmail] : []), args.studentId]));
+    await tx.delete(funnelEvent).where(eq(funnelEvent.studentId, args.studentId));
 
     // The profile picture goes with the account; its files are removed once this is saved.
     if (me.avatarImageId) {
@@ -173,6 +175,9 @@ export async function deleteAccount(args: {
         handleChangedAt: null,
         image: null,
         calendarTokenHash: null,
+        utmSource: null,
+        utmMedium: null,
+        utmCampaign: null,
         updatedAt: now,
       })
       .where(eq(student.id, args.studentId));

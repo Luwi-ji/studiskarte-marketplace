@@ -1,8 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isAPIError } from "better-auth/api";
+import { recordSignupStarted } from "@/lib/funnel/events";
+import { readUtmCookie, UTM_COOKIE } from "@/lib/funnel/utm";
 import { auth, requestSignUpCode, SIGN_IN_ERROR, visitorsAllowed } from "@/lib/identity/auth";
 import { withReturnTo } from "@/lib/identity/return-to";
 import { parseRole, type Role } from "@/lib/identity/roles";
@@ -36,7 +38,10 @@ export async function requestCode(_prev: SignUpState, formData: FormData): Promi
 
   try {
     const result = await requestSignUpCode(parsed.email, await headers());
-    if (result.ok) return { step: "code", role, email: parsed.email };
+    if (result.ok) {
+      await recordSignupStarted(readUtmCookie((await cookies()).get(UTM_COOKIE)?.value));
+      return { step: "code", role, email: parsed.email };
+    }
     if (result.reason === "invalid_email") return { step: "email", role, email: typed, error: "Enter a valid email address." };
     if (result.reason === "visitors_closed") return { step: "email", role, email: typed, error: VISITORS_CLOSED };
     if (result.reason === "account_exists") return { step: "email", role, email: typed, error: EXISTS };

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { deal } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { syncAvailability } from "@/lib/deals/capacity";
+import { recordStage } from "@/lib/funnel/events";
 import { lockDeal, touched } from "@/lib/deals/lock";
 import { readyToComplete } from "@/lib/deals/slot";
 import { activeFor, tellOther, type HandoverResult } from "@/lib/deals/schedule";
@@ -45,6 +46,7 @@ export async function confirmHandover(args: { actorId: string; dealId: string; a
       .update(deal)
       .set({ ...(asOwner ? { ownerConfirmedAt: now } : { responderConfirmedAt: now }), ...(completed ? { status: "completed" } : {}), ...touched(now) })
       .where(eq(deal.id, found.id));
+    await recordStage(tx, "first_handover_confirmed", { studentId: args.actorId });
     if (completed) await syncAvailability(tx, found.postId, now);
     recorded = await tellOther(tx, found, args.actorId, completed ? "deal_completed" : "deal_confirmed", `${completed ? "completed" : "confirmed"}:${args.actorId}`);
     return { ok: true, conversationId: found.conversationId, completed };

@@ -1,6 +1,7 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
+import { recordStage } from "@/lib/funnel/events";
 import { categoryLookup, listCategories } from "@/lib/posts/categories";
 import { OPEN_POSTS_MAX, parseNewPost, type FieldErrors, type PostData } from "@/lib/posts/schema";
 import { SHOWCASE_STUDENTS_ONLY } from "@/lib/posts/audience";
@@ -99,6 +100,7 @@ export async function createPost(args: { ownerId: string; input: unknown; now?: 
         .insert(post)
         .values({ ownerId: args.ownerId, kind: data.kind, ...postColumns(data) })
         .returning({ id: post.id });
+      await recordStage(tx, "first_listing", { studentId: args.ownerId });
       await writeDetails(tx, created.id, data);
       return { ok: true, id: created.id };
     });

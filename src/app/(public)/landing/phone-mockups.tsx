@@ -56,30 +56,3 @@ export function FeedMock({ className = "" }: { className?: string }) {
     </PhoneFrame>
   );
 }
-
-/** A conversation with an offer turned into a reservation and an agreed handover. */
-export function ThreadMock({ className = "" }: { className?: string }) {
-  return (
-    <PhoneFrame label="An example of a Studiskarte chat with a reservation and an agreed meet-up" className={className}>
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-3 pb-1.5 pt-2 dark:border-zinc-800">
-        <span className="text-[11px] text-zinc-500">‹</span>
-        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-200 text-[7px] font-semibold dark:bg-zinc-700">S</span>
-        <span className="text-[10px] font-semibold">Seller</span>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 px-3 py-2.5">
-        <p className="max-w-[80%] rounded-2xl rounded-bl-sm bg-zinc-100 px-2.5 py-1.5 text-[9px] dark:bg-zinc-800">Hi! Is the textbook still available?</p>
-        <p className="max-w-[80%] self-end rounded-2xl rounded-br-sm bg-brand px-2.5 py-1.5 text-[9px] text-white">Yes! Want to reserve it?</p>
-        <div className="rounded-xl border border-zinc-200 p-2 dark:border-zinc-700">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[9px] font-semibold">Reservation</p>
-            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[7px] font-semibold text-emerald-900">Agreed</span>
-          </div>
-          <p className="mt-0.5 text-[9px] text-zinc-600 dark:text-zinc-400">Calculus textbook · ₱450</p>
-          <p className="mt-1.5 text-[8px] text-zinc-600 dark:text-zinc-400">Sat, 3:00 PM · Main gate</p>
-          <p className="mt-2 rounded-md bg-brand py-1 text-center text-[8px] font-semibold text-white">Confirm handover</p>
-        </div>
-        <p className="max-w-[80%] rounded-2xl rounded-bl-sm bg-zinc-100 px-2.5 py-1.5 text-[9px] dark:bg-zinc-800">See you there!</p>
-      </div>
-    </PhoneFrame>
-  );
-}

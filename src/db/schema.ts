@@ -83,6 +83,10 @@ export const student = pgTable(
     // The owner holds this account's records (a child safety case or a lawful order): it cannot be deleted by the person.
     // See src/lib/safety/hold.ts: a child safety report on the person or their listings holds it too.
     legalHoldAt: timestamp("legal_hold_at", { withTimezone: true }),
+    // First-touch campaign tags captured at sign-up (src/lib/funnel/utm.ts).
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -124,6 +128,10 @@ export const student = pgTable(
       sql`${t.calendarTokenHash} is null or ${t.calendarTokenHash} ~ '^[0-9a-f]{64}$'`,
     ),
     check("student_terms_pair", sql`(${t.termsVersion} is null) = (${t.termsAcceptedAt} is null)`),
+    check(
+      "student_utm_length",
+      sql`char_length(coalesce(${t.utmSource}, '')) <= 64 and char_length(coalesce(${t.utmMedium}, '')) <= 64 and char_length(coalesce(${t.utmCampaign}, '')) <= 64`,
+    ),
     unique("student_calendar_token_hash").on(t.calendarTokenHash),
   ],
 );
@@ -986,4 +994,38 @@ export const block = pgTable(
     check("block_not_self", sql`${t.blockerId} <> ${t.blockedId}`),
     index("block_blocked_idx").on(t.blockedId),
   ],
+);
+
+// Funnel counting, first-party and anonymous for landing views. Student-bound stages are recorded once per student.
+export const funnelEvent = pgTable(
+  "funnel_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    stage: text("stage").notNull(),
+    studentId: text("student_id").references(() => student.id, { onDelete: "cascade" }),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "funnel_event_stage",
+      sql`${t.stage} in ('landing_view','signup_started','signup_completed','first_listing','first_message','first_handover_confirmed')`,
+    ),
+    // Postgres treats NULLs as distinct, so anonymous rows never collide.
+    unique("funnel_event_once_per_student").on(t.studentId, t.stage),
+    index("funnel_event_stage_idx").on(t.stage, t.createdAt),
+  ],
+);
+
+// An anonymous vote on the landing page for which student perk to bring first. Never counted on a public page.
+export const perkVote = pgTable(
+  "perk_vote",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("perk_vote_kind", sql`${t.kind} in ('food','clothes','printing','services','other')`)],
 );
