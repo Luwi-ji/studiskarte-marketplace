@@ -160,8 +160,8 @@ function DetailsForm({ target, reason, onSent }: { target: ReportTarget; reason:
   );
 }
 
-/** Three dots, or a plain text button on a page's bottom line. */
-type Trigger = "overlay" | "plain" | { text: string };
+/** The three dots: over a photo ("overlay") or in a page's top bar ("plain"). */
+type Trigger = "overlay" | "plain";
 
 /**
  * The menu behind a three-dot button, the same on a listing, in a conversation and on a profile. One sheet, in steps:
@@ -301,25 +301,19 @@ export function MenuSheet({
 
   return (
     <>
-      {typeof trigger === "string" ? (
-        <button
-          type="button"
-          onClick={() => onOpenChange(true)}
-          aria-label="More options"
-          aria-haspopup="dialog"
-          className={`${MENU_BUTTON} flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${trigger === "overlay" ? "bg-black/50 text-white backdrop-blur-sm active:bg-black/60" : "active:bg-zinc-100 dark:active:bg-zinc-800"}`}
-        >
-          <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
-            <circle cx="12" cy="5" r="1.8" />
-            <circle cx="12" cy="12" r="1.8" />
-            <circle cx="12" cy="19" r="1.8" />
-          </svg>
-        </button>
-      ) : (
-        <button type="button" onClick={() => onOpenChange(true)} aria-haspopup="dialog" className={`${MENU_BUTTON} flex min-h-11 w-full items-center justify-center text-sm text-zinc-500`}>
-          {trigger.text}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => onOpenChange(true)}
+        aria-label="More options"
+        aria-haspopup="dialog"
+        className={`${MENU_BUTTON} flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${trigger === "overlay" ? "bg-black/50 text-white backdrop-blur-sm active:bg-black/60" : "active:bg-zinc-100 dark:active:bg-zinc-800"}`}
+      >
+        <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+          <circle cx="5" cy="12" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="19" cy="12" r="1.8" />
+        </svg>
+      </button>
       <BottomSheet open={open} onOpenChange={onOpenChange} label={title} returnFocusTo={`.${MENU_BUTTON}`} portal>
         {body}
       </BottomSheet>
