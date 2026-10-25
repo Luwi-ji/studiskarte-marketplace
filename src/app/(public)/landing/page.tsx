@@ -25,6 +25,11 @@ export const metadata: Metadata = {
   openGraph: { title: TITLE, description: DESCRIPTION, url: "/", siteName: "Studiskarte Marketplace", type: "website", images: [{ url: "/logo.png" }] },
 };
 
+const SCREENS = [
+  { src: "/landing/app-post.webp", height: 900, alt: "The Studiskarte post form with a photo, title and price filled in", caption: "Post in seconds. No admin to approve it." },
+  { src: "/landing/app-meetup.webp", height: 575, alt: "A Studiskarte chat where the seller picks a day, time and place to hand over", caption: "Agree the day, time and place in the chat." },
+];
+
 const FIXES: { problem: string; fix: string }[] = [
   { problem: "Buried posts", fix: "Your listing goes live right away. Buyers search by category, price or words like \"size M\", and students you follow come first." },
   { problem: "Waiting for admin approval", fix: "Post in seconds. There is no group admin to approve it." },
@@ -136,9 +141,9 @@ export default function LandingPage() {
               />
               <div className="flex max-w-xl flex-col gap-4 text-lg">
                 <p>Ako si {FOUNDER.name}, o {FOUNDER.nickname}. I&apos;m a TUP-Manila student, and I sell empanada, pancakes and ice cream to support my studies.</p>
-                <p>I lived the problem: posts get buried by social media algorithms, and posts in school groups wait for an admin to approve them.</p>
-                <p>So I built the place I wished existed.</p>
-                <p>Studiskarte is a marketplace for students: your listing goes live right away, students at your school can see it, and you agree a safe meet-up in one chat. Tara, mag-post na tayo.</p>
+                <p>Here is what kept happening. I posted what I was selling in a school group, then waited for the admin to approve it. Sometimes it went up late, and by then newer posts had pushed it down before my classmates ever saw it.</p>
+                <p>I had food to sell and students who might have wanted it. They just never met. So I built the place I wished existed.</p>
+                <p>On Studiskarte your listing goes live right away, students at your school can see it, and you agree a safe meet-up in one chat. Be one of the first sellers. Tara, mag-post na tayo.</p>
                 <a href={FOUNDER.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-base font-semibold underline">
                   Follow the journey: @{FOUNDER.instagramHandle} on Instagram<span className="sr-only"> (opens in a new tab)</span>
                 </a>
@@ -174,6 +179,15 @@ export default function LandingPage() {
           <h2 id="fixes-heading" className="text-3xl font-bold tracking-tight">
             How Studiskarte fixes it
           </h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {SCREENS.map((screen) => (
+              <figure key={screen.src} className="flex flex-col gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={screen.src} alt={screen.alt} width={450} height={screen.height} loading="lazy" decoding="async" className="w-full max-w-xs rounded-2xl border border-zinc-200 dark:border-zinc-800" />
+                <figcaption className={`text-sm ${MUTED}`}>{screen.caption}</figcaption>
+              </figure>
+            ))}
+          </div>
           <ul className="flex flex-col gap-3">
             {FIXES.map((item) => (
               <li key={item.problem} className="flex flex-col gap-1 rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
@@ -192,7 +206,9 @@ export default function LandingPage() {
               </h2>
               <span className="rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand-text">Coming soon</span>
             </div>
-            <p className={`max-w-xl text-lg ${MUTED}`}>We want to bring student perks from local businesses. None are signed yet, so we are asking you first.</p>
+            <p className={`max-w-xl text-lg ${MUTED}`}>
+              First perk: <strong className="text-[var(--foreground)]">Lowel&apos;s empanadas, ₱25 each, buy 5 get 1 free.</strong> We are asking local shops for more, so tell us which ones you want.
+            </p>
             <h3 className="text-lg font-semibold">Which perks do you want?</h3>
             <PerkVote />
             <p className={`text-base ${MUTED}`}>

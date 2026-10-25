@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 /**
- * Small drawings of two app screens, in HTML so they cost no image download and follow light and dark mode.
- * They show the layout of the real screens with example text; they are not real listings, people or numbers.
+ * Small drawing of the feed screen, in HTML so it follows light and dark mode. It shows the layout of the real screen
+ * with real photos but example titles and prices; they are not real listings, people or numbers.
  */
 
 function PhoneFrame({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
@@ -21,10 +21,10 @@ function PhoneFrame({ label, children, className = "" }: { label: string; childr
 }
 
 const CARDS = [
-  { title: "Calculus textbook", price: "₱450", kind: "Showcase", tint: "bg-brand/25" },
-  { title: "Scientific calculator", price: "₱500", kind: "Wishlist", tint: "bg-amber-300/40" },
-  { title: "Org shirt, size M", price: "₱200", kind: "Showcase", tint: "bg-emerald-400/30" },
-  { title: "Free study notes", price: "Free", kind: "Showcase", tint: "bg-fuchsia-400/25" },
+  { title: "School uniform set", price: "₱600", photo: "/landing/uniform.webp" },
+  { title: "Pre-loved clothes bundle", price: "₱350", photo: "/landing/clothes.webp" },
+  { title: "Shoes, assorted sizes", price: "₱500", photo: "/landing/shoes.webp" },
+  { title: "Egg sandwich", price: "₱60", photo: "/landing/sandwich.webp" },
 ];
 
 /** The feed: tabs, then listing cards. */
@@ -43,8 +43,10 @@ export function FeedMock({ className = "" }: { className?: string }) {
       <div className="grid grid-cols-2 gap-2 p-2.5">
         {CARDS.map((card) => (
           <div key={card.title} className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <div className={`relative aspect-square ${card.tint}`}>
-              <span className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[7px] font-semibold ${card.kind === "Wishlist" ? "bg-amber-100 text-amber-900" : "bg-brand text-white"}`}>{card.kind}</span>
+            <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-800">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={card.photo} alt="" width={180} height={180} decoding="async" className="h-full w-full object-cover" />
+              <span className="absolute left-1 top-1 rounded-full bg-brand px-1.5 py-0.5 text-[7px] font-semibold text-white">Showcase</span>
             </div>
             <div className="px-1.5 py-1.5">
               <p className="text-[10px] font-bold">{card.price}</p>
