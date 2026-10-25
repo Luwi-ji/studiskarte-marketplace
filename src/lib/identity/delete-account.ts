@@ -178,6 +178,7 @@ export async function deleteAccount(args: {
         utmSource: null,
         utmMedium: null,
         utmCampaign: null,
+        foundingSellerAt: null,
         updatedAt: now,
       })
       .where(eq(student.id, args.studentId));

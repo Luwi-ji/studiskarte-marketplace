@@ -8,6 +8,7 @@ import { BoughtCount, FollowersCount, FollowingCount, NewPill, SoldCount, STAT_L
 import { CardGridSkeleton } from "@/components/skeletons";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { IdCheckedBadge } from "@/components/id-checked-badge";
+import { FoundingSellerBadge } from "@/components/founding-seller-badge";
 import { Stars } from "@/components/stars";
 import { requireActiveStudent } from "@/lib/access";
 import { listPostsBy } from "@/lib/discovery/feed";
@@ -145,6 +146,7 @@ async function Profile({
               <span className="flex shrink-0 items-center gap-2">
                 {profile.isGuest ? <GuestBadge /> : <VerifiedBadge />}
                 {profile.idChecked ? <IdCheckedBadge /> : null}
+                {profile.isFoundingSeller ? <FoundingSellerBadge /> : null}
               </span>
             </div>
             {/* The star rating sits beside the handle. Its link keeps a 44 px target without making the line taller. */}

@@ -210,7 +210,7 @@ export default function LandingPage() {
             <h2 id="founding-heading" className="text-3xl font-bold tracking-tight">
               Founding Seller
             </h2>
-            <p className={`text-lg ${MUTED}`}>The first 100 members get a Founding Seller badge on their profile.</p>
+            <p className={`text-lg ${MUTED}`}>The first 100 students to join get a Founding Seller badge on their profile, for good.</p>
           </section>
         ) : null}
 
@@ -256,6 +256,9 @@ export default function LandingPage() {
         <section className="bg-brand text-white">
           <div className={`${WRAP} flex flex-col items-center gap-5 py-14 text-center`}>
             <h2 className="text-3xl font-bold tracking-tight">Tara, mag-post na!</h2>
+            {FOUNDING_SELLER_ENABLED ? (
+              <p className="max-w-md text-lg text-white/90">Be one of the first 100 students to join and get a Founding Seller badge on your profile.</p>
+            ) : null}
             <Link href="/sign-up" className={PRIMARY}>
               Join TUP-Manila&apos;s marketplace
             </Link>

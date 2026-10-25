@@ -2,6 +2,7 @@ import { and, count, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { checkBio } from "@/lib/identity/bio";
 import { follow, image, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { grantFoundingSeller } from "@/lib/founding/grant";
 import {
   checkDisplayName,
   checkHandle,
@@ -79,6 +80,8 @@ export type PublicProfile = {
   isGuest: boolean;
   /** The owner checked a school ID and the check has not lapsed. */
   idChecked: boolean;
+  /** One of the first students to join (see src/lib/founding/config.ts). */
+  isFoundingSeller: boolean;
   /** Whether the viewer follows this student. */
   isFollowing: boolean;
 };
@@ -103,6 +106,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
       avatarKey: image.key,
       idCheckedAt: student.idCheckedAt,
       idCheckExpiresAt: student.idCheckExpiresAt,
+      foundingSellerAt: student.foundingSellerAt,
       schoolEmail: student.schoolEmail,
     })
     .from(student)
@@ -130,6 +134,7 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     isSelf: row.id === viewerId,
     isGuest: row.schoolEmail === null,
     idChecked: idCheckIsCurrent(row.idCheckedAt, row.idCheckExpiresAt),
+    isFoundingSeller: row.foundingSellerAt !== null,
     isFollowing: mine.n > 0,
   };
 }
@@ -182,6 +187,7 @@ export async function completeSignUp(
       .where(and(eq(student.id, studentId), isNull(student.handle)))
       .returning({ id: student.id });
     if (updated.length === 0) return { ok: false, field: "handle", message: "Your sign-up is already complete." };
+    await grantFoundingSeller(studentId, now);
     return { ok: true };
   } catch (error) {
     if (isHandleTaken(error)) return HANDLE_TAKEN;

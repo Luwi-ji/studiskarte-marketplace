@@ -28,5 +28,5 @@ export const FOUNDER = {
   photoFile: "founder.jpg",
 } as const;
 
-/** Founding Seller badge: copy only. OFF until the owner approves the badge; the flag column, profile badge and live count are NOT built. */
-export const FOUNDING_SELLER_ENABLED = false;
+/** Founding Seller: the landing page promises a badge to the first 100 students (src/lib/founding/config.ts). Set to false when the places run out. */
+export const FOUNDING_SELLER_ENABLED = true;

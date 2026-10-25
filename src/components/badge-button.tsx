@@ -8,6 +8,8 @@ const TONES = {
   green: { chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200", bare: "text-emerald-700 dark:text-emerald-300" },
   // A guest has no school email: neutral grey, not a colour that says "verified".
   grey: { chip: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", bare: "text-zinc-600 dark:text-zinc-400" },
+  // Founding Seller: gold, because it marks an early member, not a check.
+  amber: { chip: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200", bare: "text-amber-700 dark:text-amber-300" },
 };
 
 /**

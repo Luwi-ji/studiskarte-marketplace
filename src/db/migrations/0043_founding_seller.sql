@@ -1,0 +1,1 @@
+ALTER TABLE "student" ADD COLUMN "founding_seller_at" timestamp with time zone;
