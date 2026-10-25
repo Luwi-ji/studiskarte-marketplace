@@ -15,7 +15,7 @@ import { FunnelBeacon } from "./funnel-beacon";
 import { PerkVote } from "./perk-vote";
 import { FeedMock, ScreenPhone } from "./phone-mockups";
 
-const TITLE = "Studiskarte Marketplace · Where student hustle meets student needs";
+const TITLE = "Studiskarte";
 const DESCRIPTION =
   "Buy, sell, give away and look for things inside your school community. Chat, agree a time and a public place, and hand it over. Free to use, tied to your school email, and we never handle your money.";
 
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: "/",
-    siteName: "Studiskarte Marketplace",
+    siteName: "Studiskarte",
     type: "website",
     locale: "en_PH",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Studiskarte: where student hustle meets student needs" }],
@@ -47,8 +47,8 @@ const STRUCTURED_DATA = {
     {
       "@type": "Organization",
       "@id": "https://studiskarte.com/#organization",
-      name: "Studiskarte Marketplace",
-      alternateName: "Studiskarte",
+      name: "Studiskarte",
+      alternateName: "Studiskarte Marketplace",
       url: "https://studiskarte.com/",
       logo: "https://studiskarte.com/logo.png",
       email: SUPPORT_EMAIL,
@@ -58,7 +58,8 @@ const STRUCTURED_DATA = {
       "@type": "WebSite",
       "@id": "https://studiskarte.com/#website",
       url: "https://studiskarte.com/",
-      name: "Studiskarte Marketplace",
+      name: "Studiskarte",
+      alternateName: "Studiskarte Marketplace",
       description: DESCRIPTION,
       inLanguage: "en-PH",
       publisher: { "@id": "https://studiskarte.com/#organization" },

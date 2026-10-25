@@ -14,6 +14,7 @@ import { THEME_INIT_SCRIPT } from "@/lib/theme";
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://studiskarte.com"),
   title: "Studiskarte Marketplace",
   description: "Where student hustle meets student needs.",
   // Proves to Google Search Console that this site is ours (meta tag method; the HTML file in /public is the other proof).

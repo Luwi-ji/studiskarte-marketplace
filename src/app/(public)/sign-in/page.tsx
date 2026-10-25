@@ -6,7 +6,12 @@ import { googleEnabled } from "@/lib/identity/auth";
 import { safeReturnTo } from "@/lib/identity/return-to";
 import { SignInForm } from "./sign-in-form";
 
-export const metadata = { title: "Log in · Studiskarte Marketplace" };
+export const metadata = {
+  title: "Login | Studiskarte",
+  description: "Log in to Studiskarte to buy, sell and find things from students in your school community.",
+  alternates: { canonical: "/sign-in" },
+  robots: { index: true, follow: true },
+};
 
 export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
   return (

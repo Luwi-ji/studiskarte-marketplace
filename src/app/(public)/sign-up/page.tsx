@@ -7,7 +7,12 @@ import { visitorsAllowed } from "@/lib/identity/auth";
 import { safeReturnTo } from "@/lib/identity/return-to";
 import { SignUpForm } from "./sign-up-form";
 
-export const metadata = { title: "Create account · Studiskarte Marketplace" };
+export const metadata = {
+  title: "Sign up | Studiskarte",
+  description: "Join Studiskarte with a school or personal email to buy, sell and find things from students.",
+  alternates: { canonical: "/sign-up" },
+  robots: { index: true, follow: true },
+};
 
 export default function SignUpPage({ searchParams }: PageProps<"/sign-up">) {
   return (
