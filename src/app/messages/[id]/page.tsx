@@ -7,6 +7,9 @@ import { GuestBadge } from "@/components/guest-badge";
 import { requireActiveStudent } from "@/lib/access";
 import { getObjectStore } from "@/lib/images/store";
 import { getConversation, type OfferCard } from "@/lib/messaging/read";
+import { listTransactions } from "@/lib/deals/mine";
+import { conversationTurn } from "@/lib/deals/turn";
+import { TurnChip } from "@/components/turn-chip";
 import { MenuSheet } from "@/app/safety/menu-sheet";
 import { REPORT_REASONS } from "@/lib/safety/report";
 import { Chat, type ChatMessageData } from "./chat";
@@ -30,8 +33,10 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
   const me = await requireActiveStudent();
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) notFound();
-  const view = await getConversation(me.id, id.data);
+  // The same chip as in the Messages list: whose move any ongoing offer or reservation here is waiting for.
+  const [view, ongoing] = await Promise.all([getConversation(me.id, id.data), listTransactions(me.id, { ongoing: true, conversationId: id.data })]);
   if (!view) notFound();
+  const turn = conversationTurn(ongoing.map((t) => t.turn));
 
   const store = getObjectStore();
   // Every listing in the thread has its picture link made once, for the bar, the cards and the offers.
@@ -91,6 +96,7 @@ async function Conversation({ params }: { params: Promise<{ id: string }> }) {
             <span className="min-w-0 truncate">{name}</span>
             {profile.isGuest ? <GuestBadge interactive={false} /> : profile.schoolEmailChecked ? <VerifiedBadge interactive={false} /> : null}
             <span className="shrink-0 text-sm font-normal text-zinc-600 dark:text-zinc-400">{profile.schoolShort}</span>
+            <TurnChip turn={turn} />
           </span>
         }
         titleHref={handle ? `/u/${handle}?thread=${view.id}` : undefined}

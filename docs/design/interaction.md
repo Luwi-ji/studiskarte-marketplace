@@ -43,6 +43,15 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 - The page may rubber-band. Sheets, drawers, dialogs and scroll rows use `overscroll-behavior: contain` (set globally on `dialog`, `.overflow-y-auto`, `.overflow-x-auto`, axis by axis) so a swipe at the end of a panel never drags the page or the browser chrome behind it.
 - Sideways rows use `snap-x snap-mandatory`, hide the scrollbar, and pad with `scroll-px-*` so the first card lines up with the page edge.
 
+## Profile, My posts, and Notifications
+
+- Profile Showcase/Wishlist tabs stay directly below the safe-area page header. Keep the bio intact and use a compact gap between profile details and listing tabs.
+- My posts keeps type tabs and horizontally scrolling status filters together in one sticky strip below the header; the open-slot summary scrolls with the list.
+- Nonempty, complete profile and My posts lists end with “You've seen everything” and the shared scroll-to-top arrow (instant with reduced motion). Do not show the completion message for a capped public profile or before the feed's final pagination cursor is exhausted.
+- Profile listing Withdraw/Delete closes the action menu before opening one shared confirmation sheet, never a browser confirm or stacked sheets. Cancel/Escape dismiss without changing the post; the existing server action runs only on confirmation and failures stay visible for retry.
+- Notifications places accessible mark-all-read and device-alert controls in the page header. Keep pending feedback and actionable errors visible; device alerts continue to use the existing notification settings sheet.
+- Hearts (`CardHeart`, `HeartButton`) show the change at once with `useOptimistic` and take the server's state after `setHeartAction` revalidates the app, so the feed, a listing, and Hearted posts agree. A refused or failed heart rolls back.
+
 ## Sheets
 
 - Use `BottomSheet` or `useSlideDialog`: a native `<dialog>`, slide-in at most 220 ms ease-out (none with reduced motion), Escape and tap-outside close, swipe down closes from the handle.
@@ -50,11 +59,32 @@ Pressed means opacity 85% and scale 98%, in 100 ms ease-out. Transform and opaci
 - Older Safari (Tailwind 4 and Next 16 target Safari 16.4 and up; `<dialog>` and `dvh` need 15.4): a sheet's `display: flex` while open, its slide-in and its `vh` cap are plain CSS in `globals.css` (`dialog[data-slide="bottom"]`), not Tailwind's `open:` variant. `::backdrop` gets `--color-black` there, because Safari before 17.4 passes no custom properties to `::backdrop` and `backdrop:bg-black/50` would not dim (iOS 16.2 to 17.3). A sheet that sits in a sticky, blurred or transformed parent (the thread's three-dot menu in the page header) passes `portal` so it lives in `document.body`; never for a sheet whose inputs belong to a surrounding `<form>`.
 - The slide cannot leave a sheet stuck: a stalled entrance animation is finished after 300 ms, a panel left off screen is put in place, a swipe whose `touchend` never came springs back at the next touch, a close the parent refuses springs back, and a dialog that does not show at all becomes a plain overlay (reported to Sentry).
 
+## Messages
+
+- The Messages header has an Ongoing transactions icon (44 px, `press`, label "Ongoing transactions"). Its badge counts the transactions waiting for the viewer (hidden at 0, "9+" above 9). It opens a `BottomSheet` (`portal`, since the header is sticky and blurred) with every offer waiting for an answer and every reservation in progress, from `listTransactions(viewerId, { ongoing: true })`: the same data and status words as Me > Transactions. The rows arrive with the page, so the sheet has no loading state; with none it says "No ongoing transactions" and what shows up there.
+- "Your turn" (brand) means the viewer has something to answer or confirm: an offer to accept or decline, a proposed time and place, a payment or cash request, a handover to confirm. "Waiting for them" (amber) means the other person is the one waited on. A transaction where nothing is due yet (a time and place nobody proposed, a scheduled handover that has not come) shows its plain status instead. "Your turn" rows come first.
+- The rule is `dealTurn` / `offerTurn` in `src/lib/deals/turn.ts` (pure, tested in `turn.test.ts`). It reads the same fields as the thread's handover and payment cards, so change it together with `handover-panel.tsx` and `payment-steps.tsx`.
+- A row opens `/messages/<conversation>#offer-<offer id>`: the thread scrolls that transaction's card to the top instead of the bottom. The same chip sits beside the listing title on the conversation's row (unread count untouched) and next to the name in the thread header; a conversation with several transactions says "Your turn" if any of them needs the viewer.
+
 ## Post drafts
 
 - Showcase and Wishlist each keep their own draft on this device. Save draft and leave preserves it; Continue restores it.
 - Start over and Discard delete the current post type's saved draft and reset the form, including cached values. Pending autosaves cannot restore the deleted draft.
 - Reopening Create a post after either reset starts blank, without a saved-draft prompt. The other post type's draft is unchanged.
+
+## Post content rules
+
+- A post cannot hold profanity, sexual slang, slurs or harassment in English, Filipino or Taglish. `parseFields` in `src/lib/posts/schema.ts` checks the title, description, meet-up place, payment note (only when kept) and photo captions with `findBlocked` (`src/lib/moderation/explicit.ts`), so create, edit and relist are all covered. The post form opens a notice ("This post cannot be posted yet") naming the fields, and each field shows the word with its letters hidden ("g***").
+- Matching is by whole word, so ordinary words that contain a bad one pass (class, assistant). It reads through capitals, accents, invisible characters, symbols and numbers for letters (sh1t, f*ck), stretched letters (puuuta) and spaced letters (p u t a). Words with an everyday use are left out on purpose (puto the rice cake, leche flan, cum laude, Moby Dick, Maine Coon, baby bottle nipples): the reasons are at the top of `src/lib/moderation/blocked-words.ts`. To block a word, add it there and add a test in `explicit.test.ts`.
+- A filter cannot judge meaning. A hateful or unsafe post written without these words still needs the report buttons and the owner. Messages, bios and names are not checked.
+- The English terms come from a CC BY 4.0 list: see `THIRD_PARTY_NOTICES.md`.
+
+## Help and support
+
+- Settings has two sections for it: Help and support (FAQs, Report a listing, Report a user, Report a bug, Send feedback, Contact us) and Follow Studiskarte (Facebook and Instagram buttons, Leave a review on Facebook). Addresses and routes live in `src/lib/support/config.ts`.
+- Report a listing takes the listing's link (a full address, `/posts/<id>` or the id) and Report a user takes a username. Both go through the same `reportPost` / `reportStudent` as the report sheets, so limits, the hide-at-3 rule and the admin queue are shared. A confirmation replaces the form and never shows the owner of a listing.
+- Bug, feedback and contact go by email to `SUPPORT_EMAIL` with the sender's handle, role and account email, and `Reply-To` set to that email. They share the 96-a-day mail quota, so each student is limited to 5 an hour and 10 a day. A message that could not be sent keeps what was typed and is never shown as sent.
+- The Facebook review prompt (`ReviewPrompt`) opens after a post goes live and after a handover completed in the last 48 hours. At most once per 14 days per device, once per post or deal, never after Don't ask again, and not for 90 days after Leave a review was opened. State is in `localStorage` (`studiskarte:review-prompt:v1`); rules and tests are in `src/lib/support/review-prompt.ts`.
 
 ## Out-of-date app
 

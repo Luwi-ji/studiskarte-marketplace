@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { refresh } from "next/cache";
 import { requireActiveStudent } from "@/lib/access";
 import { createCalendarToken, revokeCalendarToken } from "@/lib/calendar/token";
-import { changeBio, changeDisplayName, changeHandle } from "@/lib/identity/profile";
+import { checkLocation } from "@/lib/identity/location";
+import { changeBio, changeDisplayName, changeHandle, changeLocation } from "@/lib/identity/profile";
 import { unstable_rethrow } from "next/navigation";
 import { signOut } from "@/app/(public)/sign-in/actions";
 import { deleteAccount } from "@/lib/identity/delete-account";
@@ -30,15 +31,15 @@ export async function checkHandleAction(raw: unknown): Promise<HandleAvailabilit
   return taken ? { ok: false, message: "That handle is taken. Choose another." } : { ok: true, handle: checked.handle };
 }
 
-export type SaveProfileResult = { ok: true } | { ok: false; errors: { displayName?: string; handle?: string; bio?: string } };
+export type SaveProfileResult = { ok: true } | { ok: false; errors: { displayName?: string; handle?: string; bio?: string; location?: string } };
 
 /**
  * Saves what the Edit profile page staged: a new display name, handle and/or bio (the picture goes through /api/me/avatar).
  * All are checked before any is written, so a bad name does not leave a handle changed.
  */
-export async function saveProfileAction(input: { displayName?: string; handle?: string; bio?: string }): Promise<SaveProfileResult> {
+export async function saveProfileAction(input: { displayName?: string; handle?: string; bio?: string; location?: string }): Promise<SaveProfileResult> {
   const me = await requireActiveStudent();
-  const errors: { displayName?: string; handle?: string; bio?: string } = {};
+  const errors: { displayName?: string; handle?: string; bio?: string; location?: string } = {};
   if (input.displayName !== undefined) {
     const name = checkDisplayName(String(input.displayName));
     if (!name.ok) errors.displayName = name.message;
@@ -47,11 +48,15 @@ export async function saveProfileAction(input: { displayName?: string; handle?: 
     const bio = checkBio(String(input.bio));
     if (!bio.ok) errors.bio = bio.message;
   }
+  if (input.location !== undefined) {
+    const location = checkLocation(String(input.location));
+    if (!location.ok) errors.location = location.message;
+  }
   if (input.handle !== undefined) {
     const handle = await checkHandleAction(input.handle);
     if (!handle.ok) errors.handle = handle.message;
   }
-  if (errors.displayName || errors.handle || errors.bio) return { ok: false, errors };
+  if (errors.displayName || errors.handle || errors.bio || errors.location) return { ok: false, errors };
 
   // The handle first: it is the one that can still be refused (taken a moment ago, 30-day wait).
   if (input.handle !== undefined) {
@@ -65,6 +70,10 @@ export async function saveProfileAction(input: { displayName?: string; handle?: 
   if (input.bio !== undefined) {
     const result = await changeBio(me.id, String(input.bio));
     if (!result.ok) return { ok: false, errors: { bio: result.message } };
+  }
+  if (input.location !== undefined) {
+    const result = await changeLocation(me.id, String(input.location));
+    if (!result.ok) return { ok: false, errors: { location: result.message } };
   }
   refresh();
   return { ok: true };

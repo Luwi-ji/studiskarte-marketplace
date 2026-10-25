@@ -1,9 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { TurnChip } from "@/components/turn-chip";
 import { requireActiveStudent } from "@/lib/access";
+import { listTransactions } from "@/lib/deals/mine";
+import { compareTurn, conversationTurn, type Turn } from "@/lib/deals/turn";
 import { getObjectStore } from "@/lib/images/store";
-import { listConversations } from "@/lib/messaging/read";
+import { listConversations, type ConversationSummary } from "@/lib/messaging/read";
+import { OngoingTransactions, type OngoingRow } from "./ongoing-transactions";
 
 export const metadata = { title: "Messages · Studiskarte Marketplace" };
 
@@ -18,20 +22,58 @@ function when(at: Date, now = new Date()): string {
 
 export default function MessagesPage() {
   return (
-    <>
-      <PageHeader title="Messages" />
-      <main className="mx-auto w-full max-w-md flex-1">
-        <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
-          <Inbox />
-        </Suspense>
-      </main>
-    </>
+    <Suspense
+      fallback={
+        <>
+          <PageHeader title="Messages" logo />
+          <main className="mx-auto w-full max-w-md flex-1">
+            <p className="p-4 text-zinc-500">Loading…</p>
+          </main>
+        </>
+      }
+    >
+      <Inbox />
+    </Suspense>
   );
 }
 
 async function Inbox() {
   const me = await requireActiveStudent();
-  const conversations = await listConversations(me.id);
+  const store = getObjectStore();
+  const [conversations, ongoing] = await Promise.all([listConversations(me.id), listTransactions(me.id, { ongoing: true })]);
+  // "Your turn" first, then "Waiting for them"; the most recently changed first within each (the list is already in that order).
+  const rows: OngoingRow[] = await Promise.all(
+    ongoing
+      .sort((a, b) => compareTurn(a.turn, b.turn))
+      .map(async (t) => ({
+        id: t.id,
+        offerId: t.offerId,
+        title: t.title,
+        kind: t.kind,
+        thumbUrl: await store.signedUrl(t.thumbKey, LINK_SECONDS),
+        otherName: t.otherName,
+        otherHandle: t.otherHandle,
+        turn: t.turn,
+        chip: t.chip,
+        state: t.state,
+        conversationId: t.conversationId,
+      })),
+  );
+  // A conversation can hold several: it needs the viewer if any of them does.
+  const turns: Record<string, Turn> = {};
+  for (const t of ongoing) turns[t.conversationId] = conversationTurn([turns[t.conversationId], t.turn]);
+
+  return (
+    <>
+      <PageHeader title="Messages" logo action={<OngoingTransactions rows={rows} />} />
+      <main className="mx-auto w-full max-w-md flex-1">
+        <Conversations conversations={conversations} turns={turns} />
+      </main>
+    </>
+  );
+}
+
+async function Conversations({ conversations, turns }: { conversations: ConversationSummary[]; turns: Record<string, Turn> }) {
   if (conversations.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
@@ -68,7 +110,10 @@ async function Inbox() {
                   <p className={`truncate ${c.unread > 0 ? "font-semibold" : "font-medium"}`}>{name}</p>
                   {c.lastMessage ? <span className="shrink-0 text-xs text-zinc-500">{when(c.lastMessage.at)}</span> : null}
                 </div>
-                <p className="truncate text-xs text-zinc-500">{c.listingCount > 1 ? `${c.listingCount} transactions` : c.listingTitle}</p>
+                <p className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <TurnChip turn={turns[c.id] ?? "none"} />
+                  <span className="min-w-0 truncate">{c.listingCount > 1 ? `${c.listingCount} transactions` : c.listingTitle}</span>
+                </p>
                 <p className={`truncate text-sm ${c.unread > 0 ? "font-medium text-zinc-900 dark:text-zinc-50" : "text-zinc-600 dark:text-zinc-400"}`}>{preview}</p>
               </div>
               {c.unread > 0 ? (

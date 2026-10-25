@@ -14,7 +14,7 @@ const RESET_LOOKUPS_PER_IP = { max: 10, windowSeconds: 60 * 60 };
 /** Used to spend the same hashing time when no account matches, so timing does not show which names exist. */
 const NO_ACCOUNT_EMAIL = "nobody@account.invalid";
 
-type Found = { id: string; email: string; status: string };
+type Found = { id: string; email: string; status: string; role: string };
 
 /**
  * What a person typed to say who they are: an email address (the sign-in email or
@@ -23,7 +23,7 @@ type Found = { id: string; email: string; status: string };
 export async function findByIdentifier(raw: string): Promise<Found | null> {
   const typed = raw.trim().toLowerCase().replace(/^@/, "");
   if (typed === "") return null;
-  const columns = { id: student.id, email: student.email, status: student.accountStatus };
+  const columns = { id: student.id, email: student.email, status: student.accountStatus, role: student.role };
   if (typed.includes("@")) {
     const parsed = parseEmail(typed);
     if (!parsed) return null;

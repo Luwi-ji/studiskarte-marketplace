@@ -2,6 +2,7 @@ import { and, eq, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { conversation, conversationListing, image, message, messageImage, post, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
+import { recordStage } from "@/lib/funnel/events";
 import { recordNotification, type AlertSink, type Recorded } from "@/lib/notifications/record";
 import { consume } from "@/lib/rate-limit";
 import { isBlockedEitherWay } from "@/lib/safety/block";
@@ -52,6 +53,7 @@ export async function writeMessage(
     .insert(message)
     .values({ conversationId, senderId, body: data.body, offerId: args.offerId ?? null, postId: args.postId ?? null })
     .returning({ id: message.id, createdAt: message.createdAt });
+  if (args.offerId === undefined) await recordStage(tx, "first_message", { studentId: senderId });
   if (data.imageIds.length > 0) {
     await tx.insert(messageImage).values(data.imageIds.map((imageId, position) => ({ messageId: sent.id, imageId, position })));
   }

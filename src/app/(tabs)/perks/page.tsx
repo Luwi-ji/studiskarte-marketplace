@@ -3,7 +3,10 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
 import { isPerkKind, limitLine, PERK_KINDS, perkKindLabel } from "@/lib/perks/kinds";
+import { getOwnProfile } from "@/lib/identity/profile";
 import { listPerks, perkFilterOptions } from "@/lib/perks/list";
+import { limitReached, studentPerkState } from "@/lib/perks/voucher";
+import { VoucherSheet } from "./voucher-sheet";
 
 export const metadata = { title: "Perks · Studiskarte Marketplace" };
 
@@ -50,7 +53,8 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
   const kind = isPerkKind(kindParam) ? kindParam : undefined;
   const area = typeof raw.area === "string" && raw.area ? raw.area : undefined;
 
-  const [options, perks] = await Promise.all([perkFilterOptions(me.schoolDomain), listPerks(me.schoolDomain, { kind, area })]);
+  const [options, perks, profile] = await Promise.all([perkFilterOptions(me.schoolDomain), listPerks(me.schoolDomain, { kind, area }), getOwnProfile(me.id)]);
+  const states = await studentPerkState(me.id, perks);
   const kinds = PERK_KINDS.filter((k) => options.kinds.includes(k.id));
   const filtered = kind !== undefined || area !== undefined;
 
@@ -102,6 +106,8 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
         <ul className="flex flex-col gap-2">
           {perks.map((p) => {
             const limit = limitLine(p.limitPerStudent, p.limitPeriod);
+            const state = states.get(p.id) ?? { open: null, used: 0 };
+            const open = state.open;
             return (
               <li key={p.id} className="flex flex-col gap-1 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
                 <p className="text-sm text-zinc-500">
@@ -110,8 +116,26 @@ async function Perks({ searchParams }: { searchParams: Promise<Record<string, st
                 <h2 className="text-base font-semibold leading-snug">{p.title}</h2>
                 <p className="text-sm text-zinc-700 dark:text-zinc-300">{p.terms}</p>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {[p.area, limit, p.endsAt ? `Until ${dateFormat.format(p.endsAt)}` : null].filter(Boolean).join(" · ")}
+                  {[p.area, limit, p.left !== null ? `${p.left} left` : null, p.endsAt ? `Until ${dateFormat.format(p.endsAt)}` : null].filter(Boolean).join(" · ")}
                 </p>
+                {p.claimable ? (
+                  <div className="pt-1">
+                    {me.schoolDomain === null ? (
+                      <Link href="/me/settings/school-email" className="flex h-11 w-full items-center justify-center rounded-full border border-zinc-300 text-sm font-semibold dark:border-zinc-700">
+                        Verify school email to claim
+                      </Link>
+                    ) : (
+                      <VoucherSheet
+                        perk={{ id: p.id, title: p.title, partnerName: p.partnerName }}
+                        studentName={profile?.displayName ?? ""}
+                        handle={profile?.handle ?? me.handle}
+                        open={open ? { id: open.id, code: open.code, expiresAt: open.expiresAt.toISOString() } : null}
+                        label={open ? "Show voucher" : "Claim"}
+                        disabledReason={open ? null : p.left === 0 ? "All claimed" : limitReached(p.limitPerStudent, p.limitPeriod, state.used)}
+                      />
+                    )}
+                  </div>
+                ) : null}
               </li>
             );
           })}

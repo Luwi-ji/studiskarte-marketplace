@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { createPortal } from "react-dom";
 import { useSlideDialog } from "@/components/use-slide-dialog";
@@ -55,6 +56,18 @@ function Sheet({ open, onOpenChange, label, returnFocusTo, children }: Omit<Prop
   const ref = useRef<HTMLDialogElement>(null);
   const [overlay, setOverlay] = useState(dialogDoesNotShow);
   const dialogProps = useSlideDialog(ref, { open: open && !overlay, onOpenChange, edge: "bottom", ms: 220, closeShare: 0.25, returnFocusTo });
+
+  // The app keeps the page a person left alive behind the new one. A sheet still open on it would sit on top of the new
+  // page (a modal dialog makes everything under it unusable), so leaving the page closes the sheet.
+  const pathname = usePathname();
+  const openedOn = useRef(pathname);
+  useEffect(() => {
+    if (open) openedOn.current = pathname;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recorded when it opens, not when the address changes
+  }, [open]);
+  useEffect(() => {
+    if (open && pathname !== openedOn.current) onOpenChange(false);
+  }, [pathname, open, onOpenChange]);
 
   // After opening, check that the panel really is on screen; if not, switch to the overlay. A browser with no modal
   // dialog at all (Safari before 15.4) does not need the wait.

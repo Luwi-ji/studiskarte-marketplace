@@ -1,7 +1,7 @@
 "use client";
 
 import { PendingTabLink } from "@/components/pending-nav";
-import { tabOff, tabOn } from "@/app/(tabs)/me/posts/strip-styles";
+import { STRIP_TOP, tabOff, tabOn } from "@/app/(tabs)/me/posts/strip-styles";
 
 export type ProfileTab = { id: string; label: string; count: number; href: string };
 
@@ -11,7 +11,7 @@ export type ProfileTab = { id: string; label: string; count: number; href: strin
  */
 export function ProfileTabs({ tabs, current }: { tabs: ProfileTab[]; current: string }) {
   return (
-    <nav aria-label="Listings" className="flex border-b border-zinc-200 dark:border-zinc-800">
+    <nav aria-label="Listings" className={`sticky ${STRIP_TOP} z-10 flex border-b border-zinc-200 bg-[var(--background)] dark:border-zinc-800`}>
       {tabs.map((tab) => (
         <PendingTabLink key={tab.id} id={tab.id} href={tab.href} replace current={tab.id === current} onClass={`flex-1 ${tabOn}`} offClass={`flex-1 ${tabOff}`}>
           {tab.label}

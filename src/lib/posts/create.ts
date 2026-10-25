@@ -1,10 +1,11 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import { availabilityWindow, image, post, postPhoto, student } from "@/db/schema";
 import { getDb, type DbTransaction } from "@/lib/db";
+import { recordStage } from "@/lib/funnel/events";
 import { categoryLookup, listCategories } from "@/lib/posts/categories";
 import { OPEN_POSTS_MAX, parseNewPost, type FieldErrors, type PostData } from "@/lib/posts/schema";
 import { SHOWCASE_STUDENTS_ONLY } from "@/lib/posts/audience";
-import { idCheckIsCurrent, UNCHECKED_SHOWCASE_MAX, verificationEnabled } from "@/lib/verification/config";
+import { SHOWCASE_BLOCK_MESSAGE, showcaseBlock } from "@/lib/posts/showcase-limit";
 
 export type SaveResult = { ok: true; id: string } | { ok: false; errors: FieldErrors };
 
@@ -59,8 +60,6 @@ export function isDuplicatePost(error: unknown): boolean {
   return "code" in cause && cause.code === "23505" && "constraint" in cause && cause.constraint === "post_open_duplicate";
 }
 
-export const SHOWCASE_NEEDS_ID_CHECK = `Without an ID check you can have ${UNCHECKED_SHOWCASE_MAX} open showcase at a time. Check your ID in Settings to post more.`;
-
 export const DUPLICATE_POST: SaveResult = {
   ok: false,
   errors: { form: "You already have an open post with this title and description." },
@@ -82,13 +81,10 @@ export async function createPost(args: { ownerId: string; input: unknown; now?: 
       const [me] = await tx.select({ status: student.accountStatus, role: student.role, checkedAt: student.idCheckedAt, checkExpiresAt: student.idCheckExpiresAt }).from(student).where(eq(student.id, args.ownerId)).for("update");
       if (!me || me.status === "deleted") return { ok: false, errors: { form: "Your account can't post." } };
       if (me.role !== "student" && data.kind === "showcase") return { ok: false, errors: { kind: SHOWCASE_STUDENTS_ONLY } };
-      // Only once ID checks are open (otherwise nobody could lift the limit): an unchecked student has few open showcases.
-      if (verificationEnabled() && data.kind === "showcase" && !idCheckIsCurrent(me.checkedAt, me.checkExpiresAt)) {
-        const [{ showcases }] = await tx
-          .select({ showcases: count() })
-          .from(post)
-          .where(and(eq(post.ownerId, args.ownerId), eq(post.kind, "showcase"), inArray(post.status, ["open", "reserved", "hidden"])));
-        if (showcases >= UNCHECKED_SHOWCASE_MAX) return { ok: false, errors: { form: SHOWCASE_NEEDS_ID_CHECK } };
+      // Without a current ID check: one open showcase until the first sale, none after it (see showcase-limit.ts).
+      if (data.kind === "showcase") {
+        const block = await showcaseBlock(tx, args.ownerId, { checkedAt: me.checkedAt, expiresAt: me.checkExpiresAt });
+        if (block) return { ok: false, errors: { form: SHOWCASE_BLOCK_MESSAGE[block] } };
       }
       const [{ open }] = await tx
         .select({ open: count() })
@@ -104,6 +100,7 @@ export async function createPost(args: { ownerId: string; input: unknown; now?: 
         .insert(post)
         .values({ ownerId: args.ownerId, kind: data.kind, ...postColumns(data) })
         .returning({ id: post.id });
+      await recordStage(tx, "first_listing", { studentId: args.ownerId });
       await writeDetails(tx, created.id, data);
       return { ok: true, id: created.id };
     });

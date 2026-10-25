@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { MouseEvent, ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, type MouseEvent, type ReactNode } from "react";
 
 /** The Navigation API is not in every TypeScript DOM lib; `canGoBack` only counts entries of this site. */
 type NavigationLike = { canGoBack: boolean };
@@ -11,6 +11,25 @@ type NavigationLike = { canGoBack: boolean };
 export function canGoBackInApp(): boolean {
   const navigation = (window as Window & { navigation?: NavigationLike }).navigation;
   return navigation ? navigation.canGoBack : window.history.length > 1;
+}
+
+/** The Settings list opens its pages with `?from=settings`; this is the address back to it. */
+export const FROM_SETTINGS = "from=settings";
+const SETTINGS = "/me/settings";
+
+/**
+ * The back arrow, for a page that has none of its own (a tab page such as Perks or My posts) but was opened from Settings:
+ * it goes back to where the person was, or to Settings when the page was opened directly. Anywhere else, `fallback`
+ * (the logo or a spacer) shows.
+ */
+function FromSettingsBack({ fallback, onBack }: { fallback: ReactNode; onBack: (event: MouseEvent<HTMLAnchorElement>) => void }) {
+  const fromSettings = useSearchParams().get("from") === "settings";
+  if (!fromSettings) return <>{fallback}</>;
+  return (
+    <Link href={SETTINGS} onClick={onBack} aria-label="Back to Settings" className="press flex h-11 w-11 items-center justify-center rounded-full text-2xl">
+      ‹
+    </Link>
+  );
 }
 
 /**
@@ -37,6 +56,14 @@ export function PageHeader({ title, titleHref, back, onBack, action, logo }: { t
     router.back();
   }
 
+  // What shows at the left when there is no back arrow: the logo, or a small gap.
+  const leading = logo ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/logo.png" alt="" className="mx-1.5 h-8 w-8 rounded-lg" />
+  ) : (
+    <span className="w-2" />
+  );
+
   return (
     <header className="sticky top-0 z-20 border-b border-zinc-200 bg-[var(--background)]/95 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-zinc-800">
       <div className="mx-auto flex h-14 w-full max-w-md items-center gap-1 px-2">
@@ -44,11 +71,10 @@ export function PageHeader({ title, titleHref, back, onBack, action, logo }: { t
           <Link href={back} onClick={goBack} aria-label="Back" className="press flex h-11 w-11 items-center justify-center rounded-full text-2xl">
             ‹
           </Link>
-        ) : logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src="/logo.png" alt="" className="mx-1.5 h-8 w-8 rounded-lg" />
         ) : (
-          <span className="w-2" />
+          <Suspense fallback={leading}>
+            <FromSettingsBack fallback={leading} onBack={goBack} />
+          </Suspense>
         )}
         {titleHref ? (
           <h1 className="min-w-0 flex-1 text-lg font-semibold">

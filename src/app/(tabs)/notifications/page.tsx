@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
 import { requireActiveStudent } from "@/lib/access";
-import { listNotifications } from "@/lib/notifications/list";
+import { countUnreadNotifications, listNotifications } from "@/lib/notifications/list";
 import { headline } from "@/lib/notifications/text";
 import { AlertsToggle } from "@/components/alerts-toggle";
 import { alertsConfigured } from "@/lib/notifications/push/notify";
 import { NotificationsSkeleton } from "@/components/list-skeletons";
 import { NotificationList } from "../../notifications/notification-list";
+import { NotificationHeader } from "./notification-header";
 
 export const metadata = { title: "Notifications · Studiskarte Marketplace" };
 
@@ -22,7 +22,9 @@ function when(at: Date, now = new Date()): string {
 export default function NotificationsPage() {
   return (
     <>
-      <PageHeader title="Notifications" back="/" />
+      <Suspense fallback={<NotificationHeader unreadCount={0} loading />}>
+        <Header />
+      </Suspense>
       <main className="mx-auto w-full max-w-md flex-1">
         <Suspense fallback={<NotificationsSkeleton />}>
           <Notifications />
@@ -30,6 +32,12 @@ export default function NotificationsPage() {
       </main>
     </>
   );
+}
+
+async function Header() {
+  const me = await requireActiveStudent();
+  const unreadCount = await countUnreadNotifications(me.id);
+  return <NotificationHeader unreadCount={unreadCount} />;
 }
 
 async function Notifications() {

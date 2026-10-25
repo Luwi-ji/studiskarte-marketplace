@@ -1,7 +1,7 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { LegalLinks } from "@/components/legal-links";
 import { getSignedInStudent } from "@/lib/access";
 import { visitorsAllowed } from "@/lib/identity/auth";
 import { safeReturnTo } from "@/lib/identity/return-to";
@@ -11,19 +11,16 @@ export const metadata = { title: "Create account · Studiskarte Marketplace" };
 
 export default function SignUpPage({ searchParams }: PageProps<"/sign-up">) {
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
-      <header className="flex flex-col items-center gap-3 text-center">
+    // Content sits in the upper half, so a password manager's pop-up at the bottom of the screen does not cover it.
+    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-8 px-6 pb-24 pt-8">
+      {/* The logo goes back to the landing page. */}
+      <Link href="/" aria-label="Studiskarte home" className="press -ml-1 self-start rounded-2xl p-1">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-20 w-20 rounded-3xl shadow-lg" />
-        <h1 className="text-2xl font-semibold">Create your account</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          We send a code to your email to prove it is yours. Then you choose a password.
-        </p>
-      </header>
+        <img src="/logo.png" alt="" className="h-12 w-12 rounded-2xl shadow-md" />
+      </Link>
       <Suspense>
         <Form searchParams={searchParams} />
       </Suspense>
-      <LegalLinks />
       <Suspense>
         <SkipIfSignedIn searchParams={searchParams} />
       </Suspense>

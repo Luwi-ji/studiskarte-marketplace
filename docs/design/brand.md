@@ -63,6 +63,13 @@ Plain, warm, direct. Short sentences, active verbs, say what happens next.
 
 Used 2026-10-23, without installing it: its installer adds edit hooks to the project and a downloaded binary (`~/.impeccable/bin`), so instead its playbooks (`critique`, `onboard`, `clarify`, `operate`, and its craft floor) were read from the repository and applied by hand. `PRODUCT.md` at the repo root is the `init` result. The critique is `docs/design/audit/impeccable-critique.md` (marked degraded: the deterministic detector did not run). To get the detector and edit hooks: `npx impeccable install`, read what it wrote first, then `/impeccable init`.
 
+## Landing page
+
+- studiskarte.com shows `src/app/(public)/landing/page.tsx` to a visitor with no session cookie, and the feed to anyone with one. `src/proxy.ts` does the switch (a rewrite, so the address stays `/`); the page is also at `/landing`, with `/` as its canonical address. Signed-out and stale-cookie visitors who reach the feed are sent to sign in as before.
+- It says only what is true in the repo: no members, ratings, quotes, partner logos or numbers (there are none yet; see PRODUCT.md). The phone pictures are small HTML drawings with example text (`phone-mockups.tsx`), not screenshots, so they cost no download and follow light and dark mode.
+- Anything it promises must stay true: no selling fees, never handling money, meet-ups from 6:00 AM to 8:00 PM, ID check optional, ages 16 and up. It does not say whether a personal-email sign-up is open: the sign-up page does.
+- `/about` stays as the plain explainer that Google sign-in verification points to; the landing page links to it and to the legal documents.
+
 ## What is not done yet
 
 - A name for the mascot, and expressions for empty and error states (**owner**, needs art).

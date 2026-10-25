@@ -18,6 +18,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const password = String(formData.get("password") ?? "");
   const result = await loginWithPassword(identifier, password, await headers());
   if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : result.reason === "suspended" ? SUSPENDED : WRONG };
+  // The role was chosen when the account was made and decides what it can do, so signing in does not ask.
   redirect(safeReturnTo(formData.get("next")) ?? "/");
 }
 

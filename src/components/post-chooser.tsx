@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { BottomSheet } from "@/components/bottom-sheet";
+import { RemindButton, RemindLink } from "@/components/reminder-host";
 import { DRAFT_EVENT, hasDraft } from "@/lib/posts/draft";
 import type { PostKind } from "@/lib/posts/schema";
 
@@ -59,7 +59,7 @@ function Rows({ canSell, studentId, onChoose }: { canSell: boolean; studentId?: 
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="text-lg font-semibold">{choice.title}</span>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">{blocked ? "Only students can offer things" : choice.line}</span>
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">{blocked ? "Students only. Tap to see why" : choice.line}</span>
               {blocked || !studentId ? null : <DraftNote studentId={studentId} kind={choice.kind} />}
             </span>
             {blocked ? null : (
@@ -72,13 +72,14 @@ function Rows({ canSell, studentId, onChoose }: { canSell: boolean; studentId?: 
         return (
           <li key={choice.kind}>
             {blocked ? (
-              <div aria-disabled="true" className={`${row} opacity-50`}>
+              // Not a dead row: tapping it says why, and what to do instead.
+              <RemindButton trigger="post_showcase" onChoose={onChoose} className={`${row} w-full`}>
                 {body}
-              </div>
+              </RemindButton>
             ) : (
-              <Link href={choice.href} onClick={onChoose} className={row}>
+              <RemindLink trigger={choice.kind === "showcase" ? "post_showcase" : "post_wishlist"} href={choice.href} onChoose={onChoose} className={row}>
                 {body}
-              </Link>
+              </RemindLink>
             )}
           </li>
         );

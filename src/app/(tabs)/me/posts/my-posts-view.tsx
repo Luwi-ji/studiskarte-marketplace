@@ -4,9 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { bulkPostsAction } from "@/app/posts/bulk-actions";
 import { PageHeader } from "@/components/page-header";
+import { BackToTop } from "@/components/back-to-top";
+import { IdCheckReminder } from "@/components/id-check-reminder";
 import { PendingResults, useNavigate, usePendingHref } from "@/components/pending-nav";
 import { NewPostButton } from "@/components/post-chooser";
 import { formatPrice, kindLabel } from "@/lib/posts/format";
+import type { ShowcaseStanding } from "@/lib/posts/showcase-limit";
 import {
   BULK_ELIGIBLE,
   OWN_STATUS_LABEL,
@@ -50,6 +53,8 @@ type Props = {
   expiredKeepDays: number;
   /** Only students can offer things; anyone can look for them. */
   canSell: boolean;
+  /** Where an unverified student stands on showcases and the ID check, for a reminder. */
+  idStanding: ShowcaseStanding;
 };
 
 const NO_ANSWER = "Could not reach the app. If it was just updated, reload the page and try again.";
@@ -243,7 +248,7 @@ function summarize(action: BulkAction, results: { ok: boolean; reason?: string }
   return `${head} ${failed} could not be changed: ${reasons}.`;
 }
 
-export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKeepDays, canSell }: Props) {
+export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKeepDays, canSell, idStanding }: Props) {
   const shown = useShownView(view);
   const strip = useScrollToCurrent(shown.status);
   const [selecting, setSelecting] = useState(false);
@@ -379,6 +384,21 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
               </ViewLink>
             ))}
           </nav>
+          <nav ref={strip} aria-label="Post status" className="mx-auto flex w-full max-w-3xl overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {statusTabs.map((status) => {
+              const current = status === shown.status;
+              return (
+                <ViewLink key={status} view={{ type: shown.type, status }} current={current} className="flex h-11 shrink-0 items-center px-1">
+                  <span
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150 motion-reduce:transition-none ${current ? "bg-brand/10 font-semibold text-brand-text" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"}`}
+                  >
+                    {OWN_STATUS_LABEL[status]}
+                    <span className={`text-xs font-normal tabular-nums ${current ? "" : "text-zinc-500 dark:text-zinc-400"}`}>{counts[shown.type][status]}</span>
+                  </span>
+                </ViewLink>
+              );
+            })}
+          </nav>
         </div>
       ) : null}
 
@@ -398,23 +418,9 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
                   <div className={`h-full rounded-full ${full ? "bg-amber-500" : "bg-brand"}`} style={{ width: `${Math.min(100, (usage.open / usage.max) * 100)}%` }} />
                 </div>
               </section>
-              <nav ref={strip} aria-label="Post status" className="-mx-3 flex overflow-x-auto px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {statusTabs.map((status) => {
-                  const current = status === shown.status;
-                  return (
-                    <ViewLink key={status} view={{ type: shown.type, status }} current={current} className="flex h-11 shrink-0 items-center px-1">
-                      <span
-                        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150 motion-reduce:transition-none ${current ? "bg-brand/10 font-semibold text-brand-text" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"}`}
-                      >
-                        {OWN_STATUS_LABEL[status]}
-                        <span className={`text-xs font-normal tabular-nums ${current ? "" : "text-zinc-500 dark:text-zinc-400"}`}>{counts[shown.type][status]}</span>
-                      </span>
-                    </ViewLink>
-                  );
-                })}
-              </nav>
             </>
           ) : null}
+          <IdCheckReminder standing={idStanding} className="my-1" />
 
           <PendingResults skeleton={<OwnPostsSkeleton />} className="pt-1">
             {rows.length === 0 ? (
@@ -426,6 +432,12 @@ export function MyPostsView({ view, counts, rows, usage, listingDays, expiredKee
                 ))}
               </ul>
             )}
+            {rows.length > 0 ? (
+              <div className="flex flex-col items-center gap-1 py-4 text-zinc-500">
+                <p className="text-sm">You&apos;ve seen everything</p>
+                <BackToTop />
+              </div>
+            ) : null}
           </PendingResults>
         </div>
       </main>

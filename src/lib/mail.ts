@@ -57,6 +57,8 @@ export async function sendMail(message: {
   to: string;
   subject: string;
   text: string;
+  /** Where a reply goes, when it is not the sender address (a support message from a student). */
+  replyTo?: string;
 }): Promise<void> {
   const sent = await countEvents(
     MAIL_QUOTA_ACTION,
@@ -76,6 +78,7 @@ export async function sendMail(message: {
     to: message.to,
     subject: message.subject,
     text: message.text,
+    ...(message.replyTo ? { replyTo: message.replyTo } : {}),
   });
   if (isLogTransport()) console.log(`[mail:log] to=${message.to} ${message.text.replace(/\s+/g, " ")}`);
 

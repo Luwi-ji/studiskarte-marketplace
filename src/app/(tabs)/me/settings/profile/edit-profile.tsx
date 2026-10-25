@@ -74,15 +74,16 @@ export function EditProfile() {
     setSaving(true);
     setErrors([]);
     try {
-      const fields: { displayName?: string; handle?: string; bio?: string } = {};
+      const fields: { displayName?: string; handle?: string; bio?: string; location?: string } = {};
       if (draft.nameChanged) fields.displayName = draft.name;
       if (draft.handleChanged) fields.handle = draft.handle;
       if (draft.bioChanged) fields.bio = draft.bio;
-      const hasFields = fields.displayName !== undefined || fields.handle !== undefined || fields.bio !== undefined;
+      if (draft.locationChanged) fields.location = draft.location;
+      const hasFields = fields.displayName !== undefined || fields.handle !== undefined || fields.bio !== undefined || fields.location !== undefined;
       if (hasFields) {
         const result = await saveProfileAction(fields);
         if (!result.ok) {
-          setErrors([result.errors.displayName && `Display name: ${result.errors.displayName}`, result.errors.handle && `Handle: ${result.errors.handle}`, result.errors.bio && `Bio: ${result.errors.bio}`].filter((line): line is string => Boolean(line)));
+          setErrors([result.errors.displayName && `Display name: ${result.errors.displayName}`, result.errors.handle && `Handle: ${result.errors.handle}`, result.errors.bio && `Bio: ${result.errors.bio}`, result.errors.location && `Location: ${result.errors.location}`].filter((line): line is string => Boolean(line)));
           return;
         }
       }
@@ -136,6 +137,7 @@ export function EditProfile() {
           <SettingsRow href="/me/settings/profile/name" label="Display name" value={draft.name.trim()} />
           <SettingsRow href="/me/settings/profile/handle" label="Handle" value={`@${draft.handle.trim().replace(/^@/, "").toLowerCase()}`} />
           <SettingsRow href="/me/settings/profile/bio" label="Bio" value={draft.bio.trim() || "Add a short bio"} />
+          <SettingsRow href="/me/settings/profile/location" label="Location" value={draft.location.trim() || "Add where you are based"} />
         </SettingsSection>
         <p className="px-4 pt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {draft.initial.handleChangeOn ? `You can change your handle again on ${draft.initial.handleChangeOn}.` : "You can change your handle once every 30 days."} Changes are saved when you tap Save.

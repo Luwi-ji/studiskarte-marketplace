@@ -14,6 +14,7 @@ import { rateLimitEvent, session, student, verification } from "@/db/schema";
 import { getDb, getPool } from "@/lib/db";
 import { auth, requestPasswordResetCode, requestSignUpCode } from "@/lib/identity/auth";
 import { MailQuotaError, sendMail } from "@/lib/mail";
+import { SIGN_UP_CODE_ACTION, SIGN_UP_CODES_PER_DAY } from "@/lib/rate-limit";
 import { createTestStudent } from "@/test/fixtures";
 
 // Visitor sign-up is closed unless the deployment opens it; most tests need it open.
@@ -53,6 +54,8 @@ const LOCALHOST = "127.0.0.1";
 beforeEach(async () => {
   sent.length = 0;
   await db.delete(rateLimitEvent).where(eq(rateLimitEvent.key, LOCALHOST));
+  // The day's budget for new-account codes is shared by every sign-up, so each test starts with it unspent.
+  await db.delete(rateLimitEvent).where(eq(rateLimitEvent.action, SIGN_UP_CODE_ACTION));
 });
 
 afterAll(async () => {
@@ -61,6 +64,7 @@ afterAll(async () => {
   await db.delete(verification).where(or(like(verification.identifier, `%-${run}@testschool.edu.ph`), like(verification.identifier, `%-${run}@visitor.test`)));
   await db.delete(rateLimitEvent).where(or(like(rateLimitEvent.key, `%-${run}@testschool.edu.ph`), like(rateLimitEvent.key, `%-${run}@visitor.test`)));
   await db.delete(rateLimitEvent).where(eq(rateLimitEvent.key, LOCALHOST));
+  await db.delete(rateLimitEvent).where(eq(rateLimitEvent.action, SIGN_UP_CODE_ACTION));
   await getPool().end();
   globalThis.__studiskartePool = undefined;
 });
@@ -120,6 +124,26 @@ describe("sending sign-up codes", () => {
     const { email } = await createTestStudent(id);
     expect(await requestSignUpCode(email, new Headers())).toEqual({ ok: false, reason: "account_exists" });
     expect(sent).toHaveLength(0);
+  });
+
+  it("stops new-account codes once the day's budget is spent, but not password resets or addresses with an account", async () => {
+    await db.insert(rateLimitEvent).values(Array.from({ length: SIGN_UP_CODES_PER_DAY }, () => ({ action: SIGN_UP_CODE_ACTION, key: "global" })));
+    expect(await requestSignUpCode(school("busy"), new Headers())).toEqual({ ok: false, reason: "signups_busy" });
+    expect(sent).toHaveLength(0);
+
+    const id = `busy-${run}`;
+    const { email } = await createTestStudent(id);
+    expect(await requestSignUpCode(email, new Headers())).toEqual({ ok: false, reason: "account_exists" });
+    expect(await requestPasswordResetCode(email, new Headers())).toEqual({ ok: true });
+    expect(sent.some((m) => m.to === email)).toBe(true);
+  });
+
+  it("counts a new-account code only when it is really requested, and leaves the day's budget to the next", async () => {
+    expect(await requestSignUpCode(school("count-a"), new Headers())).toEqual({ ok: true });
+    const { email } = await createTestStudent(`count-${run}`);
+    await requestSignUpCode(email, new Headers());
+    const used = await db.select().from(rateLimitEvent).where(eq(rateLimitEvent.action, SIGN_UP_CODE_ACTION));
+    expect(used).toHaveLength(1);
   });
 });
 

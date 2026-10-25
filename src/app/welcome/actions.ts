@@ -1,8 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSignedInStudent } from "@/lib/access";
+import { recordSignupCompleted } from "@/lib/funnel/events";
+import { readUtmCookie, UTM_COOKIE } from "@/lib/funnel/utm";
 import { completeSignUp } from "@/lib/identity/profile";
 import { setFirstPassword } from "@/lib/identity/password";
 import { safeReturnTo, withReturnTo } from "@/lib/identity/return-to";
@@ -31,6 +33,7 @@ export async function finishSignUp(_prev: WelcomeState, formData: FormData): Pro
     ageConfirmed: formData.get("age") === "on",
   });
   if (!result.ok) return { values, error: { field: result.field, message: result.message } };
+  await recordSignupCompleted(me.id, readUtmCookie((await cookies()).get(UTM_COOKIE)?.value));
   redirect(safeReturnTo(formData.get("next")) ?? "/");
 }
 

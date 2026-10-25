@@ -2,12 +2,14 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { PendingNav } from "@/components/pending-nav";
 import { requireActiveStudent } from "@/lib/access";
+import { getDb } from "@/lib/db";
 import { getObjectStore } from "@/lib/images/store";
 import { EXPIRED_KEEP_DAYS } from "@/lib/jobs/purge-posts";
 import { expiryNotice, quantityLine } from "@/lib/posts/format";
 import { listOwnPosts, type OwnPost } from "@/lib/posts/mine";
 import { countOwnPosts, inOwnView, parseOwnView } from "@/lib/posts/own-view";
 import { OPEN_POSTS_MAX } from "@/lib/posts/schema";
+import { showcaseStanding } from "@/lib/posts/showcase-limit";
 import { LISTING_DAYS } from "@/lib/posts/update";
 import { MyPostsView, type OwnRow } from "./my-posts-view";
 import { OwnPostsSkeleton, StatusRowSkeleton, TypeStripSkeleton } from "./skeleton";
@@ -67,6 +69,7 @@ async function MyPosts({ searchParams }: { searchParams: Promise<Record<string, 
   const posts = await listOwnPosts(me.id);
   const counts = countOwnPosts(posts);
   const store = getObjectStore();
+  const idStanding = me.role === "student" ? await showcaseStanding(getDb(), me.id) : "off";
   const rows: OwnRow[] = await Promise.all(
     inOwnView(posts, view).map(async (p) => ({
       id: p.id,
@@ -92,6 +95,7 @@ async function MyPosts({ searchParams }: { searchParams: Promise<Record<string, 
       listingDays={LISTING_DAYS}
       expiredKeepDays={EXPIRED_KEEP_DAYS}
       canSell={me.role === "student"}
+      idStanding={idStanding}
     />
   );
 }

@@ -1,7 +1,9 @@
 import { and, count, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { checkBio } from "@/lib/identity/bio";
+import { checkLocation } from "@/lib/identity/location";
 import { follow, image, school, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
+import { grantFoundingUser } from "@/lib/founding/grant";
 import {
   checkDisplayName,
   checkHandle,
@@ -29,6 +31,8 @@ export type OwnProfile = {
   avatarKey: string | null;
   avatarThumbKey: string | null;
   nextHandleChangeAt: Date | null;
+  /** Where they are based, or null. */
+  location: string | null;
 };
 
 export async function getOwnProfile(studentId: string, now = new Date()): Promise<OwnProfile | null> {
@@ -42,6 +46,7 @@ export async function getOwnProfile(studentId: string, now = new Date()): Promis
       handleChangedAt: student.handleChangedAt,
       avatarKey: image.key,
       avatarThumbKey: image.thumbKey,
+      location: student.location,
     })
     .from(student)
     .leftJoin(school, eq(school.domain, student.schoolDomain))
@@ -56,6 +61,7 @@ export async function getOwnProfile(studentId: string, now = new Date()): Promis
     avatarKey: row.avatarKey,
     avatarThumbKey: row.avatarThumbKey,
     nextHandleChangeAt: nextHandleChangeAt(row.handleChangedAt, now),
+    location: row.location,
   };
 }
 
@@ -79,6 +85,12 @@ export type PublicProfile = {
   isGuest: boolean;
   /** The owner checked a school ID and the check has not lapsed. */
   idChecked: boolean;
+  /** One of the first students to join (see src/lib/founding/config.ts). */
+  isFoundingUser: boolean;
+  /** Where they are based, or null. */
+  location: string | null;
+  /** When the account was made. */
+  joinedAt: Date;
   /** Whether the viewer follows this student. */
   isFollowing: boolean;
 };
@@ -103,6 +115,9 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
       avatarKey: image.key,
       idCheckedAt: student.idCheckedAt,
       idCheckExpiresAt: student.idCheckExpiresAt,
+      foundingUserAt: student.foundingUserAt,
+      location: student.location,
+      createdAt: student.createdAt,
       schoolEmail: student.schoolEmail,
     })
     .from(student)
@@ -130,6 +145,9 @@ export async function getPublicProfile(viewerId: string, rawHandle: string): Pro
     isSelf: row.id === viewerId,
     isGuest: row.schoolEmail === null,
     idChecked: idCheckIsCurrent(row.idCheckedAt, row.idCheckExpiresAt),
+    isFoundingUser: row.foundingUserAt !== null,
+    location: row.location,
+    joinedAt: row.createdAt,
     isFollowing: mine.n > 0,
   };
 }
@@ -182,6 +200,7 @@ export async function completeSignUp(
       .where(and(eq(student.id, studentId), isNull(student.handle)))
       .returning({ id: student.id });
     if (updated.length === 0) return { ok: false, field: "handle", message: "Your sign-up is already complete." };
+    await grantFoundingUser(studentId, now);
     return { ok: true };
   } catch (error) {
     if (isHandleTaken(error)) return HANDLE_TAKEN;
@@ -201,6 +220,14 @@ export async function changeBio(studentId: string, raw: string): Promise<{ ok: t
   const bio = checkBio(raw);
   if (!bio.ok) return { ok: false, message: bio.message };
   await getDb().update(student).set({ bio: bio.bio, updatedAt: new Date() }).where(and(eq(student.id, studentId), eq(student.accountStatus, "active")));
+  return { ok: true };
+}
+
+/** Saves where the person is based (blank clears it). */
+export async function changeLocation(studentId: string, raw: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const location = checkLocation(raw);
+  if (!location.ok) return { ok: false, message: location.message };
+  await getDb().update(student).set({ location: location.location, updatedAt: new Date() }).where(and(eq(student.id, studentId), eq(student.accountStatus, "active")));
   return { ok: true };
 }
 

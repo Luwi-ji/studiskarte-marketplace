@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { hashPassword } from "better-auth/crypto";
 import { eq, inArray, like, or } from "drizzle-orm";
 import sharp from "sharp";
-import { account, conversation, deal, image, message, notification, offer, post, student } from "../src/db/schema";
+import { account, conversation, deal, idConsent, idImageView, idVerification, image, message, notification, offer, post, student } from "../src/db/schema";
 import { getDb, getPool } from "../src/lib/db";
 import { acceptOffer } from "../src/lib/deals/accept";
 import { makeOffer } from "../src/lib/deals/offers";
@@ -39,6 +39,11 @@ async function clean() {
     }
     await db.delete(notification).where(inArray(notification.recipientId, ids)).catch(() => {});
     if (convs.length) await db.delete(conversation).where(inArray(conversation.id, convs)).catch((e) => console.log("conversation", e.message));
+    // ID checks reference people without cascading, so they go first: views of a check, the checks, then the consent log.
+    const checks = (await db.select({ id: idVerification.id }).from(idVerification).where(or(inArray(idVerification.studentId, ids), inArray(idVerification.decidedBy, ids)))).map((c) => c.id);
+    await db.delete(idImageView).where(or(inArray(idImageView.adminId, ids), checks.length ? inArray(idImageView.verificationId, checks) : undefined)).catch((e) => console.log("id views", e.message));
+    if (checks.length) await db.delete(idVerification).where(inArray(idVerification.id, checks)).catch((e) => console.log("id checks", e.message));
+    await db.delete(idConsent).where(inArray(idConsent.studentId, ids)).catch((e) => console.log("id consent", e.message));
   }
   for (const id of ids) {
     const imgs = await db.select({ key: image.key, thumbKey: image.thumbKey }).from(image).where(eq(image.ownerId, id));

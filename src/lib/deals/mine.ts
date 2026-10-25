@@ -4,6 +4,7 @@ import { deal, image, offer, post, postPhoto, student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { formatHandoverTime } from "@/lib/deals/handover";
 import { cashAskedBy, isSecured, paymentStage, type PaymentFields, type PaymentStage } from "@/lib/deals/slot";
+import { dealTurn, offerTurn, viewerPays, type Turn } from "@/lib/deals/turn";
 
 /**
  * Where a transaction is: an offer waiting for an answer, a reservation being carried out, or over (completed,
@@ -20,6 +21,8 @@ export const ENDED_OFFER_DAYS = 60;
 export type Transaction = {
   /** The deal's id, or the offer's while it is only an offer. */
   id: string;
+  /** The offer's id: the offer's card in its conversation is anchored on it, also once it became a reservation. */
+  offerId: string;
   postId: string;
   title: string;
   /** "showcase" or "wishlist". */
@@ -35,6 +38,8 @@ export type Transaction = {
   amount: number;
   isReserve: boolean;
   group: TransactionGroup;
+  /** Whose move it is while ongoing ("none" when nothing is due or it is over); see `dealTurn`. */
+  turn: Turn;
   /** One or two words on where it stands: "Waiting", "Reserved", "Declined". */
   chip: string;
   /** One line on where it stands and what comes next. */
@@ -73,7 +78,7 @@ function dealState(d: PaymentFields & {
     return d.proposedBy === d.viewerId ? "Reserved · waiting for them to answer your time" : "Reserved · answer their proposed time";
   }
   // Securing the slot: what the viewer or the other still has to do.
-  const viewerPays = d.postKind === "wishlist" ? d.viewerIsOwner : !d.viewerIsOwner;
+  const pays = viewerPays(d.postKind, d.viewerIsOwner);
   const secure: Record<PaymentStage, [string, string]> = {
     // [if the viewer pays, if the viewer is paid]
     free: ["", ""],
@@ -87,24 +92,29 @@ function dealState(d: PaymentFields & {
     cash_received: ["", ""],
   };
   const stage = paymentStage(d);
-  let payment = secure[stage][viewerPays ? 0 : 1];
+  let payment = secure[stage][pays ? 0 : 1];
   // The other way round when the one being paid is the one who asked for cash.
-  if (stage === "cash_requested" && cashAskedBy(d) === "payee") payment = viewerPays ? " · answer their cash request" : " · waiting for them to agree to cash";
+  if (stage === "cash_requested" && cashAskedBy(d) === "payee") payment = pays ? " · answer their cash request" : " · waiting for them to agree to cash";
   const mine = d.viewerIsOwner ? d.ownerConfirmedAt : d.responderConfirmedAt;
   const theirs = d.viewerIsOwner ? d.responderConfirmedAt : d.ownerConfirmedAt;
   const when = d.scheduledAt ? formatHandoverTime(d.scheduledAt) : "";
-  if (mine) return `Scheduled ${when} · you confirmed, waiting for them${payment}`;
-  if (theirs) return `Scheduled ${when} · they confirmed, your turn${payment}`;
-  return `Scheduled ${when}${payment}`;
+  // A new time proposed on an already scheduled reservation waits for an answer too.
+  const proposal = d.proposedBy ? (d.proposedBy === d.viewerId ? " · waiting for them to answer your new time" : " · answer their new time") : "";
+  if (mine) return `Scheduled ${when} · you confirmed, waiting for them${proposal}${payment}`;
+  if (theirs) return `Scheduled ${when} · they confirmed, your turn${proposal}${payment}`;
+  return `Scheduled ${when}${proposal}${payment}`;
 }
 
 const DEAL_CHIP: Partial<Record<TransactionGroup, string>> = { active: "Reserved", done: "Completed", cancelled: "Cancelled", reported: "Reported" };
 
+/** `ongoing`: only what is still being carried out (offers waiting for an answer, reservations in progress). `conversationId`: only that conversation's. */
+export type TransactionFilter = { ongoing?: boolean; conversationId?: string };
+
 /**
  * All of a student's offers waiting for an answer, offers that ended in the last `ENDED_OFFER_DAYS` days, and
- * reservations (any state), most recently changed first.
+ * reservations (any state), most recently changed first. `filter` narrows it in the query, for the Messages list and thread.
  */
-export async function listTransactions(viewerId: string): Promise<Transaction[]> {
+export async function listTransactions(viewerId: string, filter: TransactionFilter = {}): Promise<Transaction[]> {
   const db = getDb();
   const now = new Date();
   const since = new Date(now.getTime() - ENDED_OFFER_DAYS * 24 * 60 * 60 * 1000);
@@ -112,6 +122,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
     db
       .select({
         id: deal.id,
+        offerId: offer.id,
         postId: post.id,
         title: post.title,
         kind: post.kind,
@@ -147,7 +158,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
       .innerJoin(responder, eq(responder.id, deal.responderId))
       .innerJoin(postPhoto, and(eq(postPhoto.postId, post.id), eq(postPhoto.position, 0)))
       .innerJoin(cover, eq(cover.id, postPhoto.imageId))
-      .where(or(eq(deal.ownerId, viewerId), eq(deal.responderId, viewerId)))
+      .where(and(or(eq(deal.ownerId, viewerId), eq(deal.responderId, viewerId)), filter.ongoing ? inArray(deal.status, ["agreed", "scheduled"]) : undefined, filter.conversationId ? eq(offer.conversationId, filter.conversationId) : undefined))
       .orderBy(desc(deal.updatedAt)),
     db
       .select({
@@ -179,10 +190,11 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
       .where(
         and(
           or(eq(post.ownerId, viewerId), eq(offer.responderId, viewerId)),
+          filter.conversationId ? eq(offer.conversationId, filter.conversationId) : undefined,
           or(
             and(eq(offer.status, "pending"), gt(offer.expiresAt, now)),
             // Offers that came to nothing, for a while: a pending one past its time counts as expired before the sweep marks it.
-            and(gt(offer.createdAt, since), or(inArray(offer.status, ["declined", "withdrawn", "expired"]), and(eq(offer.status, "pending"), lte(offer.expiresAt, now)))),
+            filter.ongoing ? undefined : and(gt(offer.createdAt, since), or(inArray(offer.status, ["declined", "withdrawn", "expired"]), and(eq(offer.status, "pending"), lte(offer.expiresAt, now)))),
           ),
         ),
       ),
@@ -193,6 +205,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
     const group: TransactionGroup = d.status === "completed" ? "done" : d.status === "cancelled" ? "cancelled" : d.status === "disputed" ? "reported" : "active";
     return {
       id: d.id,
+      offerId: d.offerId,
       postId: d.postId,
       title: d.title,
       kind: d.kind,
@@ -204,6 +217,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
       amount: d.amount,
       isReserve: d.isReserve,
       group,
+      turn: dealTurn({ ...d, viewerIsOwner, viewerId }, now),
       chip: DEAL_CHIP[group] ?? "",
       state: dealState({ ...d, viewerIsOwner, viewerId }),
       // Once payment is under way or a handover was confirmed, only completing or a report ends it (cancel.ts).
@@ -218,6 +232,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
     const what = o.isReserve ? "reservation request" : "offer";
     const base = {
       id: o.id,
+      offerId: o.id,
       postId: o.postId,
       title: o.title,
       kind: o.kind,
@@ -234,6 +249,7 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
       return {
         ...base,
         group: "waiting",
+        turn: offerTurn({ status: o.status, expiresAt: o.expiresAt, viewerIsOwner }, now),
         chip: "Waiting",
         state: viewerIsOwner ? (o.isReserve ? "Reservation request · waiting for you" : "Offer · waiting for you") : o.isReserve ? "Reservation request · waiting for the owner" : "Offer · waiting for the owner",
         action: viewerIsOwner ? "decline" : "withdraw",
@@ -243,12 +259,12 @@ export async function listTransactions(viewerId: string): Promise<Transaction[]>
     // A pending offer past its time reads as expired, as the conversation does.
     const ended = o.status === "pending" ? "expired" : o.status;
     if (ended === "declined") {
-      return { ...base, group: "ended", chip: "Declined", state: viewerIsOwner ? `You declined this ${what}` : `The owner declined your ${what}`, action: null, at: o.decidedAt ?? o.createdAt };
+      return { ...base, group: "ended", turn: "none", chip: "Declined", state: viewerIsOwner ? `You declined this ${what}` : `The owner declined your ${what}`, action: null, at: o.decidedAt ?? o.createdAt };
     }
     if (ended === "withdrawn") {
-      return { ...base, group: "ended", chip: "Withdrawn", state: viewerIsOwner ? `They took back their ${what}` : `You took back your ${what}`, action: null, at: o.decidedAt ?? o.createdAt };
+      return { ...base, group: "ended", turn: "none", chip: "Withdrawn", state: viewerIsOwner ? `They took back their ${what}` : `You took back your ${what}`, action: null, at: o.decidedAt ?? o.createdAt };
     }
-    return { ...base, group: "ended", chip: "Expired", state: `No answer in time, so the ${what} ended`, action: null, at: o.decidedAt ?? o.expiresAt };
+    return { ...base, group: "ended", turn: "none", chip: "Expired", state: `No answer in time, so the ${what} ended`, action: null, at: o.decidedAt ?? o.expiresAt };
   });
   return [...fromOffers, ...fromDeals].sort((a, b) => b.at.getTime() - a.at.getTime());
 }

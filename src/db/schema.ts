@@ -83,6 +83,16 @@ export const student = pgTable(
     // The owner holds this account's records (a child safety case or a lawful order): it cannot be deleted by the person.
     // See src/lib/safety/hold.ts: a child safety report on the person or their listings holds it too.
     legalHoldAt: timestamp("legal_hold_at", { withTimezone: true }),
+    // First-touch campaign tags captured at sign-up (src/lib/funnel/utm.ts).
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    // One of the first students to join; see src/lib/founding/config.ts.
+    foundingUserAt: timestamp("founding_user_at", { withTimezone: true }),
+    // Where the person is based ("Sampaloc, Manila"); optional, shown on the profile, changed in Edit profile.
+    location: text("location"),
+    // When they finished or skipped the first-time tour; null means it has not been shown. Replayed from Settings.
+    tourSeenAt: timestamp("tour_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -124,6 +134,11 @@ export const student = pgTable(
       sql`${t.calendarTokenHash} is null or ${t.calendarTokenHash} ~ '^[0-9a-f]{64}$'`,
     ),
     check("student_terms_pair", sql`(${t.termsVersion} is null) = (${t.termsAcceptedAt} is null)`),
+    check(
+      "student_utm_length",
+      sql`char_length(coalesce(${t.utmSource}, '')) <= 64 and char_length(coalesce(${t.utmMedium}, '')) <= 64 and char_length(coalesce(${t.utmCampaign}, '')) <= 64`,
+    ),
+    check("student_location_length", sql`${t.location} is null or (char_length(btrim(${t.location})) between 2 and 60 and ${t.location} !~ '[\\r\\n]')`),
     unique("student_calendar_token_hash").on(t.calendarTokenHash),
   ],
 );
@@ -789,9 +804,17 @@ export const partner = pgTable(
     // Email domains of the schools it serves; null means every school.
     schoolDomains: text("school_domains").array(),
     status: text("status").notNull().default("pending"),
+    // The shop's 4-digit PIN: the cashier types it on a student's phone to redeem a voucher. Plain text on purpose: the
+    // admin reads it back to tell the shop. Compared on the server only, never sent to a browser.
+    pin: text("pin"),
+    // The secret in the shop's private report link (/partner/<token>); replaced to revoke the link.
+    reportToken: text("report_token"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("partner_pin_format", sql`${t.pin} is null or ${t.pin} ~ '^[0-9]{4}$'`),
+    unique("partner_report_token").on(t.reportToken),
+    check("partner_report_token_format", sql`${t.reportToken} is null or ${t.reportToken} ~ '^[A-Za-z0-9_-]{32}$'`),
     check("partner_name_length", sql`char_length(btrim(${t.name})) between 1 and 120`),
     check("partner_area_length", sql`char_length(btrim(${t.area})) between 1 and 120`),
     check("partner_kind", sql`${t.kind} in ('food', 'clothes', 'printing', 'services', 'other')`),
@@ -815,6 +838,8 @@ export const perk = pgTable(
     limitPeriod: text("limit_period"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull().defaultNow(),
     endsAt: timestamp("ends_at", { withTimezone: true }),
+    // How many vouchers may be live at once; null means no cap.
+    totalQuantity: integer("total_quantity"),
     status: text("status").notNull().default("draft"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -828,6 +853,36 @@ export const perk = pgTable(
       sql`(${t.limitPerStudent} is null and ${t.limitPeriod} is null) or (${t.limitPerStudent} > 0 and ${t.limitPeriod} in ('day', 'week', 'month', 'ever'))`,
     ),
     check("perk_dates", sql`${t.endsAt} is null or ${t.endsAt} > ${t.startsAt}`),
+    check("perk_total_quantity", sql`${t.totalQuantity} is null or ${t.totalQuantity} > 0`),
+  ],
+);
+
+// A student's claim on a perk. claimed: waiting for the shop's PIN. redeemed: the cashier typed the PIN. expired: unused past
+// expires_at. A "live" voucher is redeemed, or claimed and not yet expired; only live ones count toward limits and stock.
+export const perkVoucher = pgTable(
+  "perk_voucher",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    perkId: uuid("perk_id")
+      .notNull()
+      .references(() => perk.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    // Shown to the student and in reports (ST-4F8K); the cashier never types it.
+    code: text("code").notNull(),
+    status: text("status").notNull().default("claimed"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  },
+  (t) => [
+    unique("perk_voucher_code").on(t.code),
+    check("perk_voucher_status", sql`${t.status} in ('claimed', 'redeemed', 'expired')`),
+    check("perk_voucher_redeemed_at", sql`(${t.status} = 'redeemed') = (${t.redeemedAt} is not null)`),
+    // One open voucher per student per perk.
+    uniqueIndex("perk_voucher_one_open").on(t.perkId, t.studentId).where(sql`${t.status} = 'claimed'`),
+    index("perk_voucher_lookup_idx").on(t.perkId, t.studentId, t.claimedAt),
   ],
 );
 
@@ -986,4 +1041,49 @@ export const block = pgTable(
     check("block_not_self", sql`${t.blockerId} <> ${t.blockedId}`),
     index("block_blocked_idx").on(t.blockedId),
   ],
+);
+
+// Funnel counting, first-party and anonymous for landing views. Student-bound stages are recorded once per student.
+export const funnelEvent = pgTable(
+  "funnel_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    stage: text("stage").notNull(),
+    studentId: text("student_id").references(() => student.id, { onDelete: "cascade" }),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "funnel_event_stage",
+      sql`${t.stage} in ('landing_view','signup_started','signup_completed','first_listing','first_message','first_handover_confirmed')`,
+    ),
+    // Postgres treats NULLs as distinct, so anonymous rows never collide.
+    unique("funnel_event_once_per_student").on(t.studentId, t.stage),
+    index("funnel_event_stage_idx").on(t.stage, t.createdAt),
+  ],
+);
+
+// An anonymous vote on the landing page for which student perk to bring first. Never counted on a public page.
+export const perkVote = pgTable(
+  "perk_vote",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("perk_vote_kind", sql`${t.kind} in ('food','clothes','printing','services','other')`)],
+);
+
+// A shop a student wants asked for a perk ("Which shop near TUP should we ask first?"). Anonymous, owner-read only.
+export const perkSuggestion = pgTable(
+  "perk_suggestion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shop: text("shop").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("perk_suggestion_shop_length", sql`char_length(${t.shop}) between 2 and 80 and ${t.shop} !~ '[\\r\\n]'`)],
 );

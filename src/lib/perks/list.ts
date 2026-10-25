@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
-import { partner, perk } from "@/db/schema";
+import { partner, perk, perkVoucher } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import type { PerkKind } from "@/lib/perks/kinds";
 
@@ -13,6 +13,11 @@ export type PerkItem = {
   partnerName: string;
   kind: string;
   area: string;
+  /** The shop has a PIN, so a student can claim. The PIN itself is never selected. */
+  claimable: boolean;
+  totalQuantity: number | null;
+  /** Vouchers still available, or null when there is no total quantity. */
+  left: number | null;
 };
 
 /**
@@ -20,7 +25,7 @@ export type PerkItem = {
  * an active partner that serves their school (no school list means every school).
  * Partners' contact details are never selected.
  */
-function visiblePerks(schoolDomain: string | null) {
+export function visiblePerks(schoolDomain: string | null) {
   return and(
     eq(perk.status, "live"),
     eq(partner.status, "active"),
@@ -46,6 +51,9 @@ export async function listPerks(
       partnerName: partner.name,
       kind: partner.kind,
       area: partner.area,
+      claimable: sql<boolean>`${partner.pin} is not null`,
+      totalQuantity: perk.totalQuantity,
+      left: sql<number | null>`case when ${perk.totalQuantity} is null then null else greatest(${perk.totalQuantity} - (select count(*) from ${perkVoucher} where ${perkVoucher.perkId} = ${perk.id} and (${perkVoucher.status} = 'redeemed' or (${perkVoucher.status} = 'claimed' and ${perkVoucher.expiresAt} > now()))), 0)::int end`,
     })
     .from(perk)
     .innerJoin(partner, eq(partner.id, perk.partnerId))

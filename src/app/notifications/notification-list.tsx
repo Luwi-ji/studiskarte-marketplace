@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { markAllNotificationsReadAction, markNotificationReadAction } from "./actions";
+import { markNotificationReadAction } from "./actions";
 
 export type NotificationRow = {
   id: string;
@@ -16,20 +16,8 @@ export type NotificationRow = {
 
 /** The list. Tapping an entry marks it read and opens what it is about. */
 export function NotificationList({ rows }: { rows: NotificationRow[] }) {
-  const unread = rows.filter((r) => !r.read).length;
   return (
     <div className="flex flex-col">
-      {unread > 0 ? (
-        <div className="flex justify-end px-3 py-2">
-          <button
-            type="button"
-            onClick={() => void markAllNotificationsReadAction()}
-            className="flex h-11 items-center rounded-lg px-3 text-sm font-medium text-brand-text"
-          >
-            Mark all as read
-          </button>
-        </div>
-      ) : null}
       <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
         {rows.map((row) => (
           <li key={row.id}>

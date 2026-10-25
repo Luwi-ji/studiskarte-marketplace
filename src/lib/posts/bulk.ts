@@ -1,13 +1,9 @@
-import { and, count, eq, inArray } from "drizzle-orm";
-import { post, student } from "@/db/schema";
-import { getDb } from "@/lib/db";
 import type { ObjectStore } from "@/lib/images/store";
 import { CONDITIONS, OPEN_POSTS_MAX, PRICE_KINDS, type PostFields } from "@/lib/posts/schema";
 import type { BulkAction } from "@/lib/posts/own-view";
-import { SHOWCASE_NEEDS_ID_CHECK } from "@/lib/posts/create";
+import { SHOWCASE_NEEDS_ID_AFTER_SALE, SHOWCASE_NEEDS_ID_CHECK } from "@/lib/posts/showcase-limit";
 import { deletePost, withdrawPost } from "@/lib/posts/transitions";
 import { getEditablePost, updatePost, type EditablePost } from "@/lib/posts/update";
-import { idCheckIsCurrent, UNCHECKED_SHOWCASE_MAX, verificationEnabled } from "@/lib/verification/config";
 
 /** At most this many posts in one go; a student has at most 20 open, and the rest are old ones being cleared. */
 export const BULK_MAX = 100;
@@ -23,7 +19,7 @@ const REASON = {
   },
   reservation: "a reservation is still being carried out",
   limit: `you have ${OPEN_POSTS_MAX} open posts`,
-  idCheck: "an ID check is needed for more than one open showcase",
+  idCheck: "an ID check is needed to post more showcases",
   needsChanges: "its details need a change first, so open it and relist from there",
   duplicate: "you already have an open post with the same title and description",
 } as const;
@@ -53,28 +49,14 @@ function relistFields(editable: EditablePost): PostFields {
   };
 }
 
-/** Is a student without a current ID check already at the limit of open showcase posts? Only once ID checks are open, like creating a post. */
-async function showcaseNeedsIdCheck(ownerId: string): Promise<boolean> {
-  if (!verificationEnabled()) return false;
-  const db = getDb();
-  const [me] = await db.select({ checkedAt: student.idCheckedAt, expiresAt: student.idCheckExpiresAt }).from(student).where(eq(student.id, ownerId));
-  if (!me || idCheckIsCurrent(me.checkedAt, me.expiresAt)) return false;
-  const [{ showcases }] = await db
-    .select({ showcases: count() })
-    .from(post)
-    .where(and(eq(post.ownerId, ownerId), eq(post.kind, "showcase"), inArray(post.status, ["open", "reserved", "hidden"])));
-  return showcases >= UNCHECKED_SHOWCASE_MAX;
-}
-
 async function relistOne(ownerId: string, id: string, store: ObjectStore, now: Date): Promise<BulkResult> {
   const editable = await getEditablePost(ownerId, id, now);
   if (!editable || !editable.relist) return { id, ok: false, reason: REASON.notAllowed.relist };
-  if (editable.post.kind === "showcase" && (await showcaseNeedsIdCheck(ownerId))) return { id, ok: false, reason: REASON.idCheck };
   // The same function, with the same checks, as relisting one post from its edit page.
   const result = await updatePost({ ownerId, postId: id, input: relistFields(editable), store, relist: true, now });
   if (result.ok) return { id, ok: true };
   const form = result.errors.form;
-  if (form === SHOWCASE_NEEDS_ID_CHECK) return { id, ok: false, reason: REASON.idCheck };
+  if (form === SHOWCASE_NEEDS_ID_CHECK || form === SHOWCASE_NEEDS_ID_AFTER_SALE) return { id, ok: false, reason: REASON.idCheck };
   if (form?.includes("open posts")) return { id, ok: false, reason: REASON.limit };
   if (form?.includes("already have an open post")) return { id, ok: false, reason: REASON.duplicate };
   if (form?.includes("expired")) return { id, ok: false, reason: REASON.notAllowed.relist };
