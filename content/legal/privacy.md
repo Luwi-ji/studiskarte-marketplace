@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-23 (second version).
+Studiskarte Marketplace ("the app", "we") is a marketplace where students and other members of the school community in the Philippines offer things and services and look for things they want. This policy explains what personal data the app collects, why, who else handles it, how long it is kept, and what you can do about it. Last updated 2026-10-25.
 
 The app is run by its owner, an individual, not a company. You can reach us at support@studiskarte.com.
 
@@ -20,9 +20,21 @@ When you use the app:
 - **Device and session data:** when you sign in we store a session with your IP address and browser details, for 30 days or until you sign out.
 - **Device alerts,** if you switch them on: an address your phone's push service gives us. Alerts show a headline and a listing title, never message text.
 - **Calendar link,** if you make one: only a fingerprint (hash) of the private link is stored.
+- **Profile details you choose to add:** a short bio and where you are based (for example "Sampaloc, Manila"). Other signed-in members see them on your profile.
+- **Perks:** when you claim a perk, the perk, the shop, your voucher code, and when you claimed and redeemed it. A shop sees only counts, voucher codes and times, never your name or handle. We also count the wrong shop PINs typed on your phone, for a short time, to block guessing.
+- **How you found us and your first steps:** if you accepted the "Measuring visits" choice before signing up, the campaign tag of the link you used (for example "instagram") is saved on your account. We also note, without the content, that you made your first listing, sent your first message or confirmed your first handover, to learn where people get stuck.
+- **Founding User badge and tour:** whether you were one of the first members to join (the badge), and whether you have seen the first-time tour.
 - **Which version of these terms you accepted, and when.**
 
-We do not use advertising or analytics trackers. The only cookie is the one that keeps you signed in.
+We do not use advertising trackers or third-party analytics. The cookie that keeps you signed in is the only one the app needs. A second, optional cookie exists only if you accept it on the landing page (see the next section).
+
+## If you only visit the landing page
+
+You do not need an account to read the landing page. What it can keep, and when:
+- **Essential storage:** the cookie that keeps you signed in after you log in, and your light or dark mode, stored in your browser. Always on.
+- **Measuring visits, only if you accept.** We count your visit without your name or email, and, if the link you used was tagged (for example from Instagram), keep that tag in a cookie for 7 days so we know which post brought you. Your choice is saved in your browser, and you can change it any time with "Cookie settings" in the page footer. If you reject, nothing is counted and an earlier tag cookie is removed.
+- **Message us:** the name (optional), email address and message you type. We receive it as an email at support@studiskarte.com and it also waits in our private inbox so it is not lost. We keep it until we have answered it, then delete it.
+- **Perk votes and shop suggestions:** the kind of perk you vote for, or the shop name you type, with the date. No name, email or account is attached. Your IP address is used only for a short-lived limit against spam, and is not saved with the vote.
 
 ## Why we use it
 
@@ -68,6 +80,7 @@ The ID check is optional. It lets you show that you are a real person who studie
 
 - Sign-in codes: 5 to 10 minutes. Sessions: 30 days. Sign-in attempt counters: removed daily.
 - Your account data: until you delete your account.
+- Voucher history: kept with your anonymised account after you delete it, so a shop's totals stay correct. It no longer shows your name or handle.
 - Listings that you withdraw or that expire disappear from your lists after a day or a week, but are kept in our database together with their photos, offers and reservations, so the history and reviews of other members stay correct.
 - Messages, finished reservations and reviews stay after you delete your account, shown under the name "Deleted account".
 

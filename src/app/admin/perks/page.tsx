@@ -11,10 +11,10 @@ export const metadata = { title: "Perks · Admin · Studiskarte Marketplace" };
 export default function PerksAdminPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Perks</h1>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Add a shop, give it a perk, and students see it on the Perks page. At the shop the cashier types the shop PIN on the student&apos;s phone. Send each shop its report link to see its own numbers.
-      </p>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold">Perks</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Add a shop, then a perk. Students see it on the Perks page and claim it. The cashier confirms with the shop PIN.</p>
+      </div>
       <Suspense fallback={<p className="p-4 text-zinc-500">Loading…</p>}>
         <Content />
       </Suspense>
@@ -59,14 +59,14 @@ async function Content() {
   return (
     <>
       <AddPartnerForm schools={schools} />
-      {cards.length === 0 ? <p className="text-sm text-zinc-500">No partners yet.</p> : cards.map((card) => <PartnerCard key={card.id} partner={card} />)}
+      {cards.length === 0 ? <p className="text-sm text-zinc-500">No shops yet.</p> : cards.map((card) => <PartnerCard key={card.id} partner={card} />)}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-base font-semibold">Recent redemptions</h2>
         {redemptions.length === 0 ? (
           <p className="text-sm text-zinc-500">None yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-x-auto rounded-2xl border border-zinc-200 dark:border-zinc-800">
             <table className="w-full min-w-[32rem] text-left text-sm">
               <thead className="text-xs text-zinc-500">
                 <tr>

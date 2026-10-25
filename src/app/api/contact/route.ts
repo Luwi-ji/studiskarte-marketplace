@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { contactMessage } from "@/db/schema";
+import { getDb } from "@/lib/db";
 import { clientIp } from "@/lib/identity/auth";
 import { sendMail } from "@/lib/mail";
 import { consume } from "@/lib/rate-limit";
@@ -38,6 +40,14 @@ export async function POST(request: Request) {
   const daily = hourly && (await consume({ action: "landing_contact_day", key: ip, max: 8, windowSeconds: 24 * 3600 }));
   if (!daily) return NextResponse.json({ error: "You have sent a few messages already. Try again later." }, { status: 429 });
 
+  // Kept in the admin Inbox as well as emailed, so a note is not lost if the mail never arrives.
+  let saved = true;
+  try {
+    await getDb().insert(contactMessage).values({ name: name || null, email, message });
+  } catch (error) {
+    saved = false;
+    console.error("saving a landing contact message failed", error);
+  }
   try {
     await sendMail({
       to: SUPPORT_EMAIL,
@@ -47,6 +57,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("sending a landing contact message failed", error);
+    if (saved) return new NextResponse(null, { status: 204 });
     return NextResponse.json({ error: "Could not send your message right now. Try again later." }, { status: 502 });
   }
   return new NextResponse(null, { status: 204 });

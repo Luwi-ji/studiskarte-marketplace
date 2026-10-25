@@ -1,42 +1,12 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { NewPostButton } from "@/components/post-chooser";
-
-const EVENT = "first-run-strip";
+import { useDismissed } from "@/components/use-dismissed";
 
 /** One card above the feed for a member who has not posted or messaged yet. "Just looking" hides it for good on this device. */
 export function FirstRunStrip({ studentId, displayName, canSell = true }: { studentId: string; displayName: string; canSell?: boolean }) {
-  const key = `studiskarte:first-run-dismissed:${studentId}`;
-  const dismissed = useSyncExternalStore(
-    (onChange) => {
-      window.addEventListener(EVENT, onChange);
-      window.addEventListener("storage", onChange);
-      return () => {
-        window.removeEventListener(EVENT, onChange);
-        window.removeEventListener("storage", onChange);
-      };
-    },
-    () => {
-      try {
-        return window.localStorage.getItem(key) === "1";
-      } catch {
-        return false;
-      }
-    },
-    () => true, // Nothing on the server: the card appears once the page is in the browser, so it never flashes for someone who dismissed it.
-  );
-
+  const { dismissed, dismiss } = useDismissed(`studiskarte:first-run-dismissed:${studentId}`);
   if (dismissed) return null;
-
-  function dismiss() {
-    try {
-      window.localStorage.setItem(key, "1");
-    } catch {
-      // Storage is blocked: the card still goes away until the next visit.
-    }
-    window.dispatchEvent(new Event(EVENT));
-  }
 
   return (
     <section aria-label="Welcome" className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
