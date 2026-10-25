@@ -25,7 +25,7 @@ export const FOUNDER = {
   nickname: "Luwiji",
   instagramHandle: "lowel_j",
   instagramUrl: "https://www.instagram.com/lowel_j/",
-  photoFile: "founder.jpg",
+  photoFile: "founder-320.webp",
 } as const;
 
 /** Founding User: the landing page promises a badge to the first 100 members (src/lib/founding/config.ts). Set to false when the places run out. */

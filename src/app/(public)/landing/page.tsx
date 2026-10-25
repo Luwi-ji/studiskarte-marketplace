@@ -156,7 +156,7 @@ export default function LandingPage() {
           <div className="flex h-14 items-center justify-between rounded-full bg-brand/90 pl-4 pr-2 text-white shadow-lg ring-1 ring-white/20 backdrop-blur-md">
             <Link href="/" className="flex items-center gap-2.5" aria-label="Studiskarte">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
+              <img src="/logo-64.webp" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
               <span className="text-lg font-bold">Studiskarte</span>
             </Link>
             <nav aria-label="Account" className="flex items-center gap-1">
@@ -492,7 +492,7 @@ export default function LandingPage() {
             <div className="col-span-2 flex flex-col gap-4 md:col-span-1">
               <Link href="/" className="flex items-center gap-2.5 text-white" aria-label="Studiskarte">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="" width={36} height={36} className="h-9 w-9 rounded-xl" />
+                <img src="/logo-64.webp" alt="" width={36} height={36} loading="lazy" decoding="async" className="h-9 w-9 rounded-xl" />
                 <span className="text-xl font-bold">Studiskarte</span>
               </Link>
               <p className="max-w-xs text-sm text-zinc-400">Where student hustle meets student needs. Follow us for updates, tips and new features.</p>

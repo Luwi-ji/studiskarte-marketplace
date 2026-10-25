@@ -21,10 +21,10 @@ function PhoneFrame({ label, children, className = "" }: { label: string; childr
 }
 
 const CARDS = [
-  { title: "School uniform set", price: "₱600", photo: "/landing/uniform.webp" },
-  { title: "Pre-loved clothes bundle", price: "₱350", photo: "/landing/clothes.webp" },
-  { title: "Shoes, assorted sizes", price: "₱500", photo: "/landing/shoes.webp" },
-  { title: "Egg sandwich", price: "₱60", photo: "/landing/sandwich.webp" },
+  { title: "School uniform set", price: "₱600", photo: "/landing/uniform-180.webp" },
+  { title: "Pre-loved clothes bundle", price: "₱350", photo: "/landing/clothes-180.webp" },
+  { title: "Shoes, assorted sizes", price: "₱500", photo: "/landing/shoes-180.webp" },
+  { title: "Egg sandwich", price: "₱60", photo: "/landing/sandwich-180.webp" },
 ];
 
 /** The feed: tabs, then listing cards. */
@@ -45,7 +45,7 @@ export function FeedMock({ className = "" }: { className?: string }) {
           <div key={card.title} className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-800">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={card.photo} alt="" width={180} height={180} decoding="async" className="h-full w-full object-cover" />
+              <img src={card.photo} alt="" width={180} height={180} loading="lazy" decoding="async" className="h-full w-full object-cover" />
               <span className="absolute left-1 top-1 rounded-full bg-brand px-1.5 py-0.5 text-[7px] font-semibold text-white">Showcase</span>
             </div>
             <div className="px-1.5 py-1.5">
