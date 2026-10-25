@@ -83,18 +83,46 @@ export function useInstall(): InstallState {
   };
 }
 
-/** What to do to get the app on the home screen, for this device. With a browser prompt available it is one button. */
+const STEPS: Record<"ios" | "android", string[]> = {
+  ios: ["Open Studiskarte in Safari.", "Tap the Share button (the square with an arrow) at the bottom of the screen.", "Scroll down and choose Add to Home Screen, then tap Add."],
+  android: ["Open Studiskarte in Chrome.", "Tap the menu (the three dots) at the top right.", "Choose Install app or Add to Home screen, then tap Install."],
+};
+
+/**
+ * How to get the app on the home screen, for both kinds of phone. The tab for this device is chosen first, and the
+ * other is one tap away (a person may be setting it up for a friend, or reading on a computer). Where the browser can
+ * start the install itself, a button does it.
+ */
 export function InstallPanel() {
   const { platform, canPrompt, prompt } = useInstall();
+  const [picked, setPicked] = useState<"ios" | "android" | null>(null);
+  const tab = picked ?? (platform === "ios" ? "ios" : "android");
   return (
     <div className="flex flex-col gap-4">
-      {canPrompt ? (
-        <button type="button" onClick={() => void prompt()} className="press flex h-12 items-center justify-center rounded-full bg-brand text-base font-semibold text-white">
-          Install Studiskarte
-        </button>
-      ) : platform === "ios" ? (
+      <div role="tablist" aria-label="Your phone" className="grid grid-cols-2 gap-1 rounded-full bg-zinc-100 p-1 dark:bg-zinc-900">
+        {([["ios", "iPhone"], ["android", "Android"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setPicked(id)}
+            className={`press flex h-10 items-center justify-center rounded-full text-sm font-semibold ${tab === id ? "bg-white text-[var(--foreground)] shadow-sm dark:bg-zinc-800" : "text-zinc-600 dark:text-zinc-400"}`}
+          >
+            {label}
+            {platform === id ? <span className="ml-1.5 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand-text">This phone</span> : null}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" className="flex flex-col gap-4">
+        {tab === "android" && canPrompt ? (
+          <button type="button" onClick={() => void prompt()} className="press flex h-12 items-center justify-center rounded-full bg-brand text-base font-semibold text-white">
+            Install Studiskarte
+          </button>
+        ) : null}
         <ol className="flex flex-col gap-3 text-base">
-          {["Open Studiskarte in Safari.", "Tap the Share button at the bottom of the screen.", "Choose Add to Home Screen, then Add."].map((line, i) => (
+          {STEPS[tab].map((line, i) => (
             <li key={line} className="flex items-start gap-3">
               <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
                 {i + 1}
@@ -103,19 +131,15 @@ export function InstallPanel() {
             </li>
           ))}
         </ol>
-      ) : (
-        <ol className="flex flex-col gap-3 text-base">
-          {[platform === "android" ? "Open the browser menu (the three dots)." : "Open your browser menu.", "Choose Install app or Add to Home screen.", "Open Studiskarte from your home screen."].map((line, i) => (
-            <li key={line} className="flex items-start gap-3">
-              <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-                {i + 1}
-              </span>
-              {line}
-            </li>
-          ))}
-        </ol>
-      )}
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">It opens full screen like an app, loads faster, and sits next to your other apps. There is nothing to download from a store.</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+        <p>
+          <strong>Opened this from Instagram or Facebook?</strong> Open the link in {tab === "ios" ? "Safari" : "Chrome"} first; those in-app pages cannot add it.
+        </p>
+        <p>On a computer, look for the install icon at the right of the address bar in Chrome or Edge.</p>
+      </div>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">It opens full screen like an app, loads faster, and sits next to your other apps. Nothing to download from a store.</p>
     </div>
   );
 }
