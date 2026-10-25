@@ -26,8 +26,11 @@ export const metadata: Metadata = {
 };
 
 const FIXES: { problem: string; fix: string }[] = [
-  { problem: "Buried posts", fix: "A feed built for students. Filter by school and category. Newest listings first, and students you follow come first." },
+  { problem: "Buried posts", fix: "Your listing goes live right away. Buyers search by category, price or words like \"size M\", and students you follow come first." },
   { problem: "Waiting for admin approval", fix: "Post in seconds. There is no group admin to approve it." },
+  { problem: "\"PM for price\"", fix: "Every listing shows a price, or says Free or Negotiable." },
+  { problem: "Sold items still shown", fix: "Sold items leave the feed. What you see is open or reserved." },
+  { problem: "Ghosting", fix: "Offers and reservations are cards in the chat, so both sides can see what was agreed." },
   { problem: "Can't trust sellers", fix: "School-email check, an optional ID checked badge, and reviews after real deals." },
   { problem: "Wrong size or no stock", fix: "Post a Wishlist: \"Looking for: PE uniform, size M\"." },
   { problem: "Meet-up hassle", fix: "A handover scheduler, daylight hours (6:00 AM to 8:00 PM) and one chat for the whole deal." },
@@ -38,7 +41,7 @@ const SAFETY: { icon: SettingsIconName; title: string; text: string }[] = [
   { icon: "shield", title: "Optional ID check", text: "Show a school ID to earn an ID checked badge. The pictures are deleted once it is decided." },
   { icon: "calendar", title: "Daylight meet-ups", text: "Handovers are set between 6:00 AM and 8:00 PM at a place you both agree on." },
   { icon: "user", title: "Your privacy", text: "Your email is never shown to other members." },
-  { icon: "flag", title: "Report and block", text: "Report a listing or a person, or block them. Child safety and urgent reports are read within 24 hours." },
+  { icon: "flag", title: "Report and block", text: "Report a listing or a person, or block them." },
 ];
 
 const FAQ: { q: string; a: ReactNode }[] = [
@@ -192,6 +195,13 @@ export default function LandingPage() {
             <p className={`max-w-xl text-lg ${MUTED}`}>We want to bring student perks from local businesses. None are signed yet, so we are asking you first.</p>
             <h3 className="text-lg font-semibold">Which perks do you want?</h3>
             <PerkVote />
+            <p className={`text-base ${MUTED}`}>
+              Own a shop near campus?{" "}
+              <a href={`mailto:${SUPPORT_EMAIL}?subject=Student%20perk`} className="inline-flex min-h-11 items-center font-semibold underline">
+                Message us
+              </a>
+              .
+            </p>
           </div>
         </section>
 
@@ -271,6 +281,7 @@ export default function LandingPage() {
             </a>
           </nav>
           <LegalLinks />
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Child safety and urgent reports are read within 24 hours.</p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Studiskarte Marketplace · Where student hustle meets student needs.</p>
         </div>
       </footer>

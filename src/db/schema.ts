@@ -1029,3 +1029,14 @@ export const perkVote = pgTable(
   },
   (t) => [check("perk_vote_kind", sql`${t.kind} in ('food','clothes','printing','services','other')`)],
 );
+
+// A shop a student wants asked for a perk ("Which shop near TUP should we ask first?"). Anonymous, owner-read only.
+export const perkSuggestion = pgTable(
+  "perk_suggestion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shop: text("shop").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("perk_suggestion_shop_length", sql`char_length(${t.shop}) between 2 and 80 and ${t.shop} !~ '[\\r\\n]'`)],
+);
