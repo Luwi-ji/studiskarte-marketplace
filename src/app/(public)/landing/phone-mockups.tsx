@@ -58,3 +58,13 @@ export function FeedMock({ className = "" }: { className?: string }) {
     </PhoneFrame>
   );
 }
+
+/** A real screenshot inside a phone frame. The frame takes the screenshot's own height, so nothing is cropped or stretched. */
+export function ScreenPhone({ src, alt, height, className = "" }: { src: string; alt: string; height: number; className?: string }) {
+  return (
+    <div className={`relative w-full overflow-hidden rounded-[2.2rem] border-[6px] border-zinc-900 bg-white shadow-xl dark:border-zinc-700 ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} width={450} height={height} loading="lazy" decoding="async" className="block h-auto w-full" />
+    </div>
+  );
+}

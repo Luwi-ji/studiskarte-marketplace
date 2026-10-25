@@ -10,7 +10,7 @@ import { FOUNDER, FOUNDING_SELLER_ENABLED, isFilled, QUOTES, SURVEY_N, TOP_FINDI
 import { SUPPORT_EMAIL } from "@/lib/support/config";
 import { FunnelBeacon } from "./funnel-beacon";
 import { PerkVote } from "./perk-vote";
-import { FeedMock } from "./phone-mockups";
+import { FeedMock, ScreenPhone } from "./phone-mockups";
 
 const TITLE = "Studiskarte Marketplace · Where student hustle meets student needs";
 const DESCRIPTION =
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 const SCREENS = [
   { src: "/landing/app-post.webp", height: 900, alt: "The Studiskarte post form with a photo, title and price filled in", caption: "Post in seconds. No admin to approve it." },
-  { src: "/landing/app-meetup.webp", height: 575, alt: "A Studiskarte chat where the seller picks a day, time and place to hand over", caption: "Agree the day, time and place in the chat." },
+  { src: "/landing/app-meetup.webp", height: 743, alt: "A Studiskarte chat where the seller picks a day, time and place to hand over", caption: "Agree the day, time and place in the chat." },
 ];
 
 const FIXES: { problem: string; fix: string }[] = [
@@ -175,27 +175,47 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section aria-labelledby="fixes-heading" className={`${WRAP} flex flex-col gap-6 py-14`}>
-          <h2 id="fixes-heading" className="text-3xl font-bold tracking-tight">
-            How Studiskarte fixes it
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-2">
-            {SCREENS.map((screen) => (
-              <figure key={screen.src} className="flex flex-col gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={screen.src} alt={screen.alt} width={450} height={screen.height} loading="lazy" decoding="async" className="w-full max-w-xs rounded-2xl border border-zinc-200 dark:border-zinc-800" />
-                <figcaption className={`text-sm ${MUTED}`}>{screen.caption}</figcaption>
-              </figure>
-            ))}
+        <section aria-labelledby="fixes-heading" className="py-14">
+          <div className={`${WRAP} flex flex-col gap-8`}>
+            <div className="flex flex-col gap-2">
+              <h2 id="fixes-heading" className="text-3xl font-bold tracking-tight">
+                How Studiskarte fixes it
+              </h2>
+              <p className={`max-w-xl text-lg ${MUTED}`}>Real screens from the app, and what each problem looks like once you are on it.</p>
+            </div>
+            <div className="grid items-start gap-10 lg:grid-cols-[auto_1fr]">
+              {/* On a phone the two screens scroll sideways, so the list below stays within reach. */}
+              <div className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-2 lg:mx-0 lg:overflow-visible lg:px-0">
+                {SCREENS.map((screen, i) => (
+                  <figure key={screen.src} className={`flex w-[14.5rem] shrink-0 snap-center flex-col items-center gap-3 ${i === 1 ? "lg:mt-10" : ""}`}>
+                    <ScreenPhone src={screen.src} alt={screen.alt} height={screen.height} />
+                    <figcaption className="text-center text-sm font-medium">{screen.caption}</figcaption>
+                  </figure>
+                ))}
+              </div>
+              <ul className="flex flex-col divide-y divide-zinc-200 rounded-2xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+                {FIXES.map((item) => (
+                  <li key={item.problem} className="flex gap-3 p-4">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand-text" aria-hidden>
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12.5l4.2 4.2L19 7" />
+                      </svg>
+                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      <p className={`text-sm ${MUTED}`}>
+                        <span className="sr-only">Problem: </span>
+                        {item.problem}
+                      </p>
+                      <p className="text-base font-medium">
+                        <span className="sr-only">Fix: </span>
+                        {item.fix}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <ul className="flex flex-col gap-3">
-            {FIXES.map((item) => (
-              <li key={item.problem} className="flex flex-col gap-1 rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-                <p className={`text-sm font-semibold uppercase tracking-wide ${MUTED}`}>{item.problem}</p>
-                <p className="text-lg">{item.fix}</p>
-              </li>
-            ))}
-          </ul>
         </section>
 
         <section aria-labelledby="perks-heading" className="bg-zinc-50 py-14 dark:bg-zinc-900">
