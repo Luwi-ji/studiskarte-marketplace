@@ -13,7 +13,10 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/legal/[doc]">) {
   const { doc } = await params;
-  return { title: `${isLegalSlug(doc) ? LEGAL_TITLES[doc] : "Legal"} · Studiskarte Marketplace` };
+  return {
+    title: `${isLegalSlug(doc) ? LEGAL_TITLES[doc] : "Legal"} | Studiskarte`,
+    alternates: { canonical: isLegalSlug(doc) ? `/legal/${doc}` : "/legal" },
+  };
 }
 
 /** The terms, privacy policy, community guidelines and child safety standards: readable by anyone, signed in or not. */

@@ -15,7 +15,7 @@ import { FunnelBeacon } from "./funnel-beacon";
 import { PerkVote } from "./perk-vote";
 import { FeedMock, ScreenPhone } from "./phone-mockups";
 
-const TITLE = "Studiskarte Marketplace · Where student hustle meets student needs";
+const TITLE = "Studiskarte";
 const DESCRIPTION =
   "Buy, sell, give away and look for things inside your school community. Chat, agree a time and a public place, and hand it over. Free to use, tied to your school email, and we never handle your money.";
 
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: "/",
-    siteName: "Studiskarte Marketplace",
+    siteName: "Studiskarte",
     type: "website",
     locale: "en_PH",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Studiskarte: where student hustle meets student needs" }],
@@ -47,8 +47,8 @@ const STRUCTURED_DATA = {
     {
       "@type": "Organization",
       "@id": "https://studiskarte.com/#organization",
-      name: "Studiskarte Marketplace",
-      alternateName: "Studiskarte",
+      name: "Studiskarte",
+      alternateName: "Studiskarte Marketplace",
       url: "https://studiskarte.com/",
       logo: "https://studiskarte.com/logo.png",
       email: SUPPORT_EMAIL,
@@ -58,7 +58,8 @@ const STRUCTURED_DATA = {
       "@type": "WebSite",
       "@id": "https://studiskarte.com/#website",
       url: "https://studiskarte.com/",
-      name: "Studiskarte Marketplace",
+      name: "Studiskarte",
+      alternateName: "Studiskarte Marketplace",
       description: DESCRIPTION,
       inLanguage: "en-PH",
       publisher: { "@id": "https://studiskarte.com/#organization" },
@@ -358,9 +359,9 @@ export default function LandingPage() {
                   <h3 className="text-lg font-bold">Which perks do you want?</h3>
                   <PerkVote />
                 </div>
-                <p className={`border-t border-zinc-200 pt-5 text-base dark:border-zinc-800 ${MUTED}`}>
+                <div className={`border-t border-zinc-200 pt-5 text-base dark:border-zinc-800 ${MUTED}`}>
                   Own a shop near campus? <ContactDrawer label="Message us" className="inline-flex min-h-11 items-center font-semibold text-[var(--foreground)] underline" />
-                </p>
+                </div>
               </div>
             </div>
           </div>
@@ -444,9 +445,9 @@ export default function LandingPage() {
           <div className={`${WRAP} grid gap-10 md:grid-cols-[1fr_1.6fr] md:gap-14`}>
             <div className="flex flex-col gap-6">
               <Heading id="faq-heading" eyebrow="Questions" title="Good to know" />
-              <p className={`text-lg ${MUTED}`}>
+              <div className={`text-lg ${MUTED}`}>
                 Something else on your mind? <ContactDrawer label="Message us" className="inline-flex min-h-11 items-center font-semibold text-[var(--foreground)] underline" />
-              </p>
+              </div>
             </div>
             <div className={`${CARD} flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800`}>
               {FAQ.map((item) => (

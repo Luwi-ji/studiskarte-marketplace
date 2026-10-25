@@ -2,9 +2,9 @@ import Link from "next/link";
 import { LegalLinks } from "@/components/legal-links";
 
 export const metadata = {
-  title: "About · Studiskarte Marketplace",
-  description:
-    "Studiskarte Marketplace is a mobile app where students in the Philippines sell things and offer services to each other, and say what they are looking for.",
+  title: "About Studiskarte",
+  description: "Studiskarte is a marketplace where students in the Philippines buy, sell, offer services and post things they need.",
+  alternates: { canonical: "/about" },
 };
 
 /** The public home page of the app: what it is, what it does with Google sign-in data, and the legal links. No login needed. */

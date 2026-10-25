@@ -11,7 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const pages: { path: string; priority: number }[] = [
     { path: "/", priority: 1 },
     { path: "/about", priority: 0.6 },
-    { path: "/sign-up", priority: 0.5 },
+    { path: "/sign-in", priority: 0.7 },
+    { path: "/sign-up", priority: 0.7 },
     ...(currentLegal() ? LEGAL_SLUGS.map((slug) => ({ path: `/legal/${slug}`, priority: 0.3 })) : []),
   ];
   return pages.map(({ path, priority }) => ({ url: `${ORIGIN}${path === "/" ? "" : path}`, priority }));
