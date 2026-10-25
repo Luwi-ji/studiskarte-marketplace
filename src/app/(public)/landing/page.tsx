@@ -358,9 +358,9 @@ export default function LandingPage() {
                   <h3 className="text-lg font-bold">Which perks do you want?</h3>
                   <PerkVote />
                 </div>
-                <p className={`border-t border-zinc-200 pt-5 text-base dark:border-zinc-800 ${MUTED}`}>
+                <div className={`border-t border-zinc-200 pt-5 text-base dark:border-zinc-800 ${MUTED}`}>
                   Own a shop near campus? <ContactDrawer label="Message us" className="inline-flex min-h-11 items-center font-semibold text-[var(--foreground)] underline" />
-                </p>
+                </div>
               </div>
             </div>
           </div>
@@ -444,9 +444,9 @@ export default function LandingPage() {
           <div className={`${WRAP} grid gap-10 md:grid-cols-[1fr_1.6fr] md:gap-14`}>
             <div className="flex flex-col gap-6">
               <Heading id="faq-heading" eyebrow="Questions" title="Good to know" />
-              <p className={`text-lg ${MUTED}`}>
+              <div className={`text-lg ${MUTED}`}>
                 Something else on your mind? <ContactDrawer label="Message us" className="inline-flex min-h-11 items-center font-semibold text-[var(--foreground)] underline" />
-              </p>
+              </div>
             </div>
             <div className={`${CARD} flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800`}>
               {FAQ.map((item) => (
