@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
@@ -31,6 +31,9 @@ import { profileOrigin } from "./origin";
 
 export const metadata = { title: "Profile · Studiskarte Marketplace" };
 
+/** The header and the body both need the profile; one read per request. */
+const profileFor = cache((viewerId: string, handle: string) => getPublicProfile(viewerId, handle));
+
 const PICTURE_LINK_SECONDS = 5 * 60;
 const PROFILE_LIST_LIMIT = 60;
 
@@ -56,10 +59,13 @@ export default function ProfilePage({ params, searchParams }: PageProps<"/u/[han
   );
 }
 
-/** The top bar; on your own profile it carries a Settings gear. */
+/** The top bar: a Settings gear on your own profile, and on anyone else's the three-dot menu to report or block them. */
 async function ProfileHeader({ params, searchParams }: { params: Promise<{ handle: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const me = await requireActiveStudent();
-  const own = decodeURIComponent((await params).handle).toLowerCase() === me.handle.toLowerCase();
+  const handle = decodeURIComponent((await params).handle);
+  const own = handle.toLowerCase() === me.handle.toLowerCase();
+  // Nobody to report when the profile is not there (deleted, suspended or blocked): the page says so, the bar has no menu.
+  const other = own ? null : await profileFor(me.id, handle);
   // Opened from a listing's seller card, a conversation's name, or someone's Followers or Following list: a back arrow returns there. Anywhere else the logo shows.
   const back = profileOrigin(await searchParams)?.back;
   return (
@@ -75,6 +81,8 @@ async function ProfileHeader({ params, searchParams }: { params: Promise<{ handl
               <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
             </svg>
           </Link>
+        ) : other ? (
+          <MenuSheet trigger="plain" reasons={REPORT_REASONS} name={other.displayName || `@${other.handle}`} handle={other.handle} blockHandle={other.handle} />
         ) : null
       }
     />
@@ -89,7 +97,7 @@ async function Profile({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const me = await requireActiveStudent();
-  const profile = await getPublicProfile(me.id, decodeURIComponent((await params).handle));
+  const profile = await profileFor(me.id, decodeURIComponent((await params).handle));
   if (!profile) notFound();
   const tab: PostKind = (await searchParams).tab === "wishlist" ? "wishlist" : "showcase";
   // Kept on the tab links so the back arrow stays.
@@ -272,17 +280,6 @@ async function Profile({
         </PendingResults>
       </section>
 
-      {profile.isSelf ? null : (
-        <div className="mx-auto w-full max-w-md border-t border-zinc-200 dark:border-zinc-800">
-          <MenuSheet
-            trigger={{ text: `Report or block @${profile.handle}` }}
-            reasons={REPORT_REASONS}
-            name={profile.displayName || `@${profile.handle}`}
-            handle={profile.handle}
-            blockHandle={profile.handle}
-          />
-        </div>
-      )}
     </div>
   );
 }
