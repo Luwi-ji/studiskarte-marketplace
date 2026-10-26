@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireActiveStudent } from "@/lib/access";
@@ -19,7 +19,7 @@ export async function claimPerkAction(perkId: unknown): Promise<ClaimResult> {
     if (!id.success) return { ok: false, error: "This perk is not available." };
     const result = await claimPerk({ studentId: me.id, perkId: id.data });
     if (!result.ok) return result;
-    refresh();
+    revalidatePath("/perks");
     return { ok: true, voucher: { id: result.voucher.id, code: result.voucher.code, expiresAt: result.voucher.expiresAt.toISOString() } };
   } catch (error) {
     unstable_rethrow(error);
@@ -38,7 +38,7 @@ export async function redeemVoucherAction(voucherId: unknown, pin: unknown): Pro
     if (!digits.success) return { ok: false, error: "Enter the 4-digit PIN." };
     const result = await redeemVoucher({ studentId: me.id, voucherId: id.data, pin: digits.data });
     if (!result.ok) return result;
-    refresh();
+    revalidatePath("/perks");
     return { ok: true, redeemedAt: result.redeemedAt.toISOString() };
   } catch (error) {
     unstable_rethrow(error);

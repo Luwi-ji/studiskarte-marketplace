@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/access";
@@ -30,7 +30,7 @@ async function step<T extends object>(targetId: unknown | undefined, run: (admin
       target = parsed.data;
     }
     const result = await run(admin.id, target);
-    if (result.ok) refresh();
+    if (result.ok) revalidatePath("/admin/perks");
     return result;
   } catch (error) {
     // A redirect or "not found" thrown on purpose belongs to the framework.
