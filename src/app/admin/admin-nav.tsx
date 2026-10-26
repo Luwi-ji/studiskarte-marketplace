@@ -13,6 +13,7 @@ const TABS = [
   { href: "/admin/perks", label: "Perks" },
   { href: "/admin/inbox", label: "Inbox" },
   { href: "/admin/system", label: "System" },
+  { href: "/admin/security", label: "Security" },
 ] as const;
 
 /** The admin area's tabs. They scroll sideways on a very narrow phone. */

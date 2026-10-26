@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth, googleEnabled } from "@/lib/identity/auth";
 import { loginWithPassword } from "@/lib/identity/password";
 import { safeReturnTo, withReturnTo } from "@/lib/identity/return-to";
+import { clearAdminMfaCookie } from "@/lib/identity/admin-mfa";
 
 export type SignInState = { error?: string; identifier?: string };
 
@@ -18,8 +19,10 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const password = String(formData.get("password") ?? "");
   const result = await loginWithPassword(identifier, password, await headers());
   if (!result.ok) return { identifier, error: result.reason === "too_many_requests" ? TRY_LATER : result.reason === "suspended" ? SUSPENDED : WRONG };
+  const next = safeReturnTo(formData.get("next")) ?? "/";
+  if (result.twoFactor) redirect(`/two-factor?next=${encodeURIComponent(next)}`);
   // The role was chosen when the account was made and decides what it can do, so signing in does not ask.
-  redirect(safeReturnTo(formData.get("next")) ?? "/");
+  redirect(next);
 }
 
 /** Starts Google sign-in: the person leaves for Google and comes back to /api/auth/callback/google. */
@@ -41,4 +44,5 @@ export async function continueWithGoogle(formData: FormData): Promise<void> {
 /** Ends the session. The caller reloads the page so no signed-in screen stays in memory. */
 export async function signOut(): Promise<void> {
   await auth.api.signOut({ headers: await headers() });
+  await clearAdminMfaCookie();
 }

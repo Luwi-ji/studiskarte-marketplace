@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/access";
+import { requireAdmin, requireRecentAdmin } from "@/lib/access";
 import {
   createPartner,
   createPerk,
@@ -20,9 +20,9 @@ const GENERIC = "Something went wrong on our side. Try again in a moment.";
 const id = z.uuid();
 
 /** Runs one admin step: admin check, id check, the lib call, a refresh on success, and one error message for anything unexpected. */
-async function step<T extends object>(targetId: unknown | undefined, run: (adminId: string, target: string) => Promise<AdminResult<T>>): Promise<AdminResult<T>> {
+async function step<T extends object>(targetId: unknown | undefined, run: (adminId: string, target: string) => Promise<AdminResult<T>>, recent = false): Promise<AdminResult<T>> {
   try {
-    const admin = await requireAdmin();
+    const admin = recent ? await requireRecentAdmin() : await requireAdmin();
     let target = "";
     if (targetId !== undefined) {
       const parsed = id.safeParse(targetId);
@@ -59,8 +59,8 @@ export async function setPerkStatusAction(perkId: unknown, status: unknown) {
   return step(perkId, (admin, target) => setPerkStatus(admin, target, status));
 }
 export async function newPartnerPinAction(partnerId: unknown) {
-  return step(partnerId, (admin, target) => newPartnerPin(admin, target));
+  return step(partnerId, (admin, target) => newPartnerPin(admin, target), true);
 }
 export async function newReportLinkAction(partnerId: unknown) {
-  return step(partnerId, (admin, target) => newReportLink(admin, target));
+  return step(partnerId, (admin, target) => newReportLink(admin, target), true);
 }

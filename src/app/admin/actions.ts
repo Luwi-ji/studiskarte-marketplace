@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/access";
+import { requireRecentAdmin } from "@/lib/access";
 import { dismissPostReports, dismissStudentReports, liftLegalHold, placeLegalHold, removePost, restorePost, restoreStudent, suspendStudent } from "@/lib/safety/admin";
 
 type Outcome = { ok: boolean; error?: string };
@@ -19,7 +19,7 @@ type Run = (adminId: string, id: string, reason: string) => Promise<Outcome>;
 /** `needsReason`: removing a post or suspending a person must say why. The rest may leave it empty. */
 async function act(name: string, id: unknown, reason: unknown, needsReason: boolean, run: Run): Promise<Outcome> {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireRecentAdmin();
     const parsed = idSchema.safeParse(id);
     if (!parsed.success) return GONE;
     const text = typeof reason === "string" ? reason.trim() : "";

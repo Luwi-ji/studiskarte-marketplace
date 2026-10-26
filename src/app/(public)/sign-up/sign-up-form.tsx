@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Disclosure, StepHeader } from "@/components/auth-steps";
+import { Turnstile } from "@/components/turnstile";
 import { buttonClass, inlineLinkClass, inputClass, linkClass } from "../auth-styles";
 import { requestCode, verifyCode, type SignUpState } from "./actions";
 import { CHOOSABLE_ROLES, ROLE_LABEL, type Role } from "@/lib/identity/roles";
@@ -59,6 +60,7 @@ export function SignUpForm({ visitors, next }: { visitors: boolean; next: string
             className={`${inputClass} text-center text-2xl font-semibold tracking-[0.5em] placeholder:tracking-[0.5em] placeholder:text-zinc-300 dark:placeholder:text-zinc-700`}
           />
         </label>
+        <Turnstile action="signup" resetKey={requesting ? 1 : 0} />
         {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
         <div className="flex flex-col gap-2">
           <button type="submit" disabled={verifying || requesting} className={buttonClass}>
@@ -112,6 +114,7 @@ export function SignUpForm({ visitors, next }: { visitors: boolean; next: string
           />
           <span className="text-sm text-zinc-600 dark:text-zinc-400">{needsSchoolEmail ? "Use the email your school gave you." : "A school email also earns a badge."}</span>
         </label>
+        <Turnstile action="signup" resetKey={requesting ? 1 : 0} />
         {requested.error ? <p role="alert" className="text-sm text-red-600">{requested.error}</p> : null}
         <button type="submit" disabled={requesting} className={buttonClass}>
           {requesting ? "Sending…" : "Send code"}

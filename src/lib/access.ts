@@ -5,11 +5,12 @@ import { student } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/identity/auth";
 import { signInUrl, withReturnTo } from "@/lib/identity/return-to";
+import { hasRecentAdminMfa, SENSITIVE_MFA_MAX_AGE_SECONDS } from "@/lib/identity/admin-mfa";
 import type { Role } from "@/lib/identity/roles";
 import { currentLegal, needsTerms } from "@/lib/legal/documents";
 
 /** A signed-in, active account. `handle` is null until sign-up is finished; `schoolDomain` is null for a visitor. */
-export type SignedInStudent = { id: string; schoolDomain: string | null; role: Role; handle: string | null; isAdmin: boolean; mustAcceptTerms: boolean; tourSeen: boolean };
+export type SignedInStudent = { id: string; schoolDomain: string | null; role: Role; handle: string | null; isAdmin: boolean; twoFactorEnabled: boolean; mustAcceptTerms: boolean; tourSeen: boolean };
 /** A student who has finished sign-up and may use the app. */
 export type ActiveStudent = SignedInStudent & { handle: string };
 
@@ -29,6 +30,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
       handle: student.handle,
       accountStatus: student.accountStatus,
       isAdmin: student.isAdmin,
+      twoFactorEnabled: student.twoFactorEnabled,
       termsVersion: student.termsVersion,
       ageConfirmedAt: student.ageConfirmedAt,
       tourSeenAt: student.tourSeenAt,
@@ -42,6 +44,7 @@ export async function getSignedInStudent(requestHeaders?: Headers): Promise<Sign
     role: row.role as Role,
     handle: row.handle,
     isAdmin: row.isAdmin,
+    twoFactorEnabled: row.twoFactorEnabled,
     tourSeen: row.tourSeenAt !== null,
     // Asked again when the legal text changed, or when they have never confirmed their age.
     mustAcceptTerms: needsTerms(row.termsVersion, currentLegal()?.version ?? null) || (currentLegal() !== null && row.ageConfirmedAt === null),
@@ -62,9 +65,25 @@ export async function requireActiveStudent(returnTo?: string): Promise<ActiveStu
   return current;
 }
 
-/** For admin pages: anyone who is not an admin gets a plain 404, so the pages are not even revealed. */
-export async function requireAdmin(): Promise<ActiveStudent> {
+/** Checks the account's admin flag without requiring MFA. Only the MFA enrollment page may use this guard. */
+export async function requireAdminAccount(): Promise<ActiveStudent> {
   const current = await requireActiveStudent();
   if (!current.isAdmin) notFound();
+  return current;
+}
+
+/** For admin pages: require an enrolled authenticator and a second factor verified in the last 12 hours. */
+export async function requireAdmin(): Promise<ActiveStudent> {
+  const current = await requireAdminAccount();
+  if (!current.twoFactorEnabled) redirect("/admin/security");
+  if (!(await hasRecentAdminMfa(current.id))) redirect("/two-factor?next=/admin");
+  return current;
+}
+
+/** Sensitive decisions require the administrator to verify again within 15 minutes. */
+export async function requireRecentAdmin(): Promise<ActiveStudent> {
+  const current = await requireAdminAccount();
+  if (!current.twoFactorEnabled) redirect("/admin/security");
+  if (!(await hasRecentAdminMfa(current.id, SENSITIVE_MFA_MAX_AGE_SECONDS))) redirect("/two-factor?next=/admin");
   return current;
 }

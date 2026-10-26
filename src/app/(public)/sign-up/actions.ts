@@ -10,6 +10,7 @@ import { withReturnTo } from "@/lib/identity/return-to";
 import { parseRole, type Role } from "@/lib/identity/roles";
 import { parseEmail } from "@/lib/identity/school-email";
 import { signUpRoleProblem } from "@/lib/identity/sign-up-rules";
+import { TURNSTILE_FIELD, turnstileMessage, verifyTurnstile } from "@/lib/security/turnstile";
 
 export type SignUpState =
   | { step: "email"; role: Role; email?: string; error?: string }
@@ -32,12 +33,15 @@ export async function requestCode(_prev: SignUpState, formData: FormData): Promi
   const role = roleOf(formData);
   const typed = String(formData.get("email") ?? "");
   const parsed = parseEmail(typed);
+  const requestHeaders = await headers();
+  const challenge = await verifyTurnstile(formData.get(TURNSTILE_FIELD), "signup", requestHeaders);
+  if (!challenge.ok) return { step: "email", role, email: typed, error: turnstileMessage(challenge) };
   if (!parsed) return { step: "email", role, email: typed, error: "Enter a valid email address." };
   const problem = signUpRoleProblem({ role, school: parsed.school, personalEmailOpen: visitorsAllowed() });
   if (problem) return { step: "email", role, email: typed, error: problem };
 
   try {
-    const result = await requestSignUpCode(parsed.email, await headers());
+    const result = await requestSignUpCode(parsed.email, requestHeaders);
     if (result.ok) {
       await recordSignupStarted(readUtmCookie((await cookies()).get(UTM_COOKIE)?.value));
       return { step: "code", role, email: parsed.email };

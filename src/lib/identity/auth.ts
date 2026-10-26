@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { APIError, createAuthMiddleware, getIP, isAPIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, twoFactor } from "better-auth/plugins";
 import * as schema from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { MailQuotaError, sendMail } from "@/lib/mail";
@@ -87,6 +87,7 @@ const authOptions = {
       session: schema.session,
       account: schema.account,
       verification: schema.verification,
+      twoFactor: schema.twoFactor,
     },
   }),
   session: { expiresIn: SESSION_SECONDS, updateAge: 24 * 60 * 60 },
@@ -243,6 +244,10 @@ const authOptions = {
           throw error;
         }
       },
+    }),
+    twoFactor({
+      issuer: "Studiskarte",
+      backupCodeOptions: { storeBackupCodes: "encrypted" },
     }),
     // Must be last: lets server actions set the session cookie.
     nextCookies(),

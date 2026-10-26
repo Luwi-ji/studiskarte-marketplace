@@ -70,6 +70,8 @@ export const student = pgTable(
     accountStatus: text("account_status").notNull().default("active"),
     // Set by the owner directly in the database (scripts/make-admin.mjs); never by the app.
     isAdmin: boolean("is_admin").notNull().default(false),
+    // Better Auth's TOTP plugin owns this flag. Admin access requires it.
+    twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
     // The version of the legal documents (content/legal/VERSION) this student accepted, and when.
     // Both null until they accept; a newer version asks again (src/lib/legal/documents.ts).
     termsVersion: text("terms_version"),
@@ -158,6 +160,26 @@ export const session = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("session_student_idx").on(t.userId)],
+);
+
+// Better Auth's two-factor plugin owns these encrypted TOTP secrets and encrypted, single-use recovery codes.
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: text("student_id")
+      .notNull()
+      .references(() => student.id, { onDelete: "cascade" }),
+    verified: boolean("verified").notNull().default(true),
+    failedVerificationCount: integer("failed_verification_count").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  },
+  (t) => [
+    unique("two_factor_student").on(t.userId),
+    index("two_factor_secret_idx").on(t.secret),
+  ],
 );
 
 export const verification = pgTable(
