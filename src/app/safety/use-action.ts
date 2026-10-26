@@ -31,13 +31,15 @@ export function useAction() {
         setBusy(false);
         return;
       }
-      onOk?.();
-      if (refreshPage) {
-        refreshing.current = true;
-        startTransition(() => router.refresh());
-      } else {
-        setBusy(false);
-      }
+      startTransition(() => {
+        onOk?.();
+        if (refreshPage) {
+          refreshing.current = true;
+          router.refresh();
+        } else {
+          setBusy(false);
+        }
+      });
     } catch {
       setError(NO_ANSWER);
       setBusy(false);

@@ -24,6 +24,14 @@ You promised members (live Terms, Child Safety Standards): urgent and child safe
 
 Listing cards show a short school name such as TUP-M instead of the full name. Open Admin, **Schools**: every school is listed with the name cards use now. Until you set one, the card shows the capital letters of the full name (grey in the list). Type an abbreviation (1 to 12 characters) and press **Save**; empty the box and press **Clear** to go back to the automatic one. It shows on feed cards after the next page load. This is a low-risk edit and is not written to the admin record.
 
+## Partner perks
+
+Open Admin, **Perks** to add a shop, then add its live perks. Give the shop its four-digit PIN; the cashier enters it only on the student's voucher screen. If the PIN is shared outside the shop, use **New PIN** and send the replacement privately.
+
+Each shop also has a private, read-only report link. Send it directly to the shop, never post it publicly. **New link** revokes the old link immediately. The report contains claim and redemption totals, voucher codes and times, but no student names or handles. Ask the shop to write the voucher code on the receipt and compare receipts with the report.
+
+Pause a perk or shop to remove it from students immediately without losing history. End it when it will not return. Editing a perk keeps existing claims and limits; to change its per-student limit, end it and add a new perk.
+
 ## Child safety report: the first hour
 
 A report with the child safety reason hides the post at once, and you get an email.
