@@ -45,8 +45,13 @@ Known and accepted for now:
 
 - Anyone can use up a named student's sign-in tries (3 codes per 15 minutes per address) from one network; a sign-in code is also an email to that address. Cloudflare Turnstile in front of the sign-in form would close it; not added.
 - Hearts, follows, blocks and search have no per-student throttle. Messages, offers, uploads and now reports do.
-- Failed handover and payment actions show the database error code to the person who tapped (added on purpose on 2026-10-17 to diagnose an iPhone problem). Remove the `(code: …)` text in `src/app/deals/actions.ts` once that is solved.
 - The sign-in network limit trusts the `x-forwarded-for` header Vercel sets.
+
+### Follow-up hardening (2026-10-26)
+
+- Updated Nodemailer to 10.2.1, updated `@vercel/functions` to 3.10.3, and overrode its exact vulnerable nested Zod 4.1.11 with Zod 4.6.7. `npm audit --omit=dev` now reports no critical or high findings. Its four remaining moderate entries are the Drizzle Kit development-server esbuild advisory; do not apply the suggested Drizzle Kit downgrade.
+- Unexpected deal and payment failures are still logged on the server, but no longer return PostgreSQL codes or constraint names to members.
+- `/api/health/db` shares one check for 10 seconds per function instance, allows the CDN to cache a healthy response for 15 seconds, refuses cache-busting query strings without querying the database, and never caches failures.
 
 ## Rollback
 
