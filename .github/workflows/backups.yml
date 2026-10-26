@@ -63,7 +63,7 @@ jobs:
           stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
           object="production/${stamp}-${GITHUB_SHA::12}.dump.age"
           echo "object=$object" >> "$GITHUB_OUTPUT"
-          docker run --rm -e DATABASE_URL="$BACKUP_DATABASE_URL" -e PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt postgres:17 \
+          docker run --rm -e DATABASE_URL="$BACKUP_DATABASE_URL" -e PGSSLROOTCERT=/tmp/ca-certificates.crt -v /etc/ssl/certs/ca-certificates.crt:/tmp/ca-certificates.crt:ro postgres:17 \
             pg_dump --dbname="$BACKUP_DATABASE_URL" --format=custom --compress=6 --no-owner --no-privileges > backup.dump
           test -s backup.dump
           cat > encrypt.expect <<'EXPECT'
