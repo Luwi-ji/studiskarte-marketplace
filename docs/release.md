@@ -1,6 +1,6 @@
 # Release: checklist, rollback, backup and restore
 
-Last reviewed 2026-10-20. Production is https://studiskarte.com (Vercel Hobby, Neon `production` branch, Cloudflare R2 `studiskarte-prod`, mail by SMTP: Resend).
+Last reviewed 2026-10-25. Production is https://studiskarte.com (Vercel Hobby, Neon `production` branch, Cloudflare R2 `studiskarte-prod`, mail by SMTP: Resend).
 
 ## Staging fixtures
 
@@ -25,6 +25,9 @@ Items marked **Owner** cannot be done in code.
 | 12 | Accounts made before 2026-10-19 have no password: tell them to use **Forgot password** once. Migration 0028 (make a `pre-password-login` branch first). | Whoever deploys | Open. |
 | 13 | ID checks (built 2026-10-22, off until `R2_ID_BUCKET` is set). Create a second R2 bucket (for example `studiskarte-id-prod`) with no public access and no `r2.dev` domain; set `R2_ID_BUCKET` in Vercel (optionally `R2_ID_ACCESS_KEY_ID` and `R2_ID_SECRET_ACCESS_KEY` for a token limited to that bucket; otherwise the photo token must cover it). Turning it on also switches on the showcase limit for members without a current ID check: one open showcase, and none once their first showcase sale is complete (docs/roles-and-verification-plan.md). Do not turn it on before the lawyer has reviewed the consent text and the ID section of the Privacy Policy is published (migrations 0034 and 0035 first). The daily `expire-id-checks` job deletes pictures of checks open for 7 days. | **Owner** | Built, off. |
 | 9 | Make a Neon branch before each production migration: `npx neonctl branches create --project-id late-dew-47090405 --name pre-<change>`. Older ones are `pre-pair-conversations` and `pre-perks-reviews`. | Whoever deploys | Habit. |
+| 14 | Admin MFA: after migration 0047, sign in as the owner, open Admin → Security, enroll a TOTP authenticator, and save the one-time recovery codes offline. Admin pages then require a fresh second factor; moderation, ID decisions, new partner PINs and report links require verification within 15 minutes. | **Owner** | Open until enrolled in production. |
+| 15 | Turnstile: create a Cloudflare Managed widget restricted to `studiskarte.com` and the staging hostname. Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in Vercel Preview and Production, then redeploy. Signup-code, reset-code and public-contact requests fail closed on deployed environments when either value is absent. | **Owner** | Open until both Vercel environments contain the keys. |
+| 16 | Daily encrypted database backup: keep the dedicated R2 bucket private, with no custom or `r2.dev` public domain. Add GitHub secrets `BACKUP_DATABASE_URL` (production direct/unpooled URL), `BACKUP_R2_ACCOUNT_ID`, `BACKUP_R2_ACCESS_KEY_ID`, `BACKUP_R2_SECRET_ACCESS_KEY`, `BACKUP_R2_BUCKET`, and `BACKUP_AGE_PASSPHRASE`. The R2 token must have object read/write only for this bucket. Run **Production database backup** manually once and keep the passphrase in the password manager outside GitHub. | **Owner** | Open until the first workflow run restores successfully. |
 
 Personal data the app holds (for the privacy review): school email, handle, display name, profile picture, school domain, sessions (IP address and browser), device alert subscriptions, messages and message pictures, post photos, offers, reservations, reviews, reports and blocks, calendar link hash, the terms version and time accepted. Account deletion (Settings, Delete my account) erases the email, handle, name, picture, sessions, devices, notifications, follows, hearts, blocks and view history; messages, finished reservations and reviews stay as "Deleted account". Post photos and message pictures are not erased.
 
@@ -66,23 +69,28 @@ Every migration so far only adds (tables, columns, constraints), so the previous
 
 ## Backup and restore
 
-Neon keeps the history of the `production` branch for **6 hours** on this plan (point-in-time restore), and the named `pre-*` branches are full copies. Photos live in R2 and are not versioned; the app never deletes a photo that a post or message uses.
+Neon keeps the history of the `production` branch for **6 hours** on this plan. Named `pre-*` branches cover planned migrations. The GitHub **Production database backup** workflow also creates an encrypted PostgreSQL custom archive every day, uploads it to a dedicated private R2 bucket, downloads that exact object, decrypts it, and restores it into PostgreSQL 17 before reporting success. Objects under `production/` are removed after 30 days. The workflow backs up the database only; ID-check images are intentionally excluded and keep their short privacy retention.
 
-**Restore drill, done 2026-10-18** (no change to production):
+GitHub emails the repository owner when the scheduled workflow fails. Treat one failed run as an operational warning; fix it before the next scheduled run. A run is not green unless the uploaded object restored with the `student` table, migration history, and student data present.
 
-1. `npx neonctl branches create --project-id late-dew-47090405 --name restore-drill --parent 2026-10-18T10:47:00Z` (one hour earlier; the parent is the default branch, `production`).
-2. Connect to it (`npx neonctl connection-string restore-drill --project-id late-dew-47090405 --database-name neondb`) and count rows: students 2, posts 23, deals 42, conversations 1, messages 72, reviews 1, migrations 27. The same counts as production at that moment.
-3. `npx neonctl branches delete restore-drill --project-id late-dew-47090405`.
-
-**Real restore of production** (stop the app's writes first: put the previous deployment back, or accept that writes made after the restore point are lost):
+**Short-window restore:** use Neon point-in-time restore when the required state is within six hours:
 
 ```
 npx neonctl branches restore production ^self@<timestamp, UTC, within the last 6 hours> --project-id late-dew-47090405 --preserve-under-name production-before-restore
 ```
 
-or from a named branch: `npx neonctl branches restore production pre-<change> --project-id late-dew-47090405 --preserve-under-name production-before-restore`. The old state stays as `production-before-restore`; delete it when sure. The connection strings do not change. Afterwards: `node scripts/db-check.mjs` with the production env file, open the app, and check that the scheduled jobs workflow goes green.
+For a planned migration, restore from its named branch instead: `npx neonctl branches restore production pre-<change> --project-id late-dew-47090405 --preserve-under-name production-before-restore`.
 
-Beyond 6 hours there is no automatic copy. A weekly `pg_dump` of production to a place outside Neon would be the next step if the data starts to matter more than a restart would cost.
+**Restore an R2 archive:**
+
+1. Stop writes by enabling the maintenance deployment or accepting and recording the recovery point; writes after the archive time will be lost.
+2. In an isolated machine, set the R2 credentials and endpoint, then download the chosen `production/*.dump.age` object with `aws s3 cp`.
+3. Run `age --decrypt --output backup.dump backup.dump.age`; enter the offline backup passphrase. Never put the passphrase in a command argument or ticket.
+4. In Neon, create an isolated recovery branch and an empty database. Restore with PostgreSQL 17: `pg_restore --dbname=<recovery URL> --no-owner --no-privileges --exit-on-error backup.dump`.
+5. Check migration history and representative students, posts, conversations and messages. Point a staging deployment at the recovered database and smoke sign-in, feed, chat and Admin.
+6. Cut over only after the checks. Preserve the former production state until the owner confirms the recovery, then remove local decrypted files securely.
+
+After either restore: run `node scripts/db-check.mjs` with the recovered production environment, open the app, and confirm **Scheduled jobs** and **Production database backup** are green.
 
 ## Deploy steps
 

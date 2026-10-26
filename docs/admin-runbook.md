@@ -11,6 +11,24 @@ You promised members (live Terms, Child Safety Standards): urgent and child safe
 3. **Admin, Moderation.** Child safety reports sit at the top. Then posts to review (hidden ones first), students reported, **Deal problems**, and **Recent decisions**.
 4. **Admin, ID checks.** Review anything waiting. Pictures are deleted after 7 days if you do not decide.
 5. **Admin, System.** Free-tier limits (mail, photo storage, database) and the scheduled jobs. A job marked overdue or failed needs a look at the GitHub "Scheduled jobs" workflow. GitHub also emails you when that workflow fails.
+6. **GitHub, Actions.** The latest **Production database backup** must be green. That result means the encrypted object was uploaded, downloaded, decrypted and restored—not only that a dump command ran.
+
+## Admin security
+
+Open Admin, **Security** and enroll an authenticator before using the admin tools in production. Save the recovery codes offline; each works once. Admin access is remembered for 12 hours. Removing posts, suspending or restoring people, deciding ID checks, and revealing a new partner PIN or report link asks again after 15 minutes.
+
+If the authenticator is unavailable, choose **Use a recovery code** on the security check. After using a recovery code, open Admin → Security and replace the remaining codes if anyone else may have seen them.
+
+If both the authenticator and every recovery code are lost, use Neon SQL as the account owner. Verify the target email twice, then run one transaction:
+
+```sql
+BEGIN;
+DELETE FROM two_factor WHERE student_id = (SELECT id FROM student WHERE email = 'owner@example.com');
+UPDATE student SET two_factor_enabled = false WHERE email = 'owner@example.com' AND is_admin = true;
+COMMIT;
+```
+
+Sign in, enroll again immediately, save new recovery codes, and record the recovery as a security incident. Never disable MFA for convenience.
 
 ## When a report or a person needs a decision
 
@@ -59,12 +77,15 @@ Access, correction, deletion, objection: answer within 15 days (`docs/legal-draf
 - **Site down or errors:** Sentry (errors), Vercel (deployments and logs), Neon (database). To roll back a bad deploy: Vercel, Deployments, promote the last good one. Migrations only move forward; named `pre-...` Neon branches are rollback copies (keep the latest few; the limit is 10 branches).
 - **Personal data breach:** follow `docs/legal-drafts/breach-response.md`. The clock for telling the National Privacy Commission and the people affected is 72 hours from knowing (NPC Circular 16-03 as I read it).
 - **ID checks must stop:** remove `R2_ID_BUCKET` in Vercel and redeploy. Nothing is lost; the check screens return 404 and the showcase limit switches off.
+- **Turnstile unavailable:** signup-code, password-reset-code and public-contact requests fail closed. Check the Cloudflare widget status and both Vercel variables (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`); do not bypass the server check in production.
+- **Backup failed:** open the failed **Production database backup** job. Fix credentials, R2 access, storage, encryption, or restore errors and rerun it manually. Do not call a stored object usable until the restore step passes.
 
 ## Every week
 
 - Look at Admin, System: mail used per day, photo storage, database size.
 - Delete old `pre-...` Neon branches you no longer need.
 - Check the GitHub "Scheduled jobs" and CI runs are green.
+- Check the GitHub **Production database backup** run is green and that the private R2 bucket has recent encrypted `production/*.dump.age` objects but no public domain.
 
 ## Before opening to more people
 

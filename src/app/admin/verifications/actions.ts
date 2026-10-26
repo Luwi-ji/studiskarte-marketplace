@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/access";
+import { requireRecentAdmin } from "@/lib/access";
 import { getIdStore } from "@/lib/images/store";
 import { sendAlertAfterResponse } from "@/lib/notifications/push/schedule";
 import { decideCheck } from "@/lib/verification/service";
@@ -15,7 +15,7 @@ const idSchema = z.uuid();
 /** Approves or rejects one pending ID check. A rejection must carry a reason the member will read. */
 export async function decideCheckAction(verificationId: unknown, decision: "approve" | "reject", reason?: unknown): Promise<Outcome> {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireRecentAdmin();
     const parsed = idSchema.safeParse(verificationId);
     if (!parsed.success) return { ok: false, error: "That could not be found." };
     const text = typeof reason === "string" ? reason.trim() : "";

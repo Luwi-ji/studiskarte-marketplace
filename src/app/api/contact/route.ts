@@ -6,6 +6,7 @@ import { sendMail } from "@/lib/mail";
 import { consume } from "@/lib/rate-limit";
 import { cleanHeader, cleanText, MESSAGE_MAX } from "@/lib/support/send";
 import { SUPPORT_EMAIL } from "@/lib/support/config";
+import { turnstileMessage, verifyTurnstile } from "@/lib/security/turnstile";
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MESSAGE_MIN = 5;
@@ -27,6 +28,8 @@ export async function POST(request: Request) {
   }
   const text = (key: string) => (typeof body[key] === "string" ? (body[key] as string) : "");
   if (text("website").trim() !== "") return new NextResponse(null, { status: 204 });
+  const challenge = await verifyTurnstile(text("turnstile"), "contact", request.headers);
+  if (!challenge.ok) return NextResponse.json({ error: turnstileMessage(challenge) }, { status: challenge.reason === "unavailable" || challenge.reason === "misconfigured" ? 503 : 400 });
 
   const email = cleanHeader(text("email"), 120).toLowerCase();
   const name = cleanHeader(text("name"), 60);

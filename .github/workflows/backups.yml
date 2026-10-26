@@ -1,0 +1,128 @@
+name: Production database backup
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: production-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup-and-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: restore_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d restore_check"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_R2_ACCOUNT_ID: ${{ secrets.BACKUP_R2_ACCOUNT_ID }}
+      BACKUP_R2_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+      BACKUP_R2_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+      BACKUP_R2_BUCKET: ${{ secrets.BACKUP_R2_BUCKET }}
+      BACKUP_AGE_PASSPHRASE: ${{ secrets.BACKUP_AGE_PASSPHRASE }}
+      AWS_DEFAULT_REGION: auto
+      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Check required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in BACKUP_DATABASE_URL BACKUP_R2_ACCOUNT_ID BACKUP_R2_ACCESS_KEY_ID BACKUP_R2_SECRET_ACCESS_KEY BACKUP_R2_BUCKET BACKUP_AGE_PASSPHRASE; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not configured"
+              exit 1
+            fi
+          done
+
+      - name: Install encryption client
+        run: sudo apt-get update && sudo apt-get install --yes age expect
+
+      - name: Dump and encrypt production
+        id: backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+          object="production/${stamp}-${GITHUB_SHA::12}.dump.age"
+          echo "object=$object" >> "$GITHUB_OUTPUT"
+          docker run --rm -e DATABASE_URL="$BACKUP_DATABASE_URL" postgres:17 \
+            pg_dump --dbname="$BACKUP_DATABASE_URL" --format=custom --compress=6 --no-owner --no-privileges > backup.dump
+          test -s backup.dump
+          cat > encrypt.expect <<'EXPECT'
+          log_user 0
+          set timeout 60
+          spawn age --passphrase --output backup.dump.age backup.dump
+          expect "Enter passphrase*"
+          send -- "$env(BACKUP_AGE_PASSPHRASE)\r"
+          expect "Confirm passphrase*"
+          send -- "$env(BACKUP_AGE_PASSPHRASE)\r"
+          expect eof
+          catch wait result
+          exit [lindex $result 3]
+          EXPECT
+          expect encrypt.expect
+          test -s backup.dump.age
+          rm -f backup.dump encrypt.expect
+
+      - name: Upload encrypted backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://${BACKUP_R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws s3 cp backup.dump.age "s3://${BACKUP_R2_BUCKET}/${{ steps.backup.outputs.object }}" --endpoint-url "$endpoint" --no-progress
+          rm -f backup.dump.age
+          aws s3 cp "s3://${BACKUP_R2_BUCKET}/${{ steps.backup.outputs.object }}" restored.dump.age --endpoint-url "$endpoint" --no-progress
+
+      - name: Decrypt and restore uploaded backup
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          cat > decrypt.expect <<'EXPECT'
+          log_user 0
+          set timeout 60
+          spawn age --decrypt --output restored.dump restored.dump.age
+          expect "Enter passphrase*"
+          send -- "$env(BACKUP_AGE_PASSPHRASE)\r"
+          expect eof
+          catch wait result
+          exit [lindex $result 3]
+          EXPECT
+          expect decrypt.expect
+          rm -f restored.dump.age decrypt.expect
+          docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" -v "$PWD:/work" postgres:17 \
+            pg_restore --host=127.0.0.1 --username=postgres --dbname=restore_check --no-owner --no-privileges --exit-on-error /work/restored.dump
+          docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" postgres:17 \
+            psql --host=127.0.0.1 --username=postgres --dbname=restore_check --set=ON_ERROR_STOP=1 \
+            --command="DO \$\$ BEGIN IF to_regclass('public.student') IS NULL OR to_regclass('drizzle.__drizzle_migrations') IS NULL THEN RAISE EXCEPTION 'required schema is missing'; END IF; IF NOT EXISTS (SELECT 1 FROM public.student) THEN RAISE EXCEPTION 'student data is missing'; END IF; END \$\$;"
+          rm -f restored.dump
+
+      - name: Remove backups older than 30 days
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://${BACKUP_R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          cutoff="$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          aws s3api list-objects-v2 --bucket "$BACKUP_R2_BUCKET" --prefix production/ --endpoint-url "$endpoint" \
+            --query "Contents[?LastModified<=\`$cutoff\`].Key" --output text | tr '\t' '\n' | while IFS= read -r key; do
+              [ -z "$key" ] || aws s3 rm "s3://${BACKUP_R2_BUCKET}/${key}" --endpoint-url "$endpoint" --no-progress
+            done

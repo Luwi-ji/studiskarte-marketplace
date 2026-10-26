@@ -37,7 +37,7 @@ export async function findByIdentifier(raw: string): Promise<Found | null> {
   return row ?? null;
 }
 
-export type LoginResult = { ok: true } | { ok: false; reason: "wrong" | "too_many_requests" | "suspended" };
+export type LoginResult = { ok: true; twoFactor?: true } | { ok: false; reason: "wrong" | "too_many_requests" | "suspended" };
 
 /**
  * Signs in with an email or handle and a password. Every failure looks the same, except the rate limit and one more:
@@ -65,9 +65,9 @@ export async function loginWithPassword(identifier: string, password: string, he
   }
   const usable = found && found.status === "active" ? found : null;
   try {
-    await auth.api.signInEmail({ body: { email: usable?.email ?? NO_ACCOUNT_EMAIL, password }, headers });
+    const response = await auth.api.signInEmail({ body: { email: usable?.email ?? NO_ACCOUNT_EMAIL, password }, headers });
     if (!usable) return { ok: false, reason: "wrong" };
-    return { ok: true };
+    return "twoFactorRedirect" in response && response.twoFactorRedirect === true ? { ok: true, twoFactor: true } : { ok: true };
   } catch (error) {
     if (!isAPIError(error)) throw error;
     return { ok: false, reason: "wrong" };

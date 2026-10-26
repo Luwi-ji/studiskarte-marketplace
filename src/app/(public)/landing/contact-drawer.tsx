@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
+import { Turnstile } from "@/components/turnstile";
 
 type State = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind: "error"; message: string; field?: string };
 
@@ -10,30 +11,39 @@ export function ContactDrawer({ label = "Message us", className = "", subjectHin
   const titleId = useId();
   const [state, setState] = useState<State>({ kind: "idle" });
   const [values, setValues] = useState({ name: "", email: "", message: subjectHint, website: "" });
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const setChallengeReady = useCallback((ready: boolean) => setTurnstileReady(ready), []);
 
   function open() {
     if (state.kind === "sent") setState({ kind: "idle" });
     dialog.current?.showModal();
   }
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const turnstile = String(form.get("cf-turnstile-response") ?? "");
     setState({ kind: "sending" });
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, turnstile }),
       });
       if (response.ok) {
         setValues({ name: "", email: "", message: "", website: "" });
         setState({ kind: "sent" });
         return;
       }
+      setTurnstileReady(false);
+      setTurnstileReset((value) => value + 1);
       const body = (await response.json().catch(() => ({}))) as { error?: string; field?: string };
       setState({ kind: "error", message: body.error ?? "Could not send your message. Try again.", field: body.field });
     } catch {
       setState({ kind: "error", message: "Could not send your message. Check your connection and try again." });
+      setTurnstileReady(false);
+      setTurnstileReset((value) => value + 1);
     }
   }
 
@@ -94,12 +104,13 @@ export function ContactDrawer({ label = "Message us", className = "", subjectHin
               </label>
               {/* A trap for robots: people never see or fill this. */}
               <input value={values.website} onChange={set("website")} name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] h-0 w-0 opacity-0" />
+              <Turnstile action="contact" resetKey={turnstileReset} onTokenChange={setChallengeReady} />
               {state.kind === "error" ? (
                 <p role="alert" className="text-sm text-red-700 dark:text-red-400">
                   {state.message}
                 </p>
               ) : null}
-              <button type="submit" disabled={state.kind === "sending"} className="press flex min-h-12 items-center justify-center rounded-full bg-brand px-6 text-base font-semibold text-white disabled:opacity-60">
+              <button type="submit" disabled={state.kind === "sending" || !turnstileReady} className="press flex min-h-12 items-center justify-center rounded-full bg-brand px-6 text-base font-semibold text-white disabled:opacity-60">
                 {state.kind === "sending" ? "Sending…" : "Send message"}
               </button>
             </form>

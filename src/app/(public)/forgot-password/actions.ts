@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { PASSWORD_RULE } from "@/lib/identity/password-rules";
 import { requestPasswordReset, resetPasswordWithCode } from "@/lib/identity/password";
+import { TURNSTILE_FIELD, turnstileMessage, verifyTurnstile } from "@/lib/security/turnstile";
 
 export type ResetState =
   | { step: "who"; error?: string }
@@ -16,9 +17,12 @@ const BAD_CODE = "That code did not work. Check it or ask for a new one.";
 /** Always moves on to the code step, whether or not an account matches, so it does not show which names exist. */
 export async function requestReset(_prev: ResetState, formData: FormData): Promise<ResetState> {
   const identifier = String(formData.get("identifier") ?? "").trim();
+  const requestHeaders = await headers();
+  const challenge = await verifyTurnstile(formData.get(TURNSTILE_FIELD), "password_reset", requestHeaders);
+  if (!challenge.ok) return { step: "who", error: turnstileMessage(challenge) };
   if (identifier === "") return { step: "who", error: "Enter your email or handle." };
   try {
-    const result = await requestPasswordReset(identifier, await headers());
+    const result = await requestPasswordReset(identifier, requestHeaders);
     if (result.ok) return { step: "code", identifier };
     if (result.reason === "send_failed") return { step: "who", error: COULD_NOT_SEND };
     return { step: "who", error: TRY_LATER };

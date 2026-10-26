@@ -330,6 +330,13 @@
       "when": 1792932207320,
       "tag": "0046_contact_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793016857522,
+      "tag": "0047_admin_two_factor",
+      "breakpoints": true
     }
   ]
 }

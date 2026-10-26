@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { Turnstile } from "@/components/turnstile";
 import { PASSWORD_MIN } from "@/lib/identity/password-rules";
 import { buttonClass, inlineLinkClass, inputClass, linkClass } from "../auth-styles";
 import { requestReset, resetPassword, type ResetState } from "./actions";
@@ -36,6 +37,7 @@ export function ResetForm() {
           <span className="text-sm font-medium">New password</span>
           <input name="password" type="password" autoComplete="new-password" minLength={PASSWORD_MIN} required className={inputClass} />
         </label>
+        <Turnstile action="password_reset" resetKey={requesting ? 1 : 0} />
         {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
         <button type="submit" disabled={resetting || requesting} className={buttonClass}>
           {resetting ? "Saving…" : "Set password and log in"}
@@ -64,6 +66,7 @@ export function ResetForm() {
             className={inputClass}
           />
         </label>
+        <Turnstile action="password_reset" resetKey={requesting ? 1 : 0} />
         {requested.error ? <p role="alert" className="text-sm text-red-600">{requested.error}</p> : null}
         <button type="submit" disabled={requesting} className={buttonClass}>
           {requesting ? "Sending…" : "Send code"}
