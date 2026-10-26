@@ -69,7 +69,7 @@ Every migration so far only adds (tables, columns, constraints), so the previous
 
 ## Backup and restore
 
-Neon keeps the history of the `production` branch for **6 hours** on this plan. Named `pre-*` branches cover planned migrations. The GitHub **Production database backup** workflow also creates an encrypted PostgreSQL custom archive every day, uploads it to a dedicated private R2 bucket, downloads that exact object, decrypts it, and restores it into PostgreSQL 17 before reporting success. Objects under `production/` are removed after 30 days. The workflow backs up the database only; ID-check images are intentionally excluded and keep their short privacy retention.
+Neon keeps the history of the `production` branch for **6 hours** on this plan. Named `pre-*` branches cover planned migrations. The GitHub **Production database backup** workflow also creates an encrypted PostgreSQL custom archive every day, uploads it to a dedicated private R2 bucket, downloads that exact object, decrypts it, and restores it into PostgreSQL 18 before reporting success. Objects under `production/` are removed after 30 days. The workflow backs up the database only; ID-check images are intentionally excluded and keep their short privacy retention.
 
 GitHub emails the repository owner when the scheduled workflow fails. Treat one failed run as an operational warning; fix it before the next scheduled run. A run is not green unless the uploaded object restored with the `student` table, migration history, and student data present.
 
@@ -86,7 +86,7 @@ For a planned migration, restore from its named branch instead: `npx neonctl bra
 1. Stop writes by enabling the maintenance deployment or accepting and recording the recovery point; writes after the archive time will be lost.
 2. In an isolated machine, set the R2 credentials and endpoint, then download the chosen `production/*.dump.age` object with `aws s3 cp`.
 3. Run `age --decrypt --output backup.dump backup.dump.age`; enter the offline backup passphrase. Never put the passphrase in a command argument or ticket.
-4. In Neon, create an isolated recovery branch and an empty database. Restore with PostgreSQL 17: `pg_restore --dbname=<recovery URL> --no-owner --no-privileges --exit-on-error backup.dump`.
+4. In Neon, create an isolated recovery branch and an empty database. Restore with the same PostgreSQL major version as production (currently 18): `pg_restore --dbname=<recovery URL> --no-owner --no-privileges --exit-on-error backup.dump`.
 5. Check migration history and representative students, posts, conversations and messages. Point a staging deployment at the recovered database and smoke sign-in, feed, chat and Admin.
 6. Cut over only after the checks. Preserve the former production state until the owner confirms the recovery, then remove local decrypted files securely.
 

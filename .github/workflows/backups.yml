@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -63,7 +63,7 @@ jobs:
           stamp="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
           object="production/${stamp}-${GITHUB_SHA::12}.dump.age"
           echo "object=$object" >> "$GITHUB_OUTPUT"
-          docker run --rm -e DATABASE_URL="$BACKUP_DATABASE_URL" -e PGSSLROOTCERT=/tmp/ca-certificates.crt -v /etc/ssl/certs/ca-certificates.crt:/tmp/ca-certificates.crt:ro postgres:17 \
+          docker run --rm -e DATABASE_URL="$BACKUP_DATABASE_URL" -e PGSSLROOTCERT=/tmp/ca-certificates.crt -v /etc/ssl/certs/ca-certificates.crt:/tmp/ca-certificates.crt:ro postgres:18 \
             pg_dump --dbname="$BACKUP_DATABASE_URL" --format=custom --compress=6 --no-owner --no-privileges > backup.dump
           test -s backup.dump
           cat > encrypt.expect <<'EXPECT'
@@ -109,9 +109,9 @@ jobs:
           EXPECT
           expect decrypt.expect
           rm -f restored.dump.age decrypt.expect
-          docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" -v "$PWD:/work" postgres:17 \
+          docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" -v "$PWD:/work" postgres:18 \
             pg_restore --host=127.0.0.1 --username=postgres --dbname=restore_check --no-owner --no-privileges --exit-on-error /work/restored.dump
-          docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" postgres:17 \
+          docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" postgres:18 \
             psql --host=127.0.0.1 --username=postgres --dbname=restore_check --set=ON_ERROR_STOP=1 \
             --command="DO \$\$ BEGIN IF to_regclass('public.student') IS NULL OR to_regclass('drizzle.__drizzle_migrations') IS NULL THEN RAISE EXCEPTION 'required schema is missing'; END IF; IF NOT EXISTS (SELECT 1 FROM public.student) THEN RAISE EXCEPTION 'student data is missing'; END IF; END \$\$;"
           rm -f restored.dump
