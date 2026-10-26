@@ -21,11 +21,11 @@
     "@neon/config": "^1.9.1",
     "@neon/env": "^1.6.2",
     "@sentry/nextjs": "^11.8.0",
-    "@vercel/functions": "^3.10.1",
+    "@vercel/functions": "^3.10.3",
     "better-auth": "^1.7.9",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.2",
-    "nodemailer": "^10.1.1",
+    "nodemailer": "^10.2.1",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -48,5 +48,10 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.4"
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "4.6.7"
+    }
   }
 }

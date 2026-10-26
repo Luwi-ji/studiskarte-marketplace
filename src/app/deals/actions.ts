@@ -71,9 +71,8 @@ const NO_DEAL: HandoverResult = { ok: false, error: DEAL_NOT_FOUND };
 
 /**
  * Runs one step of a reservation for the signed-in student and refreshes what
- * the page shows. If something unexpected fails, the answer is a readable
- * message with the database's code, not a bare server error, and the failure
- * is logged for the server logs.
+ * the page shows. Unexpected failures are logged in full, but the member sees
+ * no database or implementation details.
  */
 async function act(name: string, dealId: unknown, run: (args: { actorId: string; dealId: string; alert: typeof sendAlertAfterResponse }) => Promise<PaymentConfirmResult>): Promise<PaymentConfirmResult> {
   try {
@@ -87,9 +86,7 @@ async function act(name: string, dealId: unknown, run: (args: { actorId: string;
     // A redirect or "not found" thrown on purpose belongs to the framework.
     unstable_rethrow(error);
     console.error(`deal action ${name} failed`, error);
-    const cause = error instanceof Error && typeof error.cause === "object" && error.cause !== null ? error.cause : null;
-    const code = [cause && "code" in cause ? cause.code : null, cause && "constraint" in cause ? cause.constraint : null].filter((part) => typeof part === "string").join(" ");
-    return { ok: false, error: `Something went wrong on our side. Try again in a moment${code ? ` (code: ${code})` : ""}.` };
+    return { ok: false, error: "Something went wrong on our side. Try again in a moment." };
   }
 }
 
