@@ -80,6 +80,16 @@ Access, correction, deletion, objection: answer within 15 days (`docs/legal-draf
 - **Turnstile unavailable:** signup-code, password-reset-code and public-contact requests fail closed. Check the Cloudflare widget status and both Vercel variables (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`); do not bypass the server check in production.
 - **Backup failed:** open the failed **Production database backup** job. Fix credentials, R2 access, storage, encryption, or restore errors and rerun it manually. Do not call a stored object usable until the restore step passes.
 
+## After every production release: check CSP reports
+
+The Content Security Policy is in report-only mode: it records blocked-resource violations but does not break the page. Exercise the changed pages in a normal browser, then inspect the last 30 minutes of production function logs:
+
+```sh
+npx vercel logs --project studiskarte-marketplace --environment production --since 30m --query "requestPath:/api/csp-report"
+```
+
+Each `csp violation` record contains only the directive and origins; paths, query strings and source snippets are removed. An unexpected directive or origin means investigate the changed page and its network requests before enforcing the policy. Browser automation and developer tools can produce `script-src`/`eval` reports; reproduce in a normal browser before treating those as an application defect. Do not switch report-only mode to enforcement while unexplained reports remain.
+
 ## Every week
 
 - Look at Admin, System: mail used per day, photo storage, database size.
